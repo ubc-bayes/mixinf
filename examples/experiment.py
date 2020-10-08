@@ -1,0 +1,127 @@
+# high-dimensional normal-kernel sequential-opt mixinf
+# run simulation with argparse parameters
+
+# PREAMBLE ####
+import numpy as np
+import pandas as pd
+from scipy.special import gamma
+import scipy.stats as stats
+import time, bisect
+import matplotlib.pyplot as plt
+plt.rcParams.update({'figure.max_open_warning': 0})
+import argparse
+import sys, os
+
+# import the suite of functions from parent directory
+sys.path.insert(1, os.path.join(sys.path[0], '../mixinf/'))
+import nsvmi # functions to do normal seq-opt variational mixture inference
+
+# ARG PARSE SETTINGS ####
+parser = argparse.ArgumentParser(description="run normal-kernel sequential-opt variational mixture inference")
+
+parser.add_argument('-d', '--dim', type = int, nargs = '+',
+help = 'dimensions on which to run optimization')
+parser.add_argument('-N', type = int, nargs = '+',
+help = 'sample sizes on which to run optimization')
+parser.add_argument('--target', type = str, default = 'cauchy', choices=['cauchy', 'mixture'],
+help = 'target distribution to use')
+parser.add_argument('-B', type = int, default = 500,
+help = 'MC sample size for gradient estimation in sgd')
+parser.add_argument('--tol', type = float, default = 0.001,
+help = 'step size tolerance at which to stop alg if maxiter not exceeded')
+parser.add_argument('--outpath', type = str, default = '',
+help = 'path of file to output')
+parser.add_argument('--trace', action = "store_true",
+help = 'whether to generate and save a traceplot of the objective function per iteration')
+parser.add_argument('--tracepath', type = str, default = '',
+help = 'path to save traceplots if generated')
+parser.add_argument('-v', '--verbose', action = "store_true",
+help = 'should updates on the stats of the algorithm be printed?')
+parser.add_argument('-p', '--profiling', action = "store_true",
+help = 'should the code be profiled? If yes, profiling results will be printed')
+
+args = parser.parse_args()
+
+
+
+
+# FOLDER SETTINGS
+path = args.outpath
+trace = args.trace
+tracepath = args.tracepath
+
+# check if necessary folder structure exists, and create it if it doesn't
+if not os.path.exists(path + 'results/'):
+    os.makedirs(path + 'results/')
+
+if trace & (not os.path.exists(tracepath + 'results/trace/')):
+    os.makedirs(tracepath + 'results/trace/')
+
+if trace: tracepath = tracepath + 'results/trace/'
+
+path = path + 'results/'
+
+
+
+# SETTINGS ####
+
+# simulation settings
+dims = np.array(args.dim)
+ss = np.array(args.N)
+extension = 'pdf'
+verbose = args.verbose
+profiling = args.profiling
+
+# alg settings
+B = args.B
+tol = args.tol
+
+# import target density and sampler
+target = args.target
+if target == 'cauchy':
+    from targets.cauchy import *
+if target == 'mixture':
+    from targets.mixture import *
+
+
+# SIMULATION ####
+if verbose: print(f'begin simulation! approximating a {target} density')
+
+# create and save seed
+seed = np.random.choice(np.arange(1, 1000000))
+np.random.seed(seed)
+
+
+# save simulation details
+settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\ntarget: ' + target + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' + str(tol) + '\nrandom seed: ' + str(seed)
+settings = os.open(path + 'settings.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
+os.write(settings, settings_text.encode())
+os.close(settings)
+
+# start simulation
+for K in dims:
+
+    def p(x): return p_aux(x, K)
+
+    if verbose: print(f"dim K {K}\n")
+
+    for N in ss:
+        if verbose: print(f"    sample size N {N}\n")
+
+        # generate sample
+        x = sample(N, K)
+
+        # run algorithm
+        sd = np.array([0.1, 1, 10, 100])
+        w, y, rho, q, obj = nsvmi.nsvmi_grid(p, x, sd = sd, tol = tol, maxiter = N*sd.shape[0], B = B, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
+
+        # save results
+        title = 'results' + '_N' + str(N) + '_K' + str(K) + '_' + str(time.time())
+        out = pd.DataFrame({'x': np.squeeze(y), 'w': w, 'rho': rho})
+        out.to_csv(path + title + '.csv', index = False)
+
+    # end for
+# end for
+
+
+print('done with simulation!')

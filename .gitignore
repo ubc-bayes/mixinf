@@ -1,0 +1,62 @@
+# Liberally adapted from Ben Bloem-Reddy
+## Core latex/pdflatex auxiliary files:
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+## Intermediate documents:
+*.dvi
+*.xdv
+*-converted-to.*
+*.pdf
+# these rules might exclude image files for figures etc.
+# *.ps
+# *.eps
+
+
+## Bibliography auxiliary files (bibtex/biblatex/biber):
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+## Build tool auxiliary files:
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+
+# DS_store
+*.DS_store
+.Rproj.user
+
+# Python (from Bayesian Coresets Github)
+*.swp
+*.pyc
+*.npz
+*.html
+results/
+__pycache__/
+
+# sockeye files
+*.pbs
+
+
+# results
+*.csv
+*.txt
+*/results
