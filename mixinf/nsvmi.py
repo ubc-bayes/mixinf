@@ -181,24 +181,7 @@ def norm_logpdf(x, loc = np.array([0]).reshape(1, 1), scale = np.array([1])):
 
     returns an md array with same shapes as x (except the last dimension)
     """
-
-    #print('shapes')
-    #print(x.shape)
-    #print(x[..., np.newaxis].shape)
-    #print(loc.shape)
-    #print((x[..., np.newaxis] - loc.T).shape)
-    #print(scale.shape)
-
-
     K = x.shape[-1]
-    #loc = loc.T
-
-    #todo remove; for memory profiling
-    #res = ((x[..., np.newaxis] - loc)**2).sum(axis = -2) / scale**2 - 0.5 * K *  np.log(2 * np.pi) - K * np.log(scale)
-    #print(((x[..., np.newaxis] - loc)**2).shape)
-    #print(((x[..., np.newaxis] - loc)**2).sum(axis = -2).shape)
-    #print(scale.shape)
-    #res += 1
 
     return -0.5 * ((x[..., np.newaxis] - loc.T)**2).sum(axis = -2) / scale**2 - 0.5 * K *  np.log(2 * np.pi) - K * np.log(scale)
 ###########
@@ -353,9 +336,11 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
     if verbose: print('Max iters: ' + str(maxiter))
 
     # dictionary
+    if verbose: print('Creating kernel basis dictionary')
     H = np.array(np.meshgrid(np.arange(N), np.arange(P))).T.reshape(N*P, 2) # this merges both arrays including all combinations. column 0 contains indices for means
 
     # initialize values
+
     w = np.ones(1)
     convergence = False
     obj = np.array([])      # objective function array
@@ -365,8 +350,9 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
     #qn = np.random.choice(N*P, size = 1)          # kernel from the N*P available ones
     #ind = np.setdiff1d(range(N*P), qn)  # available indices
 
+    if verbose: print('Choosing first kernel')
     qn = kernel_init(p, x, sd, H, B = 500) # choose kernel KL-closest to target as first approx
-    if verbose: print('Selected indices: ' + str(qn))
+    if verbose: print('Selected index: ' + str(qn))
 
     if profiling:
         pr = cProfile.Profile()
@@ -405,7 +391,7 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
 
         # remove small weights
         if verbose: print('Removing small weights')
-        weight_tol = min(1e-2, 1/N*P) # tol = 1% unless there are more than 100 basis functions, in which case it is 1/N*P (i.e. less than uniform)
+        weight_tol = min(1e-2, 1/(4*w.shape[0])) # tol = 1% unless there are more than 100 basis functions, in which case it is 1/4 of uniform weights
         keep = np.nonzero(w > weight_tol)
         w = simplex_project(w[keep])
         qn = qn[keep]

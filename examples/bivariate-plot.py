@@ -1,4 +1,4 @@
-# plot the results of univariate simulation stored in .cvs files in given folder
+# plot the results of bivariate simulation stored in .cvs files in given folder
 
 # PREAMBLE ####
 import glob
@@ -16,7 +16,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../mixinf/'))
 import nsvmi # functions to do normal seq-opt variational mixture inference
 
 # ARG PARSE SETTINGS ####
-parser = argparse.ArgumentParser(description="plot results from normal-kernel univariate variational mixture inference")
+parser = argparse.ArgumentParser(description="plot results from normal-kernel bivariate variational mixture inference")
 
 parser.add_argument('--inpath', type = str, default = 'results/',
 help = 'path of folder where csv files are stored')

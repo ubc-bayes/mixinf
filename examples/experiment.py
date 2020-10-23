@@ -14,7 +14,7 @@ import sys, os
 
 # import the suite of functions from parent directory
 sys.path.insert(1, os.path.join(sys.path[0], '../mixinf/'))
-import nsvmi # functions to do normal seq-opt variational mixture inference
+
 
 # ARG PARSE SETTINGS ####
 parser = argparse.ArgumentParser(description="run normal-kernel sequential-opt variational mixture inference")
@@ -96,7 +96,7 @@ if target == 'mixture':
 # SIMULATION ####
 
 if opt == 'seq':
-    if verbose: print(f'begin simulation! approximating a {target} density using {opt} optimization')
+    import nsvmi # functions to do normal seq-opt variational mixture inference
 
     # create and save seed
     seed = np.random.choice(np.arange(1, 1000000))
@@ -104,39 +104,87 @@ if opt == 'seq':
 
 
     # save simulation details
+    if verbose: print('Saving simulation settings')
     settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\noptimization: ' + opt + '\nstd deviations: ' + ' '.join(sd.astype('str')) + '\ntarget: ' + target + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
     settings = os.open(path + 'settings.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
     os.write(settings, settings_text.encode())
     os.close(settings)
 
+    if verbose: print(f'begin simulation! approximating a {target} density using {opt} optimization')
     # start simulation
     for K in dims:
 
         def p(x): return p_aux(x, K)
 
-        if verbose: print(f"dim K {K}\n")
+        if verbose: print(f"Dimension K = {K}\n")
 
         for N in ss:
-            if verbose: print(f"sample size N {N}\n")
+            if verbose: print(f"No. of kernel basis N = {N}\n")
 
             # generate sample
+            if verbose: print('Generating sample')
             x = sample(N, K)
 
             # run algorithm
             w, y, rho, q, obj = nsvmi.nsvmi_grid(p, x, sd = sd, tol = tol, maxiter = maxiter, B = B, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
 
             # save results
+            if verbose: print('Saving results')
             title = 'results' + '_N' + str(N) + '_K' + str(K) + '_' + str(time.time())
             out = pd.DataFrame({'x': np.squeeze(y), 'w': w, 'rho': rho})
             out.to_csv(path + title + '.csv', index = False)
 
             # end for
-            # end for
+        # end for
 
 
             print('done with simulation!')
 # end if
 
 if opt == 'full':
-    print('coming soon!')
+    import nfvmi # functions to do normal seq-opt variational mixture inference
+
+    # create and save seed
+    seed = np.random.choice(np.arange(1, 1000000))
+    np.random.seed(seed)
+
+
+    # save simulation details
+    if verbose: print('Saving simulation settings')
+    settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\noptimization: ' + opt + '\nstd deviations: ' + ' '.join(sd.astype('str')) + '\ntarget: ' + target + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
+    settings = os.open(path + 'settings.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
+    os.write(settings, settings_text.encode())
+    os.close(settings)
+
+
+    if verbose: print(f'begin simulation! approximating a {target} density using {opt} optimization')
+    # start simulation
+    for K in dims:
+
+        def p(x): return p_aux(x, K)
+
+        if verbose: print(f"Dimension K = {K}\n")
+
+        for N in ss:
+            if verbose: print(f"No. of kernel basis N = {N}\n")
+
+            # generate sample
+            if verbose: print('Generating sample')
+            x = sample(N, K)
+
+            # run algorithm
+            w, y, rho, q, obj = nfvmi.nfvmi_grid(p, x, rho = sd, type = 'kl', tol = tol, maxiter = maxiter, B = B, b = 0.1, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
+
+
+            # save results
+            if verbose: print('Saving results')
+            title = 'results' + '_N' + str(N) + '_K' + str(K) + '_' + str(time.time())
+            out = pd.DataFrame({'x': np.squeeze(y), 'w': w, 'rho': rho})
+            out.to_csv(path + title + '.csv', index = False)
+
+            # end for
+        # end for
+
+
+            print('done with simulation!')
 # end if
