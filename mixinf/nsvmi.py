@@ -14,33 +14,33 @@ def grad(w, x, sd, H, qn, q, p, B, Y = None):
     estimate the gradient of the objective function for current mixture q, defined by indices qn, at all choices of rho and x
     receives:
         - w, is a shape(n,) array of current weights
-        - rho is a shape(N,) array of kernel variances
         - x is a shape(N,K) array of K-dim data points
+        - sd is a shape(P,) array of kernel variances
         - H is a shape(N*P,2) array containing the dictionary of kernels (ie all possible combinations of mean and variance)
-        - qn is a shape(n,) array containing the indices defining current mixture; its complement are the available indices
+        - qn is a shape(n,) array containing the indices defining current mixture
         - q, p are functions (log probability densities) - q log mixture (e.g. output from q_gen) and p target log density
         - B is the number of MC samples to be used to estimate gradient
         - type is one of 'kl' or 'hellinger' - determimes which gradient to compute
         - tol is used if type = 'hellinger' to prevent gradient overflow
 
     output:
-        - grad_w - shape(ind.shape[0]) array, each entry the gradient of KL wrt weight ind[i]
+        - grad_w - shape(N*P) array, each entry the gradient of KL wrt weight of each basis function X sd
     """
 
     K = x.shape[1]
-    ind = np.setdiff1d(range(1, H.shape[0]), qn) # available indices
+    #ind = np.setdiff1d(range(1, H.shape[0]), qn) # available indices
     Y = mixture_rvs(B, w, x[H[qn, 0:1], :], sd[H[qn, 1]]) # sample from current mixture
     constant = np.mean(q(Y) - p(Y))
 
     grad_w = np.array([])
 
-    for i in np.arange(ind.shape[0]):
+    for i in np.arange(x.shape[0]*sd.shape[0]):
         if K == 1:
-            covm = sd[H[ind[i], 1]].reshape(1, 1)
+            covm = sd[H[i, 1]].reshape(1, 1)
         else:
-            covm = sd[H[ind[i], 1]] * np.eye(K)
+            covm = sd[H[i, 1]] * np.eye(K)
 
-        X = np.random.multivariate_normal(mean = x[H[ind[i], 0], :], cov = covm, size = B)
+        X = np.random.multivariate_normal(mean = x[H[i, 0], :], cov = covm, size = B)
         grad_w = np.append(grad_w, np.mean(q(X) - p(X)) - constant)
     # end for
 
@@ -133,7 +133,8 @@ def mixture_rvs(size, w, x, rho):
 
     inds = np.random.choice(N, size = size, p = w, replace = True) # indices that will be chosen
 
-    rand = np.random.multivariate_normal(mean = np.zeros(K), cov = np.eye(K), size = size) # sample from standard normal
+    #rand = np.random.multivariate_normal(mean = np.zeros(K), cov = np.eye(K), size = size) # sample from standard normal
+    rand = np.random.randn(size, K) # sample from standard normal but more efficiently than as above
 
     # return scaled and translated random draws
     sigmas = rho[inds] # index std deviations for ease
@@ -148,7 +149,7 @@ def objective(p, q, w, x, rho, B = 1000, type = 'kl'):
     - p, q are the target and mixture log densities, respectively
     - w, x, rho are shape(N,) arrays defining the current mixture
     - B is the number of MC samples used to estimate the objective function - has to be an integer
-    - type is one of 'kl', 'hellinger', or 'l1' - determimes which objective to compute
+    - type is one of 'kl', 'hellinger', or 'l1' - determines which objective to compute
 
     returns a scalar
     """
@@ -190,7 +191,7 @@ def norm_logpdf(x, loc = np.array([0]).reshape(1, 1), scale = np.array([1])):
 
 
     K = x.shape[-1]
-    loc = loc.T
+    #loc = loc.T
 
     #todo remove; for memory profiling
     #res = ((x[..., np.newaxis] - loc)**2).sum(axis = -2) / scale**2 - 0.5 * K *  np.log(2 * np.pi) - K * np.log(scale)
@@ -199,7 +200,7 @@ def norm_logpdf(x, loc = np.array([0]).reshape(1, 1), scale = np.array([1])):
     #print(scale.shape)
     #res += 1
 
-    return -0.5 * ((x[..., np.newaxis] - loc)**2).sum(axis = -2) / scale**2 - 0.5 * K *  np.log(2 * np.pi) - K * np.log(scale)
+    return -0.5 * ((x[..., np.newaxis] - loc.T)**2).sum(axis = -2) / scale**2 - 0.5 * K *  np.log(2 * np.pi) - K * np.log(scale)
 ###########
 
 
@@ -211,6 +212,7 @@ def norm_pdf(x, loc = np.array([0]).reshape(1, 1), scale = np.array([1])):
     """
     return np.exp(norm_logpdf(x, loc = loc, scale = scale))
 ###########
+
 
 ###########
 def norm_random(loc = np.array([0]).reshape(1, 1), scale = np.array([1]), size = 1):
@@ -227,11 +229,41 @@ def norm_random(loc = np.array([0]).reshape(1, 1), scale = np.array([1]), size =
     N = loc.shape[0]
     K = loc.shape[1]
 
-    rand = np.random.multivariate_normal(mean = np.zeros(K), cov = np.eye(K), size = (N, size)) # sample from standard normal
+    #rand = np.random.multivariate_normal(mean = np.zeros(K), cov = np.eye(K), size = (N, size)) # sample from standard normal
+    rand = np.random.randn(N, size, K) # sample from standard normal but more efficiently than above
     return rand * np.sqrt(scale[:, np.newaxis, np.newaxis]) + loc[:, np.newaxis, :]
 ###########
 
 
+###########
+def kernel_init(p, x, rho, H, B = 500):
+    """
+    choose the first kernel to initialize optimization based on smallest divergence to target p
+
+    - p is the target log density
+    - x is a shape(N,K) array with the locations of the kernels
+    - rho is a shape(P,) array with the variances
+    - H is the dictionary containing all combinations of x and rho
+    - B is the MC sample size to estimate the divergence (defaults to 500)
+
+    out:
+    - qn is a shape(1,) array with an integer between 1 and N*P which determines the dictionary index of the first kernel
+    """
+
+    K = x.shape[0]
+    divergences = np.array([])
+
+    for i in np.arange(H.shape[0]):
+        y = np.random.randn(B, K) * np.sqrt(rho[H[i, 1], np.newaxis]) + x[H[i, 0], :] # random sample from kernel
+        divergences = np.append(divergences, np.mean(p(y) - norm_logpdf(y))) # estimate KL
+    # end for
+
+    return np.array([np.argmin(divergences)])
+
+###########
+
+
+###########
 def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2):
     """
     jointly optimize weights for current mixture
@@ -279,6 +311,8 @@ def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2):
     # end for
 
     return w
+###########
+
 
 ###########
 def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, trace = True, path = '', verbose = False, profiling = False):
@@ -328,8 +362,11 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
     Y_aux = np.ones((N, B)) # reduce memory storage by replacing entries in this array
 
     # for now, randomly select first kernel
-    qn = np.random.choice(N*P, size = 1)          # kernel from the N*P available ones
-    ind = np.setdiff1d(range(N*P), qn)  # available indices
+    #qn = np.random.choice(N*P, size = 1)          # kernel from the N*P available ones
+    #ind = np.setdiff1d(range(N*P), qn)  # available indices
+
+    qn = kernel_init(p, x, sd, H, B = 500) # choose kernel KL-closest to target as first approx
+    if verbose: print('Selected indices: ' + str(qn))
 
     if profiling:
         pr = cProfile.Profile()
@@ -354,17 +391,24 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
 
         # select gradient with most negative entry
         if verbose: print('Selecting most negative gradient')
-        largest = np.argmin(grads)
+        smallest = np.argmin(grads)
 
         # update indices
         if verbose: print('Updating selected indices')
-        qn = np.append(qn, ind[largest])
-        ind = np.setdiff1d(range(N*P), qn)
+        qn = np.append(qn, smallest)
+        #ind = np.setdiff1d(range(N*P), qn)
         if verbose: print('Selected indices: ' + str(qn))
 
         # optimize weights
         if verbose: print('Optimizing weights')
         w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0]], p = p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2)
+
+        # remove small weights
+        if verbose: print('Removing small weights')
+        weight_tol = min(1e-2, 1/N*P) # tol = 1% unless there are more than 100 basis functions, in which case it is 1/N*P (i.e. less than uniform)
+        keep = np.nonzero(w > weight_tol)
+        w = simplex_project(w[keep])
+        qn = qn[keep]
         if verbose: print('Weights: ' + str(w))
 
         # estimate objective function

@@ -61,7 +61,7 @@ def p(x): return p_aux(x, 1)
 # READ DATA FRAMES IN PATH ####
 metadata = pd.DataFrame({'file_name': [], 'N': []})
 
-for file_name in glob.glob(inpath + '*.csv'):
+for file_name in glob.glob(inpath + 'results' + '*.csv'):
     # read file and save info
     dat = pd.read_csv(file_name)
     metadata = metadata.append(pd.DataFrame({'file_name': [file_name], 'N': [dat.x.unique().shape[0]]}))

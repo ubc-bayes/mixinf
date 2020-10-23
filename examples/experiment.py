@@ -19,16 +19,22 @@ import nsvmi # functions to do normal seq-opt variational mixture inference
 # ARG PARSE SETTINGS ####
 parser = argparse.ArgumentParser(description="run normal-kernel sequential-opt variational mixture inference")
 
+parser.add_argument('--opt', type = str, default = 'seq', choices=['seq', 'full'],
+help = 'optimization routine to use')
 parser.add_argument('-d', '--dim', type = int, nargs = '+',
 help = 'dimensions on which to run optimization')
 parser.add_argument('-N', type = int, nargs = '+',
 help = 'sample sizes on which to run optimization')
 parser.add_argument('--target', type = str, default = 'cauchy', choices=['cauchy', 'mixture'],
 help = 'target distribution to use')
+parser.add_argument('--maxiter', type = int, default = 10,
+help = 'maximum number of iterations')
 parser.add_argument('-B', type = int, default = 500,
 help = 'MC sample size for gradient estimation in sgd')
 parser.add_argument('--tol', type = float, default = 0.001,
 help = 'step size tolerance at which to stop alg if maxiter not exceeded')
+parser.add_argument('--sd', type = float, nargs = '+', default = 1,
+help = 'standard deviations (in log scale) to use for grid optimization')
 parser.add_argument('--outpath', type = str, default = '',
 help = 'path of file to output')
 parser.add_argument('--trace', action = "store_true",
@@ -66,6 +72,7 @@ path = path + 'results/'
 # SETTINGS ####
 
 # simulation settings
+opt = args.opt
 dims = np.array(args.dim)
 ss = np.array(args.N)
 extension = 'pdf'
@@ -73,8 +80,10 @@ verbose = args.verbose
 profiling = args.profiling
 
 # alg settings
+maxiter = args.maxiter
 B = args.B
 tol = args.tol
+sd = np.array(args.sd)
 
 # import target density and sampler
 target = args.target
@@ -85,43 +94,49 @@ if target == 'mixture':
 
 
 # SIMULATION ####
-if verbose: print(f'begin simulation! approximating a {target} density')
 
-# create and save seed
-seed = np.random.choice(np.arange(1, 1000000))
-np.random.seed(seed)
+if opt == 'seq':
+    if verbose: print(f'begin simulation! approximating a {target} density using {opt} optimization')
 
-
-# save simulation details
-settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\ntarget: ' + target + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' + str(tol) + '\nrandom seed: ' + str(seed)
-settings = os.open(path + 'settings.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
-os.write(settings, settings_text.encode())
-os.close(settings)
-
-# start simulation
-for K in dims:
-
-    def p(x): return p_aux(x, K)
-
-    if verbose: print(f"dim K {K}\n")
-
-    for N in ss:
-        if verbose: print(f"    sample size N {N}\n")
-
-        # generate sample
-        x = sample(N, K)
-
-        # run algorithm
-        sd = np.array([0.1, 1, 10, 100])
-        w, y, rho, q, obj = nsvmi.nsvmi_grid(p, x, sd = sd, tol = tol, maxiter = N*sd.shape[0], B = B, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
-
-        # save results
-        title = 'results' + '_N' + str(N) + '_K' + str(K) + '_' + str(time.time())
-        out = pd.DataFrame({'x': np.squeeze(y), 'w': w, 'rho': rho})
-        out.to_csv(path + title + '.csv', index = False)
-
-    # end for
-# end for
+    # create and save seed
+    seed = np.random.choice(np.arange(1, 1000000))
+    np.random.seed(seed)
 
 
-print('done with simulation!')
+    # save simulation details
+    settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\noptimization: ' + opt + '\nstd deviations: ' + ' '.join(sd.astype('str')) + '\ntarget: ' + target + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
+    settings = os.open(path + 'settings.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
+    os.write(settings, settings_text.encode())
+    os.close(settings)
+
+    # start simulation
+    for K in dims:
+
+        def p(x): return p_aux(x, K)
+
+        if verbose: print(f"dim K {K}\n")
+
+        for N in ss:
+            if verbose: print(f"sample size N {N}\n")
+
+            # generate sample
+            x = sample(N, K)
+
+            # run algorithm
+            w, y, rho, q, obj = nsvmi.nsvmi_grid(p, x, sd = sd, tol = tol, maxiter = maxiter, B = B, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
+
+            # save results
+            title = 'results' + '_N' + str(N) + '_K' + str(K) + '_' + str(time.time())
+            out = pd.DataFrame({'x': np.squeeze(y), 'w': w, 'rho': rho})
+            out.to_csv(path + title + '.csv', index = False)
+
+            # end for
+            # end for
+
+
+            print('done with simulation!')
+# end if
+
+if opt == 'full':
+    print('coming soon!')
+# end if
