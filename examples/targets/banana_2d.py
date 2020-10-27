@@ -3,6 +3,7 @@ import numpy as np
 from scipy.special import gamma
 import scipy.stats as stats
 import argparse
+import matplotlib.pyplot as plt
 
 # TODO: MAKE A SAMPLER
 # see http://probability.ca/jeff/ftpdir/adaptex.pdf
@@ -32,7 +33,7 @@ def phi(x, b):
     this is used to define the banana distribution
     for x in Rd, phi(x) = [x0 / 100, x1 + b*x0^2 - 100*b, x2, ...]
     """
-    if x.shape[1] == 1:
+    if x.shape[0] == 1:
         return x / 100
 
     y = x
@@ -56,3 +57,23 @@ def sample(size, K):
 
 
     return size
+
+
+def p(x): return p_aux(x, 2)
+
+len = 100
+xx = np.linspace(-20, 20, len)
+yy = np.linspace(-30, 10, len)
+tt = np.array(np.meshgrid(xx, yy)).T.reshape(len**2, 2)
+#print(tt.shape, tt)
+zz = p(tt).reshape(len, len)
+
+for i in np.arange(len):
+    for j in np.arange(len):
+        print(np.array([xx[i], yy[j]]))
+        zz[i, j] = p(np.array(xx[i], yy[j]).reshape(1, 2))
+
+
+#print(zz.shape)
+plt.contour(xx, yy, zz)
+plt.savefig('banana.png')
