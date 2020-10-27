@@ -54,6 +54,9 @@ if target == 'cauchy':
 if target == 'mixture':
     from targets.mixture import *
     xlim = np.array([-3, 15]) # for plotting
+if target == 'banana':
+    from targets.banana import *
+    xlim = np.array([-20, 20]) # for plotting
 
 def p(x): return p_aux(x, 1)
 
@@ -63,7 +66,7 @@ metadata = pd.DataFrame({'file_name': [], 'N': []})
 for file_name in glob.glob(inpath + 'results' + '*.csv'):
     # read file and save info
     dat = pd.read_csv(file_name)
-    metadata = metadata.append(pd.DataFrame({'file_name': [file_name], 'N': [dat.x.unique().shape[0]]}))
+    metadata = metadata.append(pd.DataFrame({'file_name': [file_name], 'N': [len(dat.index)]}))
 # end for
 
 
@@ -86,7 +89,11 @@ for N in ss:
     for file in files:
         # read file and generate resulting approximation
         dat = pd.read_csv(file)
-        q = nsvmi.q_gen(np.array(dat.w), np.array(dat.x), np.array(dat.rho))
+        w = np.array(dat.w)
+        rho =  np.array(dat.rho)
+        dat = dat.drop(['w', 'rho'], axis = 1)
+        x = np.array(dat)
+        q = nsvmi.q_gen(w, x, rho)
 
         # plot log density estimation
         qN = q(t[:, np.newaxis])
@@ -95,7 +102,7 @@ for N in ss:
         i += 1
 
         # calculate discrepancy for future plotting
-        errors = errors.append(pd.DataFrame({'N': [N], 'disc': nsvmi.objective(p, q, np.array(dat.w), np.array(dat.x[:, np.newaxis]), np.array(dat.rho), B = 100000, type = disc)}))
+        errors = errors.append(pd.DataFrame({'N': [N], 'disc': nsvmi.objective(p, q, w, x, rho, B = 100000, type = disc)}))
 
     # end for
 
@@ -125,7 +132,12 @@ for N in ss:
     for file in files:
         # read file and generate resulting approximation
         dat = pd.read_csv(file)
-        q = nsvmi.q_gen(np.array(dat.w), np.array(dat.x), np.array(dat.rho))
+        #q = nsvmi.q_gen(np.array(dat.w), np.array(dat.x), np.array(dat.rho))
+        w = np.array(dat.w)
+        rho =  np.array(dat.rho)
+        dat = dat.drop(['w', 'rho'], axis = 1)
+        x = np.array(dat)
+        q = nsvmi.q_gen(w, np.array(dat), rho)
 
         # plot log density estimation
         qN = np.exp(q(t[:, np.newaxis]))
@@ -134,7 +146,7 @@ for N in ss:
         i += 1
 
         # calculate discrepancy for future plotting
-        errors = errors.append(pd.DataFrame({'N': [N], 'disc': nsvmi.objective(p, q, np.array(dat.w), np.array(dat.x[:, np.newaxis]), np.array(dat.rho), B = 100000, type = disc)}))
+        errors = errors.append(pd.DataFrame({'N': [N], 'disc': nsvmi.objective(p, q, w, x, rho, B = 100000, type = disc)}))
 
     # end for
 

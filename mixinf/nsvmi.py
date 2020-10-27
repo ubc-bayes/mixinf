@@ -138,7 +138,7 @@ def mixture_rvs(size, w, x, rho):
 
     # return scaled and translated random draws
     sigmas = rho[inds] # index std deviations for ease
-    return rand * np.sqrt(sigmas[:, np.newaxis]) + x[inds]
+    return rand * np.sqrt(sigmas[:, np.newaxis]) + x[inds, :]
 ###########
 
 
@@ -405,7 +405,8 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
         #update convergence if step size is small enough
         if k == 1:
             convergence = False
-        elif  np.abs(obj[-1]) < tol:
+        elif  np.abs(obj[-1] - obj[-2]) < tol:
+            #np.abs(obj[-1]) < tol
             #np.abs(obj[-1] - obj[-2])
             convergence = True
 

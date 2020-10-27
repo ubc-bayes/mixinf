@@ -51,11 +51,17 @@ target = args.target
 if target == 'cauchy':
     from targets.cauchy import *
     xlim = np.array([-13, 13]) # for plotting
+    ylim = np.array([-13, 13]) # for plotting
 if target == 'mixture':
     from targets.mixture import *
     xlim = np.array([-3, 15]) # for plotting
+    ylim = np.array([-3, 15]) # for plotting
+if target == 'banana':
+    from targets.banana import *
+    xlim = np.array([-50, 50]) # for plotting
+    ylim = np.array([-50, 50]) # for plotting
 
-def p(x): return p_aux(x, 1)
+def p(x): return p_aux(x, 2)
 
 # READ DATA FRAMES IN PATH ####
 metadata = pd.DataFrame({'file_name': [], 'N': []})
@@ -63,7 +69,7 @@ metadata = pd.DataFrame({'file_name': [], 'N': []})
 for file_name in glob.glob(inpath + 'results' + '*.csv'):
     # read file and save info
     dat = pd.read_csv(file_name)
-    metadata = metadata.append(pd.DataFrame({'file_name': [file_name], 'N': [dat.x.unique().shape[0]]}))
+    metadata = metadata.append(pd.DataFrame({'file_name': [file_name], 'N': [len(dat.index)]}))
 # end for
 
 
@@ -72,55 +78,36 @@ print('begin plotting!')
 ss = metadata.N.unique() # save sample sizes
 errors = pd.DataFrame({'N': [], 'disc': []})
 
-# log densities
-for N in ss:
-    # files with that sample size
-    files = metadata[metadata.N == N].file_name
 
-    # initialize plot with target log density
-    t = np.linspace(xlim[0], xlim[1], 2000)
-    f = p(t[:, np.newaxis])
-    plt.plot(t, f, 'k-', label = 'target', linewidth = 1, markersize = 1.5)
-    i = 1
+for file in metadata.file_name:
 
-    for file in files:
-        # read file and generate resulting approximation
-        dat = pd.read_csv(file)
-        q = nsvmi.q_gen(np.array(dat.w), np.array(dat.x), np.array(dat.rho))
+    # read data and generate mixture
+    dat = pd.read_csv(file)
+    w = np.array(dat.w)
+    rho =  np.array(dat.rho)
+    dat = dat.drop(['w', 'rho'], axis = 1)
+    x = np.array(dat)
+    q = nsvmi.q_gen(w, x, rho)
 
-        # plot log density estimation
-        qN = q(t[:, np.newaxis])
-        if i == 1: plt.plot(t, qN, 'c-', label = 'mixture', linewidth = 1, markersize = 0.75, alpha = 0.5)
-        else: plt.plot(t, qN, 'c-', linewidth = 1, markersize = 0.75, alpha = 0.5)
-        i += 1
+    # initialize plot values
+    xx = np.linspace(xlim[0], xlim[1], 2000)
+    yy = np.linspace(ylim[0], ylim[1], 2000)
+    tt = np.array(np.meshgrid(xx, yy)).T.reshape(len**2, 2)
+    f = np.exp(q(tt)).reshape(2000, 2000).T
 
-        # calculate discrepancy for future plotting
-        errors = errors.append(pd.DataFrame({'N': [N], 'disc': nsvmi.objective(p, q, np.array(dat.w), np.array(dat.x[:, np.newaxis]), np.array(dat.rho), B = 100000, type = disc)}))
-
-    # end for
+    # plot
+    plt.contour(xx, yy, f)
 
     # save plot
-    plt.xlabel('x')
-    plt.ylabel('log-density')
-    plt.title('log-density for mixtures with N = ' + str(N))
+    plt.title('density for mixture with N = ' + str(N))
     plt.legend()
-    title = 'log-density_N' + str(N) + '.'
+    title = 'density_N' + str(N) + '.'
     plt.savefig(path + title + extension, dpi=900)
     plt.clf()
-# end for
 
 
-
-# densities
-for N in ss:
-    # files with that sample size
-    files = metadata[metadata.N == N].file_name
-
-    # initialize plot with target log density
-    t = np.linspace(xlim[0], xlim[1], 2000)
-    f = np.exp(p(t[:, np.newaxis]))
-    plt.plot(t, f, 'k-', label = 'target', linewidth = 1, markersize = 1.5)
-    i = 1
+    # calculate discrepancy for future plotting
+    errors = errors.append(pd.DataFrame({'N': [N], 'disc': nsvmi.objective(p, q, np.array(dat.w), np.array(dat.x[:, np.newaxis]), np.array(dat.rho), B = 100000, type = disc)}))
 
     for file in files:
         # read file and generate resulting approximation

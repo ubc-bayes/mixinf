@@ -17,7 +17,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../mixinf/'))
 
 
 # ARG PARSE SETTINGS ####
-parser = argparse.ArgumentParser(description="run normal-kernel sequential-opt variational mixture inference")
+parser = argparse.ArgumentParser(description="run normal-kernel variational mixture inference examples")
 
 parser.add_argument('--opt', type = str, default = 'seq', choices=['seq', 'full'],
 help = 'optimization routine to use')
@@ -25,7 +25,7 @@ parser.add_argument('-d', '--dim', type = int, nargs = '+',
 help = 'dimensions on which to run optimization')
 parser.add_argument('-N', type = int, nargs = '+',
 help = 'sample sizes on which to run optimization')
-parser.add_argument('--target', type = str, default = 'cauchy', choices=['cauchy', 'mixture'],
+parser.add_argument('--target', type = str, default = 'cauchy', choices=['cauchy', 'mixture', 'banana'],
 help = 'target distribution to use')
 parser.add_argument('--maxiter', type = int, default = 10,
 help = 'maximum number of iterations')
@@ -91,6 +91,8 @@ if target == 'cauchy':
     from targets.cauchy import *
 if target == 'mixture':
     from targets.mixture import *
+if target == 'banana':
+    from targets.banana import *
 
 
 # SIMULATION ####
@@ -131,7 +133,10 @@ if opt == 'seq':
             # save results
             if verbose: print('Saving results')
             title = 'results' + '_N' + str(N) + '_K' + str(K) + '_' + str(time.time())
-            out = pd.DataFrame({'x': np.squeeze(y), 'w': w, 'rho': rho})
+            #out = pd.DataFrame({'x': np.squeeze(y), 'w': w, 'rho': rho})
+            out = pd.DataFrame(y)
+            out['w'] = w
+            out['rho'] = rho
             out.to_csv(path + title + '.csv', index = False)
 
             # end for
