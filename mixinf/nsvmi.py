@@ -233,7 +233,7 @@ def kernel_init(p, x, rho, H, B = 500):
     - qn is a shape(1,) array with an integer between 1 and N*P which determines the dictionary index of the first kernel
     """
 
-    K = x.shape[0]
+    K = x.shape[1]
     divergences = np.array([])
 
     for i in np.arange(H.shape[0]):
@@ -353,6 +353,8 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
     if verbose: print('Choosing first kernel')
     qn = kernel_init(p, x, sd, H, B = 500) # choose kernel KL-closest to target as first approx
     if verbose: print('Selected index: ' + str(qn))
+    if verbose: print('Location: ' + str(x[H[qn, 0], :]))
+    if verbose: print('Variance: ' + str(sd[H[qn, 1]]**2))
 
     if profiling:
         pr = cProfile.Profile()
@@ -384,6 +386,8 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
         qn = np.append(qn, smallest)
         #ind = np.setdiff1d(range(N*P), qn)
         if verbose: print('Selected indices: ' + str(qn))
+        if verbose: print('Latest location: ' + str(x[H[qn[-1], 0], :]))
+        if verbose: print('Latest variance: ' + str(sd[H[qn[-1], 1]]**2))
 
         # optimize weights
         if verbose: print('Optimizing weights')

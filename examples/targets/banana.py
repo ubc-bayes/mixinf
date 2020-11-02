@@ -18,6 +18,6 @@ def p_aux(x, K, b = 0.1):
 
 
 # CREATE SAMPLER ####
-def sample(size, K, noise = 10):
+def sample(size, K, noise = 10, b = 0.1):
     banana = tfp.experimental.inference_gym.targets.Banana(ndims=K, curvature=b)
     return np.array(banana.sample(sample_shape=(size)) + noise*np.random.rand(size, K))

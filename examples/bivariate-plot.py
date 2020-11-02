@@ -75,7 +75,6 @@ for file_name in glob.glob(inpath + 'results' + '*.csv'):
 
 # PLOT ####
 print('begin plotting!')
-ss = metadata.N.unique() # save sample sizes
 errors = pd.DataFrame({'N': [], 'disc': []})
 
 
@@ -87,52 +86,32 @@ for file in metadata.file_name:
     rho =  np.array(dat.rho)
     dat = dat.drop(['w', 'rho'], axis = 1)
     x = np.array(dat)
+    N = w.shape[0]
     q = nsvmi.q_gen(w, x, rho)
 
     # initialize plot values
     xx = np.linspace(xlim[0], xlim[1], 2000)
     yy = np.linspace(ylim[0], ylim[1], 2000)
-    tt = np.array(np.meshgrid(xx, yy)).T.reshape(len**2, 2)
+    tt = np.array(np.meshgrid(xx, yy)).T.reshape(2000**2, 2)
     f = np.exp(q(tt)).reshape(2000, 2000).T
 
     # plot
     plt.contour(xx, yy, f)
+    plt.xlim(xlim[0], xlim[1])
+    plt.ylim(ylim[0], ylim[1])
 
     # save plot
-    plt.title('density for mixture with N = ' + str(N))
-    plt.legend()
-    title = 'density_N' + str(N) + '.'
+    plt.contour(xx, yy, f)
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.title('mixture contour plot for N = ' + str(N))
+    title = 'contour_N' + str(N) + '.'
     plt.savefig(path + title + extension, dpi=900)
     plt.clf()
 
 
     # calculate discrepancy for future plotting
-    errors = errors.append(pd.DataFrame({'N': [N], 'disc': nsvmi.objective(p, q, np.array(dat.w), np.array(dat.x[:, np.newaxis]), np.array(dat.rho), B = 100000, type = disc)}))
-
-    for file in files:
-        # read file and generate resulting approximation
-        dat = pd.read_csv(file)
-        q = nsvmi.q_gen(np.array(dat.w), np.array(dat.x), np.array(dat.rho))
-
-        # plot log density estimation
-        qN = np.exp(q(t[:, np.newaxis]))
-        if i == 1: plt.plot(t, qN, 'c-', label = 'mixture', linewidth = 1, markersize = 0.75, alpha = 0.5)
-        else: plt.plot(t, qN, 'c-', linewidth = 1, markersize = 0.75, alpha = 0.5)
-        i += 1
-
-        # calculate discrepancy for future plotting
-        errors = errors.append(pd.DataFrame({'N': [N], 'disc': nsvmi.objective(p, q, np.array(dat.w), np.array(dat.x[:, np.newaxis]), np.array(dat.rho), B = 100000, type = disc)}))
-
-    # end for
-
-    # save plot
-    plt.xlabel('x')
-    plt.ylabel('density')
-    plt.title('density for mixtures with N = ' + str(N))
-    plt.legend()
-    title = 'density_N' + str(N) + '.'
-    plt.savefig(path + title + extension, dpi=900)
-    plt.clf()
+    errors = errors.append(pd.DataFrame({'N': [N], 'disc': nsvmi.objective(p, q, w, x, rho, B = 100000, type = disc)}))
 # end for
 
 # out discrepancy
