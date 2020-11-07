@@ -30,9 +30,6 @@ def grad(w, x, sd, H, qn, q, p, B, Y = None):
     K = x.shape[1]
     NP = x.shape[0]*sd.shape[0]
 
-    #Y = mixture_rvs(B, w, x[H[qn, 0:1], :], sd[H[qn, 1]]) # sample from current mixture
-    #constant = np.mean(q(Y) - p(Y))
-
     # the normalized sample is used to evaluate log pdf of kernels
     normalized_sample = np.random.randn(NP, B, K)
     sample = normalized_sample * sd[H[:, 1], np.newaxis, np.newaxis] + x[H[:, 0], np.newaxis, :]
@@ -41,8 +38,14 @@ def grad(w, x, sd, H, qn, q, p, B, Y = None):
     kernels = np.squeeze(norm_logpdf_3d(normalized_sample, loc = np.zeros((NP, K)), scale = np.ones(NP))) - np.log(sd[H[:, 1], np.newaxis])
 
     # now divergences
-    grad_w = np.mean(kernels - p(sample), axis = -1)
+    grad = np.mean(kernels - p(sample), axis = -1)
 
+
+
+
+    #Y = mixture_rvs(B, w, x[H[qn, 0:1], :], sd[H[qn, 1]]) # sample from current mixture
+    #constant = np.mean(q(Y) - p(Y))
+    #
     #for i in np.arange(NP):
     #    if K == 1:
     #        covm = (sd[H[i, 1]]**2).reshape(1, 1)
@@ -54,31 +57,42 @@ def grad(w, x, sd, H, qn, q, p, B, Y = None):
     # end for
 
 
-    return grad_w
+    return grad
 ###########
 
 
-def w_grad(w, rho, x, q, p, B, Y = None):
+def w_grad(w, rho, x, q, p, B, Y = None, fixed_sampling = False):
     """
-    estimate the gradient of both the weights and the kernel variances
+    estimate the gradient of the weights
     receives:
         - w, rho are shape(N,) arrays of weights, kernel variances
         - x is a shape(N,K) array of K-dim data points
         - q, p are functions (log probability densities) - q log mixture (e.g. output from q_gen) and p target log density
         - B is the number of MC samples to be used to estimate gradient
-
-    optional arguments:
         - Y is a shape(N,B) array on which random deviates will be stored (if not None) to save memory
+            * if fixed_sampling == True, this array is considered as the fixed sample and will be used to calculate the gradient
+        - fixed_sampling is boolean. If False (i.e. continuous sampling), a new sample is genereated and used for gradient estimation.
+            Else, a sample must be provided and will be used for gradient estimation.
 
     output:
         - grad_w- shape(N,K) array corresponding to the gradient of D(KL) w.r.t. w
     """
 
-    # generate normal deviates - row n is a sample of size B from qn
-    Y = norm_random(loc = x, scale = rho, size = B)
 
-    # estimate weight gradient
-    grad_w = np.mean(q(Y) - np.squeeze(p(Y)), axis = -1)
+    if not fixed_sampling:
+        # generate normal deviates if continuous sampling - row n is a sample of size B from qn
+        Y = norm_random(loc = x, scale = rho, size = B)
+
+        # estimate weight gradient
+        grad_w = np.mean(q(Y) - np.squeeze(p(Y)), axis = -1)
+
+    if fixed_sampling:
+        N = w.shape[0]
+        q_aux = q_gen(np.ones(N)/N, x, rho) # importance sampling distribution
+
+        # estimate weight gradient
+        grad_w = np.mean((q(Y) - np.squeeze(p(Y))) * np.exp(q(Y)) / np.maximum(np.exp(q_aux(Y)), 0.01), axis = -1)
+
 
     return grad_w
 ###########
@@ -160,7 +174,6 @@ def objective(p, q, w, x, rho, B = 1000, type = 'kl'):
 
     # generate random sample
     Y = mixture_rvs(size = B, w = w, x = x, rho = rho)
-
     pY = np.squeeze(p(Y))
 
     if type == 'kl': dist = np.mean(q(Y) - pY)
@@ -256,7 +269,7 @@ def kernel_init(p, x, rho, H, B = 500):
 
     K = x.shape[1]
     NP = H.shape[0]
-    divergences = np.array([])
+
 
     # the normalized sample is used to evaluate log pdf of kernels
     normalized_sample = np.random.randn(NP, B, K)
@@ -268,7 +281,7 @@ def kernel_init(p, x, rho, H, B = 500):
     # now divergences
     divergences = np.mean(kernels - p(sample), axis = -1)
 
-
+    #divergences = np.array([])
     #for i in np.arange(H.shape[0]):
     #    y = np.random.randn(B, K) * np.sqrt(rho[H[i, 1], np.newaxis]) + x[H[i, 0], :] # random sample from kernel
     #    divergences = np.append(divergences, np.mean(p(y) - norm_logpdf(y))) # estimate KL
@@ -280,17 +293,24 @@ def kernel_init(p, x, rho, H, B = 500):
 
 
 ###########
-def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2):
+def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2, fixed_sampling = False, Y_aux = None, verbose = False):
     """
     jointly optimize weights for current mixture
 
     - w is a shape(n,) array with the current weights. The sgd will be initialized at [w, 0]
+    - rho is a shape(n,) array with the current stadard deviations
+    - x is a shape(n,K) array with the sample
+    - p is the target log density
 
     optional arguments:
     - max number of iterations maxiter is an integer
     - MC sample size to estimate the gradient at each iteration B is an integer
     - schedule size to do step size b
     - tolerance to determine convergence tol
+    - fixed_sampling is boolean. If False (i.e. continuous sampling), a new sample is genereated and used for gradient estimation.
+        Else, a sample must be provided and will be used for gradient estimation.
+    - Y_aux is a shape(B,K) array used for fixed sampling
+    - verbose is a boolean
 
     returns a shape(n+1,) array with the optimal weights
     """
@@ -303,19 +323,23 @@ def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2):
     sgd_convergence = False
     w_step = 0
 
-    b = 0.1
-    B = 5000
+    #b = 0.1
+    #B = 5000
+
+    # if fixed sampling, create the sample from mixture with uniform weights
+    if fixed_sampling: Y_aux = mixture_rvs(size = B, w = np.ones(n)/n, x = x, rho = rho)
 
     for l in range(maxiter):
+        if verbose: print(':', end = ' ')
         # assess convergence
         if sgd_convergence: break
 
         # get gradient
         q = q_gen(w, x, rho)
-        Dw = w_grad(w, rho, x, q, p, B, Y = Y_aux)
+        Dw = w_grad(w, rho, x, q, p, B, Y = Y_aux, fixed_sampling = fixed_sampling)
 
         # set step size
-        #w_step = w_step = 0.9*w_step - (b/np.sqrt(l+1)) * Dw
+        #w_step = w_step = 0.9*w_step - (b/np.sqrt(l+1)) * Dw #momentum
         w_step = - (b/np.sqrt(l+1)) * Dw
 
         # update weights
@@ -326,12 +350,14 @@ def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2):
         if np.linalg.norm(w_step) < tol: sgd_convergence = True
     # end for
 
+    if verbose: print(':')
+
     return w
 ###########
 
 
 ###########
-def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, trace = True, path = '', verbose = False, profiling = False):
+def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fixed_sampling = False, trace = True, path = '', verbose = False, profiling = False):
     """
     receive target log density p and sample x
         - p is a function, and particularly a probability log density such as stat.norm.logpdf
@@ -343,6 +369,8 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
         - tolerance to determine convergence tol (double); defaults to 0.01
         - max number of components to add to mixture maxiter; if not specified will default to N, the sample size
         - number of MC samples for gradient estimation B (integer); defaults to 500
+        - fixed_sampling is boolean. If False (i.e. continuous sampling), a new sample is genereated and used for gradient estimation.
+            Else, a sample must be provided and will be used for gradient estimation.
         - silent is boolean. If False (default) a convergence message is printed. Else, no message is printed
         - trace is boolean. If True (default) it will estimate the objective function at each iteration
         - path is a string specifying the path to which trace plots should be saved (if trace = True)
@@ -373,7 +401,6 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
     H = np.array(np.meshgrid(np.arange(N), np.arange(P))).T.reshape(N*P, 2) # this merges both arrays including all combinations. column 0 contains indices for means
 
     # initialize values
-
     w = np.ones(1)
     convergence = False
     obj = np.array([])      # objective function array
@@ -424,7 +451,7 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
 
         # optimize weights
         if verbose: print('Optimizing weights')
-        w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0]], p = p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2)
+        w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, maxiter = 1000, B = 5000, b = 0.1, tol = 1e-2, fixed_sampling = fixed_sampling, verbose = verbose)
 
         # remove small weights
         if verbose: print('Removing small weights')
@@ -436,7 +463,7 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
 
         # estimate objective function
         if verbose: print('Estimating objective function')
-        obj = np.append(obj, objective(p, q, w, x = x[H[qn, 0]], rho = sd[H[qn, 1]], B = 100000, type = 'kl'))
+        obj = np.append(obj, objective(p, q, w, x = x[H[qn, 0], :], rho = sd[H[qn, 1]], B = 100000, type = 'kl'))
         if verbose: print('Estimate = ' + str(obj))
 
         #update convergence if step size is small enough

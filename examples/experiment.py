@@ -21,6 +21,8 @@ parser = argparse.ArgumentParser(description="run normal-kernel variational mixt
 
 parser.add_argument('--opt', type = str, default = 'seq', choices=['seq', 'full'],
 help = 'optimization routine to use')
+parser.add_argument('--sampling', type = str, default = 'cont', choices=['cont', 'fixed'],
+help = 'for seq opt, should weights use fixed or continuous sampling')
 parser.add_argument('-d', '--dim', type = int, nargs = '+',
 help = 'dimensions on which to run optimization')
 parser.add_argument('-N', type = int, nargs = '+',
@@ -72,7 +74,6 @@ path = path + 'results/'
 # SETTINGS ####
 
 # simulation settings
-opt = args.opt
 dims = np.array(args.dim)
 ss = np.array(args.N)
 extension = 'pdf'
@@ -80,10 +81,16 @@ verbose = args.verbose
 profiling = args.profiling
 
 # alg settings
+opt = args.opt
 maxiter = args.maxiter
 B = args.B
 tol = args.tol
 sd = np.array(args.sd)
+fixed_sampling = args.sampling
+if fixed_sampling == 'cont':
+    fixed_sampling = False
+else:
+    fixed_sampling = True
 
 # import target density and sampler
 target = args.target
@@ -107,7 +114,7 @@ if opt == 'seq':
 
     # save simulation details
     if verbose: print('Saving simulation settings')
-    settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\noptimization: ' + opt + '\nstd deviations: ' + ' '.join(sd.astype('str')) + '\ntarget: ' + target + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
+    settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\noptimization: ' + opt + '\nsampling: ' + args.sampling + '\nstd deviations: ' + ' '.join(sd.astype('str')) + '\ntarget: ' + target + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
     settings = os.open(path + 'settings.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
     os.write(settings, settings_text.encode())
     os.close(settings)
@@ -128,7 +135,7 @@ if opt == 'seq':
             x = sample(N, K)
 
             # run algorithm
-            w, y, rho, q, obj = nsvmi.nsvmi_grid(p, x, sd = sd, tol = tol, maxiter = maxiter, B = B, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
+            w, y, rho, q, obj = nsvmi.nsvmi_grid(p, x, sd = sd, tol = tol, maxiter = maxiter, B = B, fixed_sampling = fixed_sampling, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
 
             # save results
             if verbose: print('Saving results')
