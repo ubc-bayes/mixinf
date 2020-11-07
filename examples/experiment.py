@@ -184,7 +184,10 @@ if opt == 'full':
             # save results
             if verbose: print('Saving results')
             title = 'results' + '_N' + str(N) + '_K' + str(K) + '_' + str(time.time())
-            out = pd.DataFrame({'x': np.squeeze(y), 'w': w, 'rho': rho})
+            #out = pd.DataFrame({'x': np.squeeze(y), 'w': w, 'rho': rho})
+            out = pd.DataFrame(y)
+            out['w'] = w
+            out['rho'] = rho
             out.to_csv(path + title + '.csv', index = False)
 
             # end for

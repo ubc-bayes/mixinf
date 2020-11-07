@@ -20,8 +20,8 @@ def norm_logpdf(x, loc = np.array([0]).reshape(1, 1), scale = np.array([1])):
     returns an md array with same shapes as x (except the last dimension)
     """
     K = x.shape[-1]
-    loc = loc.T
-    return -0.5 * ((x[..., np.newaxis] - loc)**2).sum(axis = -2) / scale**2 - 0.5 * K *  np.log(2 * np.pi) - K * np.log(scale)
+
+    return -0.5 * ((x[..., np.newaxis] - loc.T)**2).sum(axis = -2) / scale**2 - 0.5 * K *  np.log(2 * np.pi) - K * np.log(scale)
 ###########
 
 ###########
@@ -36,11 +36,12 @@ def mixture_rvs(size, w, x, rho):
 
     inds = np.random.choice(N, size = size, p = w, replace = True) # indices that will be chosen
 
-    rand = np.random.multivariate_normal(mean = np.zeros(K), cov = np.eye(K), size = size) # sample from standard normal
+    #rand = np.random.multivariate_normal(mean = np.zeros(K), cov = np.eye(K), size = size) # sample from standard normal
+    rand = np.random.randn(size, K) # sample from standard normal but more efficiently than as above
 
     # return scaled and translated random draws
     sigmas = rho[inds] # index std deviations for ease
-    return rand * np.sqrt(sigmas[:, np.newaxis]) + x[inds]
+    return rand * sigmas[:, np.newaxis] + x[inds, :]
 ###########
 
 

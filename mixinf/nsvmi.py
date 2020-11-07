@@ -24,24 +24,33 @@ def grad(w, x, sd, H, qn, q, p, B, Y = None):
         - tol is used if type = 'hellinger' to prevent gradient overflow
 
     output:
-        - grad_w - shape(N*P) array, each entry the gradient of KL wrt weight of each basis function X sd
+        - grad_w - shape(N*P, ) array, each entry the gradient of KL wrt weight of each basis function X sd
     """
 
     K = x.shape[1]
-    #ind = np.setdiff1d(range(1, H.shape[0]), qn) # available indices
-    Y = mixture_rvs(B, w, x[H[qn, 0:1], :], sd[H[qn, 1]]) # sample from current mixture
-    constant = np.mean(q(Y) - p(Y))
+    NP = x.shape[0]*sd.shape[0]
 
-    grad_w = np.array([])
+    #Y = mixture_rvs(B, w, x[H[qn, 0:1], :], sd[H[qn, 1]]) # sample from current mixture
+    #constant = np.mean(q(Y) - p(Y))
 
-    for i in np.arange(x.shape[0]*sd.shape[0]):
-        if K == 1:
-            covm = sd[H[i, 1]].reshape(1, 1)
-        else:
-            covm = sd[H[i, 1]] * np.eye(K)
+    # the normalized sample is used to evaluate log pdf of kernels
+    normalized_sample = np.random.randn(NP, B, K)
+    sample = normalized_sample * sd[H[:, 1], np.newaxis, np.newaxis] + x[H[:, 0], np.newaxis, :]
 
-        X = np.random.multivariate_normal(mean = x[H[i, 0], :], cov = covm, size = B)
-        grad_w = np.append(grad_w, np.mean(q(X) - p(X)) - constant)
+    # first kernels: f(x) = 1/sigma phi(x - mu / sigma) to use std normal log pdf
+    kernels = np.squeeze(norm_logpdf_3d(normalized_sample, loc = np.zeros((NP, K)), scale = np.ones(NP))) - np.log(sd[H[:, 1], np.newaxis])
+
+    # now divergences
+    grad_w = np.mean(kernels - p(sample), axis = -1)
+
+    #for i in np.arange(NP):
+    #    if K == 1:
+    #        covm = (sd[H[i, 1]]**2).reshape(1, 1)
+    #    else:
+    #        covm = sd[H[i, 1]]**2 * np.eye(K)
+    #
+    #    X = np.random.multivariate_normal(mean = x[H[i, 0], :], cov = covm, size = B)
+    #    grad_w = np.append(grad_w, np.mean(q(X) - p(X)) - constant)
     # end for
 
 
@@ -85,16 +94,11 @@ def q_gen(w, x, rho):
     # define function that receives (n+1)darray y and returns q(y), an nd array
     # the n+1 th dimension accounts for multivariate data
     def q_out(y):
-        #print('calling qout with ydim = ' + str(y.shape) + ' xdim = ' + str(x.shape) + ' rhodim = ' + str(rho.shape))
         # apply log sum exp trick
         ln = norm_logpdf(y, loc = x, scale = rho)
-        #print('logpdf shape = ' + str(ln.shape))
         target = np.log(w) + ln  # log sum wn exp(ln) = log sum exp(log wn + ln)
-        #print('target shape = ' + str(target.shape))
         max_value = np.max(target, axis = -1) # max within last axis
-        #print('maxval shape = ' + str(max_value.shape))
         exp_sum = np.exp(target - max_value[..., np.newaxis]).sum(axis = -1)
-        #print('expsum shape = ' + str(exp_sum.shape))
         return max_value + np.log(exp_sum)
 
     return q_out
@@ -138,7 +142,7 @@ def mixture_rvs(size, w, x, rho):
 
     # return scaled and translated random draws
     sigmas = rho[inds] # index std deviations for ease
-    return rand * np.sqrt(sigmas[:, np.newaxis]) + x[inds, :]
+    return rand * sigmas[:, np.newaxis] + x[inds, :]
 ###########
 
 
@@ -188,6 +192,23 @@ def norm_logpdf(x, loc = np.array([0]).reshape(1, 1), scale = np.array([1])):
 
 
 ###########
+def norm_logpdf_3d(x, loc = np.array([0]).reshape(1, 1), scale = np.array([1])):
+    """
+    evaluate isotropic normal logpdf at x with mean loc and sd scale
+
+    - x is a shape(N, B, K) array
+    - loc is a shape(N, K) array
+    - scale is a shape(N,). The covariance matrix is given by scale[i]**2 * np.diag(N) (ie Gaussians are isotropic)
+
+    returns an md array with same shapes as x (except the last dimension)
+    """
+    K = x.shape[-1]
+
+    return -0.5 * ((x - loc[:, np.newaxis, :])**2).sum(axis = -1) / scale[:, np.newaxis]**2 - 0.5 * K *  np.log(2 * np.pi) - K * np.log(scale[:, np.newaxis])
+###########
+
+
+###########
 def norm_pdf(x, loc = np.array([0]).reshape(1, 1), scale = np.array([1])):
     """
     evaluate normal pdf at x with mean loc and sd scale
@@ -214,7 +235,7 @@ def norm_random(loc = np.array([0]).reshape(1, 1), scale = np.array([1]), size =
 
     #rand = np.random.multivariate_normal(mean = np.zeros(K), cov = np.eye(K), size = (N, size)) # sample from standard normal
     rand = np.random.randn(N, size, K) # sample from standard normal but more efficiently than above
-    return rand * np.sqrt(scale[:, np.newaxis, np.newaxis]) + loc[:, np.newaxis, :]
+    return rand * scale[:, np.newaxis, np.newaxis] + loc[:, np.newaxis, :]
 ###########
 
 
@@ -234,11 +255,23 @@ def kernel_init(p, x, rho, H, B = 500):
     """
 
     K = x.shape[1]
+    NP = H.shape[0]
     divergences = np.array([])
 
-    for i in np.arange(H.shape[0]):
-        y = np.random.randn(B, K) * np.sqrt(rho[H[i, 1], np.newaxis]) + x[H[i, 0], :] # random sample from kernel
-        divergences = np.append(divergences, np.mean(p(y) - norm_logpdf(y))) # estimate KL
+    # the normalized sample is used to evaluate log pdf of kernels
+    normalized_sample = np.random.randn(NP, B, K)
+    sample = normalized_sample * rho[H[:, 1], np.newaxis, np.newaxis] + x[H[:, 0], np.newaxis, :]
+
+    # first kernels: f(x) = 1/sigma phi(x - mu / sigma) to use std normal log pdf
+    kernels = np.squeeze(norm_logpdf_3d(normalized_sample, loc = np.zeros((NP, K)), scale = np.ones(NP))) - np.log(rho[H[:, 1], np.newaxis])
+
+    # now divergences
+    divergences = np.mean(kernels - p(sample), axis = -1)
+
+
+    #for i in np.arange(H.shape[0]):
+    #    y = np.random.randn(B, K) * np.sqrt(rho[H[i, 1], np.newaxis]) + x[H[i, 0], :] # random sample from kernel
+    #    divergences = np.append(divergences, np.mean(p(y) - norm_logpdf(y))) # estimate KL
     # end for
 
     return np.array([np.argmin(divergences)])
@@ -354,7 +387,7 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
     qn = kernel_init(p, x, sd, H, B = 500) # choose kernel KL-closest to target as first approx
     if verbose: print('Selected index: ' + str(qn))
     if verbose: print('Location: ' + str(x[H[qn, 0], :]))
-    if verbose: print('Variance: ' + str(sd[H[qn, 1]]**2))
+    if verbose: print('Std dev: ' + str(sd[H[qn, 1]]))
 
     if profiling:
         pr = cProfile.Profile()
@@ -387,7 +420,7 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, tr
         #ind = np.setdiff1d(range(N*P), qn)
         if verbose: print('Selected indices: ' + str(qn))
         if verbose: print('Latest location: ' + str(x[H[qn[-1], 0], :]))
-        if verbose: print('Latest variance: ' + str(sd[H[qn[-1], 1]]**2))
+        if verbose: print('Latest std dev: ' + str(sd[H[qn[-1], 1]]**2))
 
         # optimize weights
         if verbose: print('Optimizing weights')

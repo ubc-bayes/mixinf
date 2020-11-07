@@ -24,7 +24,7 @@ parser.add_argument('--outpath', type = str, default = 'results/plots/',
 help = 'path of folder where plots will be saved')
 parser.add_argument('--disc', type = str, default = 'kl', choices = ['kl', 'hellinger', 'l1'],
 help = 'discrepancy to estimate')
-parser.add_argument('--target', type = str, default = 'cauchy', choices=['cauchy', 'mixture'],
+parser.add_argument('--target', type = str, default = 'cauchy', choices=['cauchy', 'mixture', 'banana'],
 help = 'target distribution to use')
 parser.add_argument('--extension', type = str, default = 'pdf', choices = ['pdf', 'png', 'jpg'],
 help = 'extension of plots')
@@ -58,8 +58,8 @@ if target == 'mixture':
     ylim = np.array([-3, 15]) # for plotting
 if target == 'banana':
     from targets.banana import *
-    xlim = np.array([-50, 50]) # for plotting
-    ylim = np.array([-50, 50]) # for plotting
+    xlim = np.array([-60, 60]) # for plotting
+    ylim = np.array([-60, 80]) # for plotting
 
 def p(x): return p_aux(x, 2)
 
@@ -81,13 +81,15 @@ errors = pd.DataFrame({'N': [], 'disc': []})
 for file in metadata.file_name:
 
     # read data and generate mixture
-    dat = pd.read_csv(file)
-    w = np.array(dat.w)
-    rho =  np.array(dat.rho)
-    dat = dat.drop(['w', 'rho'], axis = 1)
-    x = np.array(dat)
-    N = w.shape[0]
-    q = nsvmi.q_gen(w, x, rho)
+    dat = pd.read_csv(file)                # read data
+    dat = dat[dat.w > 0]                   # drop weights that are zero
+    w = np.array(dat.w)                    # get weights
+    w = w / np.sum(w)                      # normalize
+    rho =  np.array(dat.rho)               # get sd
+    dat = dat.drop(['w', 'rho'], axis = 1) # remove weights and sd
+    x = np.array(dat)                      # remaining columns are the data
+    N = w.shape[0]                         # mixture size
+    q = nsvmi.q_gen(w, x, rho)             # get mixture
 
     # initialize plot values
     xx = np.linspace(xlim[0], xlim[1], 2000)
@@ -101,7 +103,6 @@ for file in metadata.file_name:
     plt.ylim(ylim[0], ylim[1])
 
     # save plot
-    plt.contour(xx, yy, f)
     plt.xlabel('x')
     plt.ylabel('y')
     plt.title('mixture contour plot for N = ' + str(N))
