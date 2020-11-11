@@ -3,6 +3,7 @@
 # preamble
 import numpy as np
 import scipy.stats as stats
+#import gurobipy as gp
 import time, bisect
 import matplotlib.pyplot as plt
 plt.rcParams.update({'figure.max_open_warning': 0})
@@ -325,15 +326,16 @@ def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2, fixed_samp
     w = np.append(w, 0)
 
     n = w.shape[0]
-    Y_aux = np.ones((n, B)) # reduce memory storage by replacing entries in this array
     sgd_convergence = False
     w_step = 0
+
+    if Y_aux is None: Y_aux = np.ones((n, B)) # reduce memory storage by replacing entries in this array
 
     #b = 0.1
     #B = 5000
 
     # if fixed sampling, create the sample from mixture with uniform weights
-    if fixed_sampling: Y_aux = mixture_rvs(size = B, w = np.ones(n)/n, x = x, rho = rho)
+    #if fixed_sampling: Y_aux = mixture_rvs(size = B, w = np.ones(n)/n, x = x, rho = rho)
 
     for l in range(maxiter):
         if verbose: print(':', end = ' ')
@@ -412,9 +414,13 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
     obj = np.array([])      # objective function array
     Y_aux = np.ones((N, B)) # reduce memory storage by replacing entries in this array
 
-    # for now, randomly select first kernel
-    #qn = np.random.choice(N*P, size = 1)          # kernel from the N*P available ones
-    #ind = np.setdiff1d(range(N*P), qn)  # available indices
+    # create fixed sample for weight optimization
+    if fixed_sampling:
+        Y_fixed = np.append(x[H[:, 0], :] - sd[H[:, 1], np.newaxis], np.append(x[H[:, 0], :], x[H[:, 0], :] + sd[H[:, 1], np.newaxis], axis = 0), axis = 0)
+        print('shape: ' + str(Y_fixed.shape))
+    else:
+        Y_fixed = None
+
 
     if verbose: print('Choosing first kernel')
     qn = kernel_init(p, x, sd, H, B = 500) # choose kernel KL-closest to target as first approx
@@ -427,7 +433,7 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
         pr.enable()
 
     # do sequential procedure
-    for k in np.arange(1, maxiter):
+    for k in np.arange(1, maxiter+1):
         if verbose: print('Iteration ' + str(k))
         #print(k)
         # assess convergence
@@ -457,7 +463,7 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
 
         # optimize weights
         if verbose: print('Optimizing weights')
-        w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, maxiter = 1000, B = 5000, b = 0.1, tol = 0.01, fixed_sampling = fixed_sampling, verbose = verbose)
+        w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, maxiter = 1000, B = 5000, b = 0.1, tol = 0.01, fixed_sampling = fixed_sampling, Y_aux = Y_fixed, verbose = verbose)
 
         # remove small weights
         if verbose: print('Removing small weights')
@@ -494,7 +500,8 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
     # print message if not silent
     if verbose:
         time_elapsed = time.time() - start_time
-        print(f"done in {k} iterations! time elapsed: {time_elapsed} seconds")
+        print('Done in ' + str(k) + ' iterations! Time elapsed: ' + str(time_elapsed) + ' seconds')
+        #print(f"done in {k} iterations! time elapsed: {time_elapsed} seconds")
 
     # create trace plot if needed
     if trace:

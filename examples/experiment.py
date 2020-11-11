@@ -119,7 +119,7 @@ if opt == 'seq':
     os.write(settings, settings_text.encode())
     os.close(settings)
 
-    if verbose: print(f'begin simulation! approximating a {target} density using {opt} optimization')
+    if verbose: print(f'Begin simulation! approximating a {target} density using {opt} optimization')
     # start simulation
     for K in dims:
 
