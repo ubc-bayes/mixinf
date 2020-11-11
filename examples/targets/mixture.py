@@ -73,6 +73,7 @@ def sample(size, K):
     mix_size = 5
     weights = np.arange(mix_size, 0, -1)**2
     weights = weights / np.sum(weights)
+    weights = np.ones(mix_size) / mix_size
     means = np.repeat(3 * np.arange(mix_size), K).reshape(mix_size, K)
     sd = np.ones(mix_size) / 5
 

@@ -30,22 +30,25 @@ def grad(w, x, sd, H, qn, q, p, B, Y = None):
     K = x.shape[1]
     NP = x.shape[0]*sd.shape[0]
 
+
+
     # the normalized sample is used to evaluate log pdf of kernels
     normalized_sample = np.random.randn(NP, B, K)
     sample = normalized_sample * sd[H[:, 1], np.newaxis, np.newaxis] + x[H[:, 0], np.newaxis, :]
 
     # first kernels: f(x) = 1/sigma phi(x - mu / sigma) to use std normal log pdf
-    kernels = np.squeeze(norm_logpdf_3d(normalized_sample, loc = np.zeros((NP, K)), scale = np.ones(NP))) - np.log(sd[H[:, 1], np.newaxis])
+    #kernels = np.squeeze(norm_logpdf_3d(normalized_sample, loc = np.zeros((NP, K)), scale = np.ones(NP))) - NP * np.log(sd[H[:, 1], np.newaxis])
+    kernels = np.squeeze(q(sample))
 
     # now divergences
     grad = np.mean(kernels - p(sample), axis = -1)
 
 
-
-
+    #print('fast method done')
     #Y = mixture_rvs(B, w, x[H[qn, 0:1], :], sd[H[qn, 1]]) # sample from current mixture
     #constant = np.mean(q(Y) - p(Y))
-    #
+    #grad_w = np.array([])
+
     #for i in np.arange(NP):
     #    if K == 1:
     #        covm = (sd[H[i, 1]]**2).reshape(1, 1)
@@ -54,7 +57,10 @@ def grad(w, x, sd, H, qn, q, p, B, Y = None):
     #
     #    X = np.random.multivariate_normal(mean = x[H[i, 0], :], cov = covm, size = B)
     #    grad_w = np.append(grad_w, np.mean(q(X) - p(X)) - constant)
-    # end for
+    ##end for
+
+    #print('slow method done')
+    #print('grad diff: ' + str(np.linalg.norm(grad - grad_w) / NP))
 
 
     return grad
@@ -207,13 +213,13 @@ def norm_logpdf(x, loc = np.array([0]).reshape(1, 1), scale = np.array([1])):
 ###########
 def norm_logpdf_3d(x, loc = np.array([0]).reshape(1, 1), scale = np.array([1])):
     """
-    evaluate isotropic normal logpdf at x with mean loc and sd scale
+    evaluate isotropic normal logpdf at x with means loc and sd scale
 
     - x is a shape(N, B, K) array
     - loc is a shape(N, K) array
     - scale is a shape(N,). The covariance matrix is given by scale[i]**2 * np.diag(N) (ie Gaussians are isotropic)
 
-    returns an md array with same shapes as x (except the last dimension)
+    returns a shape(N,B) array
     """
     K = x.shape[-1]
 
@@ -276,7 +282,7 @@ def kernel_init(p, x, rho, H, B = 500):
     sample = normalized_sample * rho[H[:, 1], np.newaxis, np.newaxis] + x[H[:, 0], np.newaxis, :]
 
     # first kernels: f(x) = 1/sigma phi(x - mu / sigma) to use std normal log pdf
-    kernels = np.squeeze(norm_logpdf_3d(normalized_sample, loc = np.zeros((NP, K)), scale = np.ones(NP))) - np.log(rho[H[:, 1], np.newaxis])
+    kernels = np.squeeze(norm_logpdf_3d(sample, loc = x[H[:, 0], :], scale = rho[H[:, 1]]) - NP * np.log(rho[H[:, 1], np.newaxis]))
 
     # now divergences
     divergences = np.mean(kernels - p(sample), axis = -1)
@@ -339,7 +345,7 @@ def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2, fixed_samp
         Dw = w_grad(w, rho, x, q, p, B, Y = Y_aux, fixed_sampling = fixed_sampling)
 
         # set step size
-        #w_step = w_step = 0.9*w_step - (b/np.sqrt(l+1)) * Dw #momentum
+        #w_step = 0.9*w_step - (b/np.sqrt(l+1)) * Dw #momentum
         w_step = - (b/np.sqrt(l+1)) * Dw
 
         # update weights
@@ -350,7 +356,7 @@ def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2, fixed_samp
         if np.linalg.norm(w_step) < tol: sgd_convergence = True
     # end for
 
-    if verbose: print(':')
+    if verbose: print('Weights optimized in ' + str(l+1) + ' iterations')
 
     return w
 ###########
@@ -447,11 +453,11 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
         #ind = np.setdiff1d(range(N*P), qn)
         if verbose: print('Selected indices: ' + str(qn))
         if verbose: print('Latest location: ' + str(x[H[qn[-1], 0], :]))
-        if verbose: print('Latest std dev: ' + str(sd[H[qn[-1], 1]]**2))
+        if verbose: print('Latest std dev: ' + str(sd[H[qn[-1], 1]]))
 
         # optimize weights
         if verbose: print('Optimizing weights')
-        w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, maxiter = 1000, B = 5000, b = 0.1, tol = 1e-2, fixed_sampling = fixed_sampling, verbose = verbose)
+        w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, maxiter = 1000, B = 5000, b = 0.1, tol = 0.01, fixed_sampling = fixed_sampling, verbose = verbose)
 
         # remove small weights
         if verbose: print('Removing small weights')
