@@ -15,4 +15,4 @@ def p_aux(x, K):
 
 
 # CREATE SAMPLER ####
-def sample(size, K): return np.random.multivariate_normal(mean = np.zeros(K), cov = 16*np.eye(K), size = size)
+def sample(size, K): return 25 * np.random.randn(size, K)

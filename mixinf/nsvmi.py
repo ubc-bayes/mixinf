@@ -347,8 +347,8 @@ def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2, fixed_samp
         Dw = w_grad(w, rho, x, q, p, B, Y = Y_aux, fixed_sampling = fixed_sampling)
 
         # set step size
-        #w_step = 0.9*w_step - (b/np.sqrt(l+1)) * Dw #momentum
-        w_step = - (b/np.sqrt(l+1)) * Dw
+        w_step = 0.9*w_step - (b/np.sqrt(l+1)) * Dw #momentum
+        #w_step = - (b/np.sqrt(l+1)) * Dw
 
         # update weights
         w += w_step
@@ -463,7 +463,7 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
 
         # optimize weights
         if verbose: print('Optimizing weights')
-        w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, maxiter = 1000, B = 5000, b = 0.1, tol = 0.01, fixed_sampling = fixed_sampling, Y_aux = Y_fixed, verbose = verbose)
+        w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, maxiter = 1000, B = 5000, b = 0.01, tol = 0.001, fixed_sampling = fixed_sampling, Y_aux = Y_fixed, verbose = verbose)
 
         # remove small weights
         if verbose: print('Removing small weights')

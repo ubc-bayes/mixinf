@@ -50,7 +50,7 @@ disc = args.disc
 target = args.target
 if target == 'cauchy':
     from targets.cauchy import *
-    xlim = np.array([-13, 13]) # for plotting
+    xlim = np.array([-30, 30]) # for plotting
 if target == 'mixture':
     from targets.mixture import *
     xlim = np.array([-3, 15]) # for plotting
