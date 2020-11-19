@@ -8,4 +8,4 @@ Each directory contains an example with a specific target distribution. To run a
 * `bivariate-plot.py` produces plots for bivariate target densities
 * `targets` contains the targets that are approximated in the examples
 * Folders starting with `seq` use the sequential algorithm, `nsvmi`
-* todo: add more examples, especially higher dimensional ones
+* Folders ending in `lp` use a linear program to optimize the weights, and are all sequential (i.e. use `nsvmi`)

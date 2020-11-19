@@ -4,6 +4,7 @@
 import numpy as np
 import scipy.stats as stats
 #import gurobipy as gp
+import cvxpy as cp
 import time, bisect
 import matplotlib.pyplot as plt
 plt.rcParams.update({'figure.max_open_warning': 0})
@@ -300,11 +301,71 @@ def kernel_init(p, x, rho, H, B = 500):
 
 
 ###########
+def w_lp(w, rho, x, p, Y, verbose = False):
+    """
+    jointly optimize weights for current mixture using linear programming
+
+    - w is a shape(n-1,) array with the current weights. The sgd will be initialized at [w, 0]
+    - rho is a shape(n,) array with the current stadard deviations
+    - x is a shape(n,K) array with the sample
+    - p is the target log density
+    - Y is a shape(S,K) array with the sample that will be used for the problem
+
+    optional arguments:
+    - verbose is a boolean
+
+    returns a shape(n,) array with the optimal weights
+    """
+
+    # init values
+    original_w = w
+    w = np.append(w, 0)                 # target variable
+    n = w.shape[0]
+    S = Y.shape[0]
+    K = x.shape[1]
+    u = np.append(w, np.zeros(S))       # augment target variables
+
+    # define opt values
+    q0 = q_gen(np.ones(n)/n, x, rho)    # importance sampling distribution
+    q0_Y = q0(Y)                        # evaluate at sample only once
+    b = p(Y) / q0_Y
+    a = np.repeat(Y.reshape(1, S, K), n, axis = 0)           # repeat sample to get shape(n,S,K)
+    a = (norm_logpdf_3d(a, loc = x, scale = rho) / q0_Y).T   # evaluate at all basis kernels to get shape(n,S), then transpose
+    A1 = np.append(a, -np.eye(S), axis = 1)                  # define A1 and A2 for augmented problem
+    A2 = np.append(-a, -np.eye(S), axis = 1)
+    c = np.append(np.zeros(n), np.ones(S))                   # define augmented cost vector
+
+
+    #print('S: ' + str(S))
+    #print('n: ' + str(n))
+    #print('A1 should be: (' + str(S) + ', ' + str(S+n) + ')')
+    #print('A1 is: ' + str(A1.shape))
+    #print('b should be: (' + str(S) + ',)')
+    #print('b is: ' + str(b.shape))
+
+    # (try to) use cvxpy to solve problem
+    try:
+        u = cp.Variable(n + S)                                   # augment variables
+        constraints = [A1 @ u <= b, A2 @ u <= -b]                # define constraints
+        prob = cp.Problem(cp.Minimize(c.T @ u), constraints)     # define augmented problem
+        prob.solve(verbose = verbose)                            # solve augmented problem
+        w = u.value[:n]                                          # retrieve w from optimal augmented variables
+        w = simplex_project(w)                                   # project w onto simplex
+    except:
+        if verbose: print('Degenerate linear program')
+        w = np.append(original_w, 0)
+
+    return w
+###########
+
+
+
+
 def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2, fixed_sampling = False, Y_aux = None, verbose = False):
     """
-    jointly optimize weights for current mixture
+    jointly optimize weights for current mixture using sgd
 
-    - w is a shape(n,) array with the current weights. The sgd will be initialized at [w, 0]
+    - w is a shape(n-1,) array with the current weights. The sgd will be initialized at [w, 0]
     - rho is a shape(n,) array with the current stadard deviations
     - x is a shape(n,K) array with the sample
     - p is the target log density
@@ -319,7 +380,7 @@ def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2, fixed_samp
     - Y_aux is a shape(B,K) array used for fixed sampling
     - verbose is a boolean
 
-    returns a shape(n+1,) array with the optimal weights
+    returns a shape(n,) array with the optimal weights
     """
 
 
@@ -365,7 +426,7 @@ def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2, fixed_samp
 
 
 ###########
-def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fixed_sampling = False, trace = True, path = '', verbose = False, profiling = False):
+def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fixed_sampling = False, lp = False, trace = True, path = '', verbose = False, profiling = False):
     """
     receive target log density p and sample x
         - p is a function, and particularly a probability log density such as stat.norm.logpdf
@@ -379,9 +440,10 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
         - number of MC samples for gradient estimation B (integer); defaults to 500
         - fixed_sampling is boolean. If False (i.e. continuous sampling), a new sample is genereated and used for gradient estimation.
             Else, a sample must be provided and will be used for gradient estimation.
-        - silent is boolean. If False (default) a convergence message is printed. Else, no message is printed
+        - lp is a boolean. If True, then the weight optimization will be done via a linear program - this minimizes the L1 norm between target and mixture
+        - verbose is boolean. If True, diagnostic messages will be printed throughout
         - trace is boolean. If True (default) it will estimate the objective function at each iteration
-        - path is a string specifying the path to which trace plots should be saved (if trace = True)
+        - path is a string specifying the path to which trace plots should be saved (if trace == True)
 
     return optimal weights w, optimal kernel locations x and variances rho, target mixture log density q, and estimates of objective function
     w, x, and rho are shape(#iter,) numpy arrays and q is a function
@@ -415,9 +477,8 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
     Y_aux = np.ones((N, B)) # reduce memory storage by replacing entries in this array
 
     # create fixed sample for weight optimization
-    if fixed_sampling:
+    if fixed_sampling or lp:
         Y_fixed = np.append(x[H[:, 0], :] - sd[H[:, 1], np.newaxis], np.append(x[H[:, 0], :], x[H[:, 0], :] + sd[H[:, 1], np.newaxis], axis = 0), axis = 0)
-        print('shape: ' + str(Y_fixed.shape))
     else:
         Y_fixed = None
 
@@ -463,7 +524,10 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
 
         # optimize weights
         if verbose: print('Optimizing weights')
-        w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, maxiter = 1000, B = 5000, b = 0.01, tol = 0.001, fixed_sampling = fixed_sampling, Y_aux = Y_fixed, verbose = verbose)
+        if lp:
+            w = w_lp(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, Y = Y_fixed, verbose = verbose)
+        else:
+            w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, maxiter = 1000, B = 5000, b = 0.01, tol = 0.001, fixed_sampling = fixed_sampling, Y_aux = Y_fixed, verbose = verbose)
 
         # remove small weights
         if verbose: print('Removing small weights')

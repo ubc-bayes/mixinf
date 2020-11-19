@@ -6,11 +6,13 @@ import numpy as np
 import pandas as pd
 from scipy.special import gamma
 import scipy.stats as stats
+import cvxpy as cp
 import time, bisect
 import matplotlib.pyplot as plt
 plt.rcParams.update({'figure.max_open_warning': 0})
 import argparse
 import sys, os
+import warnings
 
 # import the suite of functions from parent directory
 sys.path.insert(1, os.path.join(sys.path[0], '../mixinf/'))
@@ -21,8 +23,8 @@ parser = argparse.ArgumentParser(description="run normal-kernel variational mixt
 
 parser.add_argument('--opt', type = str, default = 'seq', choices=['seq', 'full'],
 help = 'optimization routine to use')
-parser.add_argument('--sampling', type = str, default = 'cont', choices=['cont', 'fixed'],
-help = 'for seq opt, should weights use fixed or continuous sampling')
+parser.add_argument('--sampling', type = str, default = 'cont', choices=['cont', 'fixed', 'lp'],
+help = 'for seq opt, should weight opt use fixed or continuous sampling, or solve as linear program?')
 parser.add_argument('-d', '--dim', type = int, nargs = '+',
 help = 'dimensions on which to run optimization')
 parser.add_argument('-N', type = int, nargs = '+',
@@ -86,11 +88,16 @@ maxiter = args.maxiter
 B = args.B
 tol = args.tol
 sd = np.array(args.sd)
-fixed_sampling = args.sampling
-if fixed_sampling == 'cont':
-    fixed_sampling = False
-else:
+
+# define w opt sampling for seq opt
+sampling = args.sampling
+fixed_sampling = False   # fixed sample?
+lp = False               # linear program?
+if sampling == 'lp':
+    lp = True
+elif sampling == 'fixed':
     fixed_sampling = True
+
 
 # import target density and sampler
 target = args.target
@@ -135,7 +142,7 @@ if opt == 'seq':
             x = sample(N, K)
 
             # run algorithm
-            w, y, rho, q, obj = nsvmi.nsvmi_grid(p, x, sd = sd, tol = tol, maxiter = maxiter, B = B, fixed_sampling = fixed_sampling, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
+            w, y, rho, q, obj = nsvmi.nsvmi_grid(p, x, sd = sd, tol = tol, maxiter = maxiter, B = B, fixed_sampling = fixed_sampling, lp = lp, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
 
             # save results
             if verbose: print('Saving results')
