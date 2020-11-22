@@ -99,6 +99,7 @@ for file in metadata.file_name:
 
     # plot
     plt.contour(xx, yy, f)
+    plt.scatter(x[:, 0], x[:, 1], s = 500*w, marker='.', c='k')
     plt.xlim(xlim[0], xlim[1])
     plt.ylim(ylim[0], ylim[1])
 
