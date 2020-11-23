@@ -11,7 +11,7 @@ plt.rcParams.update({'figure.max_open_warning': 0})
 import cProfile, pstats, io
 
 ###########
-def grad(w, x, sd, H, qn, q, p, B, Y = None):
+def grad(w, x, sd, H, qn, q, p, B, forward = False, Y = None):
     """
     estimate the gradient of the objective function for current mixture q, defined by indices qn, at all choices of rho and x
     receives:
@@ -22,8 +22,7 @@ def grad(w, x, sd, H, qn, q, p, B, Y = None):
         - qn is a shape(n,) array containing the indices defining current mixture
         - q, p are functions (log probability densities) - q log mixture (e.g. output from q_gen) and p target log density
         - B is the number of MC samples to be used to estimate gradient
-        - type is one of 'kl' or 'hellinger' - determimes which gradient to compute
-        - tol is used if type = 'hellinger' to prevent gradient overflow
+        - forward is a boolean indicating if forward (instead of reverse) divergence should be optimized
 
     output:
         - grad_w - shape(N*P, ) array, each entry the gradient of KL wrt weight of each basis function X sd
@@ -38,12 +37,12 @@ def grad(w, x, sd, H, qn, q, p, B, Y = None):
     normalized_sample = np.random.randn(NP, B, K)
     sample = normalized_sample * sd[H[:, 1], np.newaxis, np.newaxis] + x[H[:, 0], np.newaxis, :]
 
-    # first kernels: f(x) = 1/sigma phi(x - mu / sigma) to use std normal log pdf
-    #kernels = np.squeeze(norm_logpdf_3d(normalized_sample, loc = np.zeros((NP, K)), scale = np.ones(NP))) - NP * np.log(sd[H[:, 1], np.newaxis])
-    kernels = np.squeeze(q(sample))
-
-    # now divergences
-    grad = np.mean(kernels - p(sample), axis = -1)
+    if forward:
+        kernels = np.maximum(np.squeeze(np.exp(q(sample))), 0.01)
+        grad = 1 - np.mean(p(sample) / kernels, axis = -1)
+    else:
+        kernels = np.squeeze(q(sample))
+        grad = np.mean(kernels - p(sample), axis = -1)
 
 
     #print('fast method done')
@@ -169,13 +168,14 @@ def mixture_rvs(size, w, x, rho):
 
 
 ###########
-def objective(p, q, w, x, rho, B = 1000, type = 'kl'):
+def objective(p, q, w, x, rho, B = 1000, type = 'kl', forward = False):
     """
     estimate the objective function at current iteration
     - p, q are the target and mixture log densities, respectively
     - w, x, rho are shape(N,) arrays defining the current mixture
     - B is the number of MC samples used to estimate the objective function - has to be an integer
     - type is one of 'kl', 'hellinger', or 'l1' - determines which objective to compute
+    - forward is a boolean indicating if forward (instead of reverse) divergence should be estimated
 
     returns a scalar
     """
@@ -184,7 +184,11 @@ def objective(p, q, w, x, rho, B = 1000, type = 'kl'):
     Y = mixture_rvs(size = B, w = w, x = x, rho = rho)
     pY = np.squeeze(p(Y))
 
-    if type == 'kl': dist = np.mean(q(Y) - pY)
+    if type == 'kl':
+        if forward:
+            dist = np.mean((q(Y) - pY) * (np.exp(pY) / np.maximum(1e-2, np.exp(q(Y)))))
+        else:
+            dist = np.mean(q(Y) - pY)
 
     if type == 'hellinger': dist = np.mean( (np.sqrt(np.exp(q(Y))) - np.sqrt(np.exp(pY)))**2 / np.maximum(1e-2, np.exp(q(Y))))
 
@@ -426,7 +430,7 @@ def w_opt(w, rho, x, p, maxiter = 500, B = 500, b = 0.01, tol = 1e-2, fixed_samp
 
 
 ###########
-def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fixed_sampling = False, lp = False, trace = True, path = '', verbose = False, profiling = False):
+def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, b = 0.01, fixed_sampling = False, forward = False, lp = False, trace = True, path = '', verbose = False, profiling = False):
     """
     receive target log density p and sample x
         - p is a function, and particularly a probability log density such as stat.norm.logpdf
@@ -438,8 +442,10 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
         - tolerance to determine convergence tol (double); defaults to 0.01
         - max number of components to add to mixture maxiter; if not specified will default to N, the sample size
         - number of MC samples for gradient estimation B (integer); defaults to 500
+        - b is the sample size for weight sgd optimization
         - fixed_sampling is boolean. If False (i.e. continuous sampling), a new sample is genereated and used for gradient estimation.
             Else, a sample must be provided and will be used for gradient estimation.
+        - forward is a boolean indicating if forward (instead of reverse) divergence should be optimized
         - lp is a boolean. If True, then the weight optimization will be done via a linear program - this minimizes the L1 norm between target and mixture
         - verbose is boolean. If True, diagnostic messages will be printed throughout
         - trace is boolean. If True (default) it will estimate the objective function at each iteration
@@ -508,7 +514,7 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
 
         # estimate gradients
         if verbose: print('Estimating gradients')
-        grads = grad(w, x, sd, H, qn, q, p, B, Y = Y_aux)
+        grads = grad(w, x, sd, H, qn, q, p, B, forward = forward, Y = Y_aux)
 
         # select gradient with most negative entry
         if verbose: print('Selecting most negative gradient')
@@ -527,7 +533,7 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
         if lp:
             w = w_lp(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, Y = Y_fixed, verbose = verbose)
         else:
-            w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, maxiter = 1000, B = 5000, b = 0.01, tol = 0.001, fixed_sampling = fixed_sampling, Y_aux = Y_fixed, verbose = verbose)
+            w = w_opt(w = w, rho = sd[H[qn, 1]], x = x[H[qn, 0], :], p = p, maxiter = 1000, B = 5000, b = b, tol = 0.001, fixed_sampling = fixed_sampling, Y_aux = Y_fixed, verbose = verbose)
 
         # remove small weights
         if verbose: print('Removing small weights')
@@ -539,7 +545,7 @@ def nsvmi_grid(p, x, sd = np.array([1]), tol = 1e-2, maxiter = None, B = 500, fi
 
         # estimate objective function
         if verbose: print('Estimating objective function')
-        obj = np.append(obj, objective(p, q, w, x = x[H[qn, 0], :], rho = sd[H[qn, 1]], B = 100000, type = 'kl'))
+        obj = np.append(obj, objective(p, q, w, x = x[H[qn, 0], :], rho = sd[H[qn, 1]], B = 100000, type = 'kl', forward = forward))
         if verbose: print('Estimate = ' + str(obj))
 
         #update convergence if step size is small enough

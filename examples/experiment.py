@@ -25,6 +25,8 @@ parser.add_argument('--opt', type = str, default = 'seq', choices=['seq', 'full'
 help = 'optimization routine to use')
 parser.add_argument('--sampling', type = str, default = 'cont', choices=['cont', 'fixed', 'lp'],
 help = 'for seq opt, should weight opt use fixed or continuous sampling, or solve as linear program?')
+parser.add_argument('--forward', action = "store_true",
+help = 'if specified, forward (instead of reverse) divergence will be optimized')
 parser.add_argument('-d', '--dim', type = int, nargs = '+',
 help = 'dimensions on which to run optimization')
 parser.add_argument('-N', type = int, nargs = '+',
@@ -34,7 +36,9 @@ help = 'target distribution to use')
 parser.add_argument('--maxiter', type = int, default = 10,
 help = 'maximum number of iterations')
 parser.add_argument('-B', type = int, default = 500,
-help = 'MC sample size for gradient estimation in sgd')
+help = 'MC sample size for gradient estimation in SGD')
+parser.add_argument('-b', type = float, default = 0.01,
+help = 'step size for SGD')
 parser.add_argument('--tol', type = float, default = 0.001,
 help = 'step size tolerance at which to stop alg if maxiter not exceeded')
 parser.add_argument('--sd', type = float, nargs = '+', default = 1,
@@ -81,11 +85,13 @@ ss = np.array(args.N)
 extension = 'pdf'
 verbose = args.verbose
 profiling = args.profiling
+forward = args.forward
 
 # alg settings
 opt = args.opt
 maxiter = args.maxiter
 B = args.B
+b = args.b
 tol = args.tol
 sd = np.array(args.sd)
 
@@ -121,12 +127,16 @@ if opt == 'seq':
 
     # save simulation details
     if verbose: print('Saving simulation settings')
-    settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\noptimization: ' + opt + '\nsampling: ' + args.sampling + '\nstd deviations: ' + ' '.join(sd.astype('str')) + '\ntarget: ' + target + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
+    if forward:
+        fwd = 'forward'
+    else:
+        fwd = 'reverse'
+    settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\noptimization: ' + opt + '\noptimizing ' + fwd + ' divergence' + '\nsampling: ' + args.sampling + '\nstd deviations: ' + ' '.join(sd.astype('str')) + '\ntarget: ' + target + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
     settings = os.open(path + 'settings.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
     os.write(settings, settings_text.encode())
     os.close(settings)
 
-    if verbose: print(f'Begin simulation! approximating a {target} density using {opt} optimization')
+    if verbose: print(f'Begin simulation! approximating a {target} density using {opt} optimization for {fwd} divergence')
     # start simulation
     for K in dims:
 
@@ -142,7 +152,7 @@ if opt == 'seq':
             x = sample(N, K)
 
             # run algorithm
-            w, y, rho, q, obj = nsvmi.nsvmi_grid(p, x, sd = sd, tol = tol, maxiter = maxiter, B = B, fixed_sampling = fixed_sampling, lp = lp, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
+            w, y, rho, q, obj = nsvmi.nsvmi_grid(p, x, sd = sd, tol = tol, maxiter = maxiter, B = B, b = b, fixed_sampling = fixed_sampling, forward = forward, lp = lp, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
 
             # save results
             if verbose: print('Saving results')
@@ -170,13 +180,17 @@ if opt == 'full':
 
     # save simulation details
     if verbose: print('Saving simulation settings')
-    settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\noptimization: ' + opt + '\nstd deviations: ' + ' '.join(sd.astype('str')) + '\ntarget: ' + target + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
+    if forward:
+        fwd = 'forward'
+    else:
+        fwd = 'reverse'
+    settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\noptimization: ' + opt + '\noptimizing ' + fwd + ' divergence' + '\nstd deviations: ' + ' '.join(sd.astype('str')) + '\ntarget: ' + target + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
     settings = os.open(path + 'settings.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
     os.write(settings, settings_text.encode())
     os.close(settings)
 
 
-    if verbose: print(f'begin simulation! approximating a {target} density using {opt} optimization')
+    if verbose: print(f'begin simulation! approximating a {target} density using {opt} optimization for {fwd} divergence')
     # start simulation
     for K in dims:
 
@@ -192,7 +206,7 @@ if opt == 'full':
             x = sample(N, K)
 
             # run algorithm
-            w, y, rho, q, obj = nfvmi.nfvmi_grid(p, x, rho = sd, type = 'kl', tol = tol, maxiter = maxiter, B = B, b = 0.1, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
+            w, y, rho, q, obj = nfvmi.nfvmi_grid(p, x, rho = sd, type = 'kl', forward = forward, tol = tol, maxiter = maxiter, B = B, b = b, trace = trace, path = tracepath, verbose = verbose, profiling = profiling)
 
 
             # save results

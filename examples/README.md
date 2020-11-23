@@ -9,3 +9,4 @@ Each directory contains an example with a specific target distribution. To run a
 * `targets` contains the targets that are approximated in the examples
 * Folders starting with `seq` use the sequential algorithm, `nsvmi`
 * Folders ending in `lp` use a linear program to optimize the weights, and are all sequential (i.e. use `nsvmi`)
+* Folders ending in `fwd` optimize the forward (instead of reverse) divergence

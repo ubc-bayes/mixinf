@@ -48,7 +48,7 @@ def grad(w, rho, x, q, p, B, type = 'kl', tol = 1e-2, Y = None):
 
 
 ###########
-def grad_w(w, rho, x, q, p, B, type = 'kl', tol = 1e-2, Y = None):
+def grad_w(w, rho, x, q, p, B, type = 'kl', forward = False, tol = 1e-2, Y = None):
     """
     identical to grad but without calculating gradient of variance
     estimate the gradient of the weights only, for grid variance optimization
@@ -58,7 +58,9 @@ def grad_w(w, rho, x, q, p, B, type = 'kl', tol = 1e-2, Y = None):
         - q, p are functions (log probability densities) - q log mixture (e.g. output from q_gen) and p target log density
         - B is the number of MC samples to be used to estimate gradient
         - type is one of 'kl' or 'hellinger' - determines which gradient to compute
+        - forward is a boolean indicating if forward (instead of reverse) divergence should be optimized
         - tol is used if type = 'hellinger' to prevent gradient overflow
+        - Y is a shape(N, B, K) array used to save memory
 
     output:
         - grad_w - shape(N,K) array corresponding to the gradients of D(type) w.r.t. w
@@ -68,7 +70,11 @@ def grad_w(w, rho, x, q, p, B, type = 'kl', tol = 1e-2, Y = None):
     Y = norm_random(loc = x, scale = rho, size = B)
     K = x.shape[1]
 
-    if type == 'kl': grad_w = np.mean(q(Y) - p(Y), axis = -1)
+    if type == 'kl':
+        if forward:
+            grad_w = np.mean(np.exp(p(Y)) / np.maximum(tol, np.exp(q(Y))), axis = -1)
+        else:
+            grad_w = np.mean(q(Y) - p(Y), axis = -1)
 
     if type == 'hellinger': grad_w = - np.mean(np.sqrt(np.exp(p(Y)) / np.maximum(tol, np.exp(q(Y)))), axis = -1)
 
@@ -140,23 +146,27 @@ def mixture_rvs(size, w, x, rho):
 
 
 ###########
-def objective(p, q, w, x, rho, B = 1000, type = 'kl'):
+def objective(p, q, w, x, rho, B = 1000, type = 'kl', forward = False):
     """
     estimate the objective function at current iteration
     - p, q are the target and mixture log densities, respectively
     - w, x, rho are shape(N,) arrays defining the current mixture
     - B is the number of MC samples used to estimate the objective function - has to be an integer
     - type is one of 'kl', 'hellinger', or 'l1' - determimes which objective to compute
+    - forward is a boolean indicating if forward (instead of reverse) divergence should be optimized
 
     returns a scalar
     """
 
     # generate random sample
     Y = mixture_rvs(size = B, w = w, x = x, rho = rho)
-
     pY = np.squeeze(p(Y))
 
-    if type == 'kl': dist = np.mean(q(Y) - pY)
+    if type == 'kl':
+        if forward:
+            dist = np.mean((q(Y) - pY) * (np.exp(pY) / np.maximum(1e-2, np.exp(q(Y)))))
+        else:
+            dist = np.mean(q(Y) - pY)
 
     if type == 'hellinger': dist = np.mean( (np.sqrt(np.exp(q(Y))) - np.sqrt(np.exp(pY)))**2 / np.maximum(1e-2, np.exp(q(Y))))
 
@@ -234,7 +244,7 @@ def w_init(x, rho, p):
 
 
 ###########
-def nfvmi_grid(p, x, rho = np.array([1]), type = 'kl', tol = 1e-3, maxiter = 1e3, B = 500, b = 0.1, trace = True, path = '', verbose = False, profiling = False):
+def nfvmi_grid(p, x, rho = np.array([1]), type = 'kl', forward = False, tol = 1e-3, maxiter = 1e3, B = 500, b = 0.1, trace = True, path = '', verbose = False, profiling = False):
     """
     receive target log density p and sample x
         - p is a function, and particularly a probability log density such as stat.norm.pdf
@@ -243,6 +253,7 @@ def nfvmi_grid(p, x, rho = np.array([1]), type = 'kl', tol = 1e-3, maxiter = 1e3
     optional arguments:
         - rho is a shape(P,) array with the possible options for the variance
         - type is one of 'kl' or 'hellinger' to depermine which target distance to optimize
+        - forward is a boolean indicating if forward (instead of reverse) divergence should be optimized
         - tolerance to determine convergence tol (double); defaults to 0.001
         - max number of SGD iterations maxiter (integer); defaults to 1000
         - number of MC samples for gradient estimation B (integer); defaults to 500
@@ -275,7 +286,7 @@ def nfvmi_grid(p, x, rho = np.array([1]), type = 'kl', tol = 1e-3, maxiter = 1e3
 
     # initialize values
     if verbose: print('Initializing values')
-    w = np.ones(N*P) / (N*P)      # max entropy if wn = 1/N
+    w = np.ones(N*P) / (N*P)      # max entropy if wn = 1/N; corresponds to KDE with bandwith = 1
     w = w_init(x_extended, rho_extended, p)
     convergence = False
     obj = np.array([])      # objective function array
