@@ -15,7 +15,7 @@ import sys, os
 import warnings
 
 # import the suite of functions from parent directory
-sys.path.insert(1, os.path.join(sys.path[0], '../mixinf/'))
+sys.path.insert(1, os.path.join(sys.path[0], '../../mixinf/'))
 
 
 # ARG PARSE SETTINGS ####

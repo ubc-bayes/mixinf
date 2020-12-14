@@ -12,7 +12,8 @@ import argparse
 import sys, os
 
 # import the suite of functions from parent directory
-sys.path.insert(1, os.path.join(sys.path[0], '../mixinf/'))
+sys.path.insert(1, os.path.join(sys.path[0], '../../mixinf/'))
+sys.path.insert(1, os.path.join(sys.path[0], '../'))
 import nsvmi # functions to do normal seq-opt variational mixture inference
 
 # ARG PARSE SETTINGS ####
