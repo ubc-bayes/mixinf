@@ -1,6 +1,6 @@
-# Variational Mixture Inference
+# Locally-Adapted Boosting Variational Inference (L-BVI)
 
-This repository contains a Python package that can be used to do Bayesian inference using variational mixture inference (mixinf).  
+This repository contains a Python package that can be used to do Bayesian inference using locally-adapted boosting variational inference (L-BVI).  
 
 ## Repository Status
 
