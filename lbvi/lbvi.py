@@ -462,7 +462,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
         # estimate objective
         if verbose: print('estimating objective function')
-        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, B = B))
+        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, B = 100000))
         if verbose: print('objective: ' + str(obj[-1]))
 
 

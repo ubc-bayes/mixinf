@@ -118,7 +118,7 @@ np.random.seed(seed)
 
 # save simulation details
 if verbose: print('Saving simulation settings')
-settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\ntarget: ' + target + '\nmax no of terations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
+settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\ntarget: ' + target + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
 settings = os.open(path + 'settings.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
 os.write(settings, settings_text.encode())
 os.close(settings)
@@ -148,7 +148,7 @@ for K in dims:
 
         out = pd.DataFrame(y)
         out['w'] = w
-        out['T'] = T
+        out['steps'] = T
         out.to_csv(path + title + '.csv', index = False)
         # end for
     # end for

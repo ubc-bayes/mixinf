@@ -20,7 +20,7 @@ def kernel_sampler(y, T, N, logp):
     M = out.shape[0]
 
     steps = np.repeat(T, N)
-    max_T = T.max() # max number of steps to take
+    max_T = T.max().astype(int) # max number of steps to take
     running = np.arange(M) # chains still running
 
     for t in range(max_T):
