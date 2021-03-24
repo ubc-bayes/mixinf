@@ -4,4 +4,5 @@ Each subdirectory contains multiple examples, which can be run by running the ba
 
 ### Directory roadmap
 * `targets` contains the targets that are approximated in the examples
-* `kernels` contains the kernels that can be used in the examples
+* `rkhs-kernels` contains the RKHS kernels that are used to define the KSD
+* `mixture-kernels` contains the kernels that are used to build the mixture
