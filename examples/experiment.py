@@ -138,7 +138,7 @@ for K in dims:
         # generate sample
         if verbose: print('Generating sample')
         y = sample(N, K)
-        y = np.array([-2.5, 2.5])
+        #y = np.array([-2.5, 2.5])
         # run algorithm
         w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = B, maxiter = maxiter, tol = tol, verbose = verbose, plot = plot, plot_path = plotpath, trace = plot)
 

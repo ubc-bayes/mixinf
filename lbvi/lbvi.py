@@ -100,7 +100,6 @@ def ksd(logp, y, T, w, up, kernel_sampler, B = 1000):
     Y = X[-B:]
     X = X[:B]
 
-
     return up(X, Y).mean()
 ###################################
 
@@ -152,11 +151,11 @@ def plotting(y, T, w, logp, plot_path, iter_no, x_lower, x_upper, y_upper, kerne
     # generate approximation
     kk = mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler)
 
-    yy = stats.gaussian_kde(kk, bw_method = 0.05).evaluate(tt)
+    #yy = stats.gaussian_kde(kk, bw_method = 0.05).evaluate(tt)
 
     # plot approximation
-    plt.plot(tt, yy, '--b', label = 'approximation')
-    plt.hist(kk, label = 'approximation', density = True, bins = 30)
+    #plt.plot(tt, yy, '--b', label = 'approximation')
+    plt.hist(kk, label = 'approximation', density = True, bins = 50)
     plt.plot(y, np.zeros(y.shape[0]), 'ok')
     #plt.plot(y[argmin], np.zeros(1), 'or')
     plt.ylim(0, y_upper)
@@ -210,7 +209,7 @@ def w_grad(up, logp, y, T, w, B, kernel_sampler):
 
 
 ###################################
-def weight_opt(logp, y, T, w, active, up, kernel_sampler, tol = 0.01, b = 0.1, B = 1000, maxiter = 1000, verbose = False, trace = False, tracepath = ''):
+def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, tol = 0.01, b = 0.1, B = 1000, maxiter = 1000, verbose = False, trace = False, tracepath = ''):
     """
     optimize weights via sgd
 
@@ -222,6 +221,7 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, tol = 0.01, b = 0.1, B
         - active array with number of active locations
         - up function to calculate expected value of
         - kernel_sampler is a function that generates samples from the mixture kernels
+        - t_inrement is an integer with the number of increments per step (used only for plotting)
         - tol is the tolerance for convergence assessment
         - b is the optimization schedule
         - B number of MC samples
@@ -341,14 +341,14 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B, kernel_sampl
             grads[n] = up(X_mix[:B], X_kernel[:B]).mean() + up(X_kernel[B:2*B], X_mix[B:2*B]).mean() - 2*up(X_mix[2*B:3*B], X_mix[3*B:4*B]).mean()
 
     # end for
-    print(grads)
+    #print('gradients: ' + str(grads))
     return np.argmin(grads)
 ###################################
 
 
 
 ###################################
-def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, weight_max = 10, verbose = False, plot = True, plot_path = 'plots', trace = False):
+def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, weight_max = 20, verbose = False, plot = True, plot_path = 'plots', trace = False):
     """
     locally-adapted boosting variational inference main routine
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
@@ -380,7 +380,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         # define sgd maxiter function
         def w_maxiters(k, long_opt = False):
             if k == 0: return 350
-            if long_opt: return 100
+            if long_opt: return 50
             return 50
 
     if w_schedule is None:
@@ -455,7 +455,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         # update weights
         if update_weights:
             if verbose: print('updating weights')
-            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, tol = 0.1, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
+            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, tol = 0.1, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
             if verbose: print('weights: ' + str(w))
         else:
             if verbose: print('not updating weights')

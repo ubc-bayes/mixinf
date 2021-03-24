@@ -2,8 +2,8 @@ import numpy as np
 
 
 # Gaussian proposals
-sd = 1
-def logr(x, y): return -0.5 * (x - y)**2 / sd - 0.5*np.log(2*np.pi) - np.log(sd) # gaussian log density
+sd = 0.5
+def logr(x, y): return -0.5 * (x - y)**2 / sd**2 - 0.5*np.log(2*np.pi) - np.log(sd) # gaussian log density
 def r_sampler(T, y): return sd * np.random.randn(T) + y # gaussian sampler
 
 # mcmc kernel sampler
