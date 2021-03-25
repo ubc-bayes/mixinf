@@ -23,7 +23,7 @@ parser.add_argument('--inpath', type = str, default = 'results/',
 help = 'path of folder where csv files are stored')
 parser.add_argument('--outpath', type = str, default = 'results/plots/',
 help = 'path of folder where plots will be saved')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy'],
 help = 'target distribution to use')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
@@ -53,6 +53,9 @@ target = args.target
 if target == '4-mixture':
     from targets.fourmixture import *
     xlim = np.array([-6, 6]) # for plotting
+if target == 'cauchy':
+    from targets.cauchy import *
+    xlim = np.array([-10, 10])
 
 
 # import kernel for mixture

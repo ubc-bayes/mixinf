@@ -23,7 +23,7 @@ parser.add_argument('-N', type = int, nargs = '+',
 help = 'sample sizes on which to run optimization')
 parser.add_argument('-d', '--dim', type = int, nargs = '+',
 help = 'dimensions on which to run optimization')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy'],
 help = 'target distribution to use')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
@@ -95,6 +95,11 @@ t_max = args.t_max
 target = args.target
 if target == '4-mixture':
     from targets.fourmixture import *
+    plt_lims = np.array([-6, 6, 1.5])
+
+if target == 'cauchy':
+    from targets.cauchy import *
+    plt_lims = np.array([-15, 15, 0.6])
 
 # import kernel for mixture
 kernel = args.kernel
@@ -140,7 +145,7 @@ for K in dims:
         y = sample(N, K)
         #y = np.array([-2.5, 2.5])
         # run algorithm
-        w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = B, maxiter = maxiter, tol = tol, verbose = verbose, plot = plot, plot_path = plotpath, trace = plot)
+        w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, verbose = verbose, plot = plot, plot_path = plotpath, trace = plot)
 
         # save results
         if verbose: print('Saving results')
@@ -150,7 +155,18 @@ for K in dims:
         out['w'] = w
         out['steps'] = T
         out.to_csv(path + title + '.csv', index = False)
+
+        if plot:
+            print('plotting objective trace')
+            plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
+            plt.xlabel('iteration')
+            plt.ylabel('kernelized stein discrepancy')
+            plt.title('trace plot of ksd')
+            plt.savefig(path + 'objective_trace.png', dpi=900)
+
         # end for
     # end for
+
+
 
 print('done with simulation!')

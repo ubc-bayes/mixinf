@@ -72,3 +72,13 @@ def mixture_rvs(size, w, x, rho):
 
 def sample(size, K):
     return np.squeeze(mixture_rvs(size, weights, mu, sd * np.ones(weights.shape[0])))
+
+
+def w_maxiters(k, long_opt = False):
+    if k == 0: return 350
+    if long_opt: return 50
+    return 50
+
+def w_schedule(k):
+    if k == 0: return 0.005
+    return 0.000001

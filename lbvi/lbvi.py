@@ -126,7 +126,7 @@ def simplex_project(x):
 
 
 ###################################
-def plotting(y, T, w, logp, plot_path, iter_no, x_lower, x_upper, y_upper, kernel_sampler, N = 10000):
+def plotting(y, T, w, logp, plot_path, iter_no, plt_lims, kernel_sampler, N = 10000):
     """
     function that plots the target density and approximation, used in each iteration of the main routine
 
@@ -137,10 +137,14 @@ def plotting(y, T, w, logp, plot_path, iter_no, x_lower, x_upper, y_upper, kerne
         - logp target log density
         - plot_path string with plath to save figures in
         - iter_no integer with iteration number for title
-        - x_lower, x_upper, y_upper plotting limits
+        - plt_lims is a 3-array with the plotting limits (xinf, xsup, ysup, in that order)
         - kernel_sampler is a function that generates samples from the mixture kernels
         - N mixture sample size
     """
+    # get plotting limits
+    x_lower = plt_lims[0]
+    x_upper = plt_lims[1]
+    y_upper = plt_lims[2]
 
     # plot target density
     tt = np.linspace(x_lower, x_upper, 1000)
@@ -155,10 +159,11 @@ def plotting(y, T, w, logp, plot_path, iter_no, x_lower, x_upper, y_upper, kerne
 
     # plot approximation
     #plt.plot(tt, yy, '--b', label = 'approximation')
-    plt.hist(kk, label = 'approximation', density = True, bins = 50)
+    plt.hist(kk, label = 'approximation', density = True, bins = 75)
     plt.plot(y, np.zeros(y.shape[0]), 'ok')
     #plt.plot(y[argmin], np.zeros(1), 'or')
     plt.ylim(0, y_upper)
+    plt.xlim(x_lower, x_upper)
     plt.legend()
     plt.suptitle('l-bvi approximation to density')
     plt.title('iter: ' + str(iter_no))
@@ -348,7 +353,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B, kernel_sampl
 
 
 ###################################
-def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, weight_max = 20, verbose = False, plot = True, plot_path = 'plots', trace = False):
+def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, weight_max = 20, verbose = False, plot = True, plot_path = 'plots', trace = False):
     """
     locally-adapted boosting variational inference main routine
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
@@ -360,6 +365,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - t_max integer with max number of steps allowed per chain
         - up function to calculate expected value of when estimating ksd
         - kernel_sampler is a function that generates samples from the mixture kernels
+        - plt_lims is a 3-array with the plotting limits (xinf, xsup, ysup)
         - w_maxiters is a function that receives the iteration number and a boolean indicating whether opt is long or not and outputs the max number of iterations for weight optimization
         - w_schedule is a function that receives the iteration number and outputs the step size for the weight optimization
         - B number of MC samples for estimating ksd and gradients
@@ -411,11 +417,12 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     active = np.array([argmin]) # update active locations, kernel_sampler
     if verbose: print('number of steps: ' + str(T))
     obj = np.append(obj, tmp_ksd[argmin]) # update objective
+    if verbose: print('objective: ' + str(obj[-1]))
 
 
     # plot initial approximation
     if verbose: print('plotting')
-    plotting(y, T, w, logp, plot_path, iter_no = 0, x_lower = -6, x_upper = 6, y_upper = 1.5, kernel_sampler = kernel_sampler, N = 10000)
+    plotting(y, T, w, logp, plot_path, iter_no = 0, plt_lims = plt_lims, kernel_sampler = kernel_sampler, N = 10000)
 
     if verbose: print()
 
@@ -471,7 +478,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
 
         if verbose: print('plotting')
-        plotting(y, T, w, logp, plot_path, iter_no = iter_no + 1, x_lower = -6, x_upper = 6, y_upper = 1.5, kernel_sampler = kernel_sampler, N = 10000)
+        plotting(y, T, w, logp, plot_path, iter_no = iter_no + 1, plt_lims = plt_lims, kernel_sampler = kernel_sampler, N = 10000)
 
         if verbose: print()
         # end for
