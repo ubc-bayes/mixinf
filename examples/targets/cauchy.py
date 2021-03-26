@@ -30,10 +30,10 @@ def sp(x, K = 1): return -2 * (x - mu) / (gamma + (x - mu)**2)
 
 # CREATE WEIGHT OPT SCHEDULE AND MAXITER
 def w_maxiters(k, long_opt = False):
-    if k == 0: return 750
+    if k == 0: return 1000
     if long_opt: return 100
-    return 50
+    return 100
 
 def w_schedule(k):
     if k == 0: return 0.01
-    return 0.005
+    return 0.0001

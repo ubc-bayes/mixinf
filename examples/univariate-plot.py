@@ -184,7 +184,7 @@ for N in ss:
 
         # plot log density estimation
         if i == 1: plt.hist(kk, label = 'approximation', density = True, bins = 50)
-        else: plt.hist(kk, density = True, bins = 50)
+        else: plt.hist(kk, density = True, bins = 100)
         i += 1
 
 
@@ -195,6 +195,7 @@ for N in ss:
     plt.ylabel('density')
     plt.title('density for mixtures with N = ' + str(N))
     plt.legend()
+    plt.xlim(xlim[0], xlim[1])
     title = 'density_N' + str(N) + '.'
     plt.savefig(path + title + extension, dpi=900)
     plt.clf()

@@ -39,6 +39,8 @@ parser.add_argument('-B', type = int, default = 500,
 help = 'MC sample size for gradient estimation in SGD')
 parser.add_argument('--tol', type = float, default = 0.001,
 help = 'step size tolerance at which to stop alg if maxiter not exceeded')
+parser.add_argument('--weight_max', type = int, default = 20,
+help = 'number of steps before optimizing weights again')
 parser.add_argument('--outpath', type = str, default = '',
 help = 'path of file to output')
 parser.add_argument('--plots', action = "store_true",
@@ -84,6 +86,7 @@ extension = 'pdf'
 verbose = args.verbose
 profiling = args.profiling
 B = args.B
+weight_max = args.weight_max
 
 # alg settings
 maxiter = args.maxiter
@@ -99,7 +102,7 @@ if target == '4-mixture':
 
 if target == 'cauchy':
     from targets.cauchy import *
-    plt_lims = np.array([-15, 15, 0.6])
+    plt_lims = np.array([-15, 15, 0.4])
 
 # import kernel for mixture
 kernel = args.kernel
@@ -143,9 +146,9 @@ for K in dims:
         # generate sample
         if verbose: print('Generating sample')
         y = sample(N, K)
-        #y = np.array([-2.5, 2.5])
+        #y = np.array([-2.5, 2.5])MC sample size for gradient estimation in SGD
         # run algorithm
-        w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, verbose = verbose, plot = plot, plot_path = plotpath, trace = plot)
+        w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, weight_max = weight_max, verbose = verbose, plot = plot, plot_path = plotpath, trace = plot)
 
         # save results
         if verbose: print('Saving results')
@@ -158,6 +161,7 @@ for K in dims:
 
         if plot:
             print('plotting objective trace')
+            plt.clf()
             plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
             plt.xlabel('iteration')
             plt.ylabel('kernelized stein discrepancy')
