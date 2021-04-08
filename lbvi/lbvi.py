@@ -23,22 +23,24 @@ def mix_sample(size, y, T, w, logp, kernel_sampler):
         - logp target logdensity
         - kernel_sampler is a function that generates samples from the mixture kernels
     outputs:
-        - shape(size,) array with the sample
+        - shape(size,K) array with the sample
     """
 
     N = y.shape[0]
+    K = y.shape[1]
+    y = y.reshape(N,K)
     inds = np.random.choice(N, size = size, p = w, replace = True) # indices to sample from
     values, counts = np.unique(inds, return_counts = True) # sampled values with counts
 
-    out = np.array([]) # init
+    out = np.empty((1, K)) # init
     for i in range(values.shape[0]):
+
         # for each value, generate a sample of size counts[i]
-        tmp_out = kernel_sampler(y = np.array([y[values[i]]]), T = np.array([T[values[i]]]), N = counts[i], logp = logp)
+        tmp_out = kernel_sampler(y = np.array(y[i, :]).reshape(1, K), T = np.array([T[values[i]]]), S = counts[i], logp = logp).reshape(counts[i], K)
 
         # add to sample
-        out = np.append(out, tmp_out)
+        out = np.concatenate((out, tmp_out))
     # end for
-
     return out
 ###################################
 
@@ -61,7 +63,7 @@ def up_gen(kernel, sp, dk_x, dk_y, dk_xy):
     generate the u_p function for ksd estimation
 
     inputs:
-        - x, y arrays to evaluate at
+        - x, y shape(N, K) arrays to evaluate at
         - k rkhs kernel
         - sp score of p
         - dk_x derivative of k wrt x
@@ -71,7 +73,15 @@ def up_gen(kernel, sp, dk_x, dk_y, dk_xy):
         - a function that takes two vectors as input and outputs u_p
     """
 
-    def anon_up(x, y): return sp(x)*kernel(x, y)*sp(y) + sp(x)*dk_y(x, y) + sp(y)*dk_x(x, y) + dk_xy(x, y)
+    def anon_up(x, y):
+        # x, y shape(N,K)
+        # out shape(N,1)
+
+        term1 = np.squeeze(np.matmul(sp(x)[:,np.newaxis,:], sp(y)[:,:,np.newaxis])) * kernel(x, y)
+        term2 = np.squeeze(np.matmul(sp(x)[:,np.newaxis,:], dk_y(x, y)[:,:,np.newaxis]))
+        term3 = np.squeeze(np.matmul(sp(y)[:,np.newaxis,:], dk_x(x, y)[:,:,np.newaxis]))
+        term4 = dk_xy(x, y)
+        return term1 + term2 + term3 + term4
 
     return anon_up
 ###################################
@@ -97,10 +107,10 @@ def ksd(logp, y, T, w, up, kernel_sampler, B = 1000):
     # generate samples
     X = mix_sample(2*B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler) # sample from mixture
 
-    Y = X[-B:]
-    X = X[:B]
+    Y = X[-B:, :]
+    X = X[:B, :]
 
-    return up(X, Y).mean()
+    return np.abs(up(X, Y).mean())
 ###################################
 
 
@@ -141,33 +151,35 @@ def plotting(y, T, w, logp, plot_path, iter_no, plt_lims, kernel_sampler, N = 10
         - kernel_sampler is a function that generates samples from the mixture kernels
         - N mixture sample size
     """
-    # get plotting limits
-    x_lower = plt_lims[0]
-    x_upper = plt_lims[1]
-    y_upper = plt_lims[2]
 
-    # plot target density
-    tt = np.linspace(x_lower, x_upper, 1000)
-    zz = np.exp(logp(tt))
-    plt.clf()
-    plt.plot(tt, zz, '-k', label = 'target')
+    if y.shape[1] == 1:
+        # get plotting limits
+        x_lower = plt_lims[0]
+        x_upper = plt_lims[1]
+        y_upper = plt_lims[2]
 
-    # generate approximation
-    kk = mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler)
+        # plot target density
+        tt = np.linspace(x_lower, x_upper, 1000)
+        zz = np.exp(logp(tt[:, np.newaxis]))
+        plt.clf()
+        plt.plot(tt, zz, '-k', label = 'target')
 
-    #yy = stats.gaussian_kde(kk, bw_method = 0.05).evaluate(tt)
+        # generate approximation
+        kk = np.squeeze(mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler))
 
-    # plot approximation
-    #plt.plot(tt, yy, '--b', label = 'approximation')
-    plt.hist(kk, label = 'approximation', density = True, bins = 75)
-    plt.plot(y, np.zeros(y.shape[0]), 'ok')
-    #plt.plot(y[argmin], np.zeros(1), 'or')
-    plt.ylim(0, y_upper)
-    plt.xlim(x_lower, x_upper)
-    plt.legend()
-    plt.suptitle('l-bvi approximation to density')
-    plt.title('iter: ' + str(iter_no))
-    plt.savefig(plot_path + 'iter_' + str(iter_no) + '.jpg', dpi = 300)
+        #yy = stats.gaussian_kde(kk, bw_method = 0.05).evaluate(tt)
+
+        # plot approximation
+        #plt.plot(tt, yy, '--b', label = 'approximation')
+        plt.hist(kk, label = 'approximation', density = True, bins = 75)
+        plt.plot(np.squeeze(y), np.zeros(y.shape[0]), 'ok')
+        #plt.plot(y[argmin], np.zeros(1), 'or')
+        plt.ylim(0, y_upper)
+        plt.xlim(x_lower, x_upper)
+        plt.legend()
+        plt.suptitle('l-bvi approximation to density')
+        plt.title('iter: ' + str(iter_no))
+        plt.savefig(plot_path + 'iter_' + str(iter_no) + '.jpg', dpi = 300)
 ###################################
 
 
@@ -179,7 +191,7 @@ def w_grad(up, logp, y, T, w, B, kernel_sampler):
     inputs:
         - up function to calculate expected value of
         - logp target logdensity
-        - y kernel locations
+        - y shape(N,K) kernel locations
         - T array with number of steps per kernel location
         - w array with location weights
         - B number of MC samples
@@ -188,22 +200,24 @@ def w_grad(up, logp, y, T, w, B, kernel_sampler):
         - shape(y.shape[0],) array, the gradient
     """
 
+    N = y.shape[0]
+    K = y.shape[1]
+
     # init
-    grad_w = np.zeros(y.shape[0])
+    grad_w = np.zeros(N)
 
     # sample from the mixture
     mix_X = mix_sample(2*B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
     mix_Y = mix_X[-B:]
     mix_X = mix_X[:B]
 
-    X = kernel_sampler(y = y, T = T, N = 2*B, logp = logp)
+    X = kernel_sampler(y = y, T = T, S = 2*B, logp = logp)
 
     # sample from each kernel and define gradient
     for n in range(y.shape[0]):
-
-        tmp_X = np.squeeze(X[:, n])
-        tmp_Y = tmp_X[-B:]
-        tmp_X = tmp_X[:B]
+        tmp_X = X[:,n,:]
+        tmp_Y = tmp_X[-B:,:]
+        tmp_X = tmp_X[:B,:]
 
         # get gradient
         grad_w[n] = up(tmp_X, mix_X).mean() + up(mix_Y, tmp_Y).mean()
@@ -214,13 +228,13 @@ def w_grad(up, logp, y, T, w, B, kernel_sampler):
 
 
 ###################################
-def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, tol = 0.01, b = 0.1, B = 1000, maxiter = 1000, verbose = False, trace = False, tracepath = ''):
+def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, tol = 0.001, b = 0.1, B = 1000, maxiter = 1000, verbose = False, trace = False, tracepath = ''):
     """
     optimize weights via sgd
 
     inputs:
         - logp target density
-        - y kernel locations
+        - y shape(N,K) kernel locations
         - T array with number of steps per kernel location
         - w array with location weights
         - active array with number of active locations
@@ -243,7 +257,7 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, tol = 0.0
 
 
     # subset active locations
-    y = y[active]
+    y = y[active,:]
     T = T[active]
     w = w[active]
     #w = np.ones(w.shape[0]) / w.shape[0]
@@ -267,7 +281,7 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, tol = 0.0
         w = simplex_project(w) # project to simplex
         if np.linalg.norm(Dw) < tol: convergence = True # update convergence
 
-        if trace: obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, B = 5000))
+        if trace: obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, B = 10000))
 
 
     # end for
@@ -340,10 +354,11 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B, kernel_sampl
             #print('active steps: ' + str(tmp_T[tmp_active]))
             # generate samples
             X_mix = mix_sample(size = 4*B, y = y[tmp_active], T = tmp_T, w = tmp_w, logp = logp, kernel_sampler = kernel_sampler)
-            X_kernel = kernel_sampler(y = np.array([y[n]]), T = np.array([tmp_T[n]]), N = 2*B, logp = logp)
+            X_kernel = kernel_sampler(y = np.array([y[n]]), T = np.array([tmp_T[n]]), S = 2*B, logp = logp)[:,0,:]
+
 
             # estimate gradient
-            grads[n] = up(X_mix[:B], X_kernel[:B]).mean() + up(X_kernel[B:2*B], X_mix[B:2*B]).mean() - 2*up(X_mix[2*B:3*B], X_mix[3*B:4*B]).mean()
+            grads[n] = up(X_mix[:B,:], X_kernel[:B,:]).mean() + up(X_kernel[B:2*B,:], X_mix[B:2*B,:]).mean() - 2*up(X_mix[2*B:3*B,:], X_mix[3*B:4*B,:]).mean()
 
     # end for
     #print('gradients: ' + str(grads))
@@ -359,7 +374,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters =
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
 
     inputs:
-        - y array of kernel locations (sample)
+        - y shape(N,K) array of kernel locations (sample)
         - logp is a function, the target log density
         - t_increment integer with number of steps to increase chain by
         - t_max integer with max number of steps allowed per chain
@@ -381,6 +396,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters =
     """
 
     N = y.shape[0]
+    K = y.shape[1]
 
     if w_maxiters is None:
         # define sgd maxiter function
@@ -399,7 +415,6 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters =
     w = np.zeros(N)
     T = np.zeros(N, dtype = np.intc)
     convergence = False
-    obj = np.array([])
     weight_opt_counter = 0
     long_opt = False
 
@@ -407,7 +422,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters =
     if verbose: print('choosing first mixture')
     tmp_ksd = np.zeros(N)
     for n in range(N):
-        tmp_ksd[n] = ksd(logp = logp, y = np.array([y[n]]), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, B = B)
+        tmp_ksd[n] = ksd(logp = logp, y = y[n,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, B = B)
         # end for
 
     argmin = np.argmin(tmp_ksd) # ksd minimizer
@@ -416,7 +431,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters =
     T[argmin] = t_increment # update steps
     active = np.array([argmin]) # update active locations, kernel_sampler
     if verbose: print('number of steps: ' + str(T))
-    obj = np.append(obj, tmp_ksd[argmin]) # update objective
+    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, B = 100000)]) # update objective
     if verbose: print('objective: ' + str(obj[-1]))
 
 

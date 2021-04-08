@@ -1,6 +1,7 @@
 # returns cauchy k-dim density and sampler
-import numpy as np
-#from scipy.special import gamma
+import autograd.numpy as np
+from autograd import elementwise_grad as egrad
+from autograd import grad
 import scipy.stats as stats
 import argparse
 
@@ -16,16 +17,12 @@ import argparse
 gamma = 1
 mu = 0
 
-def logp_aux(x, K = 1): return -np.log(np.pi * gamma) - np.log(1 + (x - mu)**2 / gamma)
+def logp_aux(x, K = 1): return -np.log(np.pi * gamma) - np.log(1 + np.sum((x - mu)**2, axis = -1) / gamma)
 
 
 # CREATE SAMPLER ####
 def sample(size, K): return 4 * np.random.randn(size, K)
 
-
-
-# CREATE SCORE FUNCTION
-def sp(x, K = 1): return -2 * (x - mu) / (gamma + (x - mu)**2)
 
 
 # CREATE WEIGHT OPT SCHEDULE AND MAXITER
@@ -35,5 +32,5 @@ def w_maxiters(k, long_opt = False):
     return 100
 
 def w_schedule(k):
-    if k == 0: return 0.01
-    return 0.0001
+    if k == 0: return 1
+    return 0.01

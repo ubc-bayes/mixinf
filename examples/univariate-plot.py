@@ -23,7 +23,7 @@ parser.add_argument('--inpath', type = str, default = 'results/',
 help = 'path of folder where csv files are stored')
 parser.add_argument('--outpath', type = str, default = 'results/plots/',
 help = 'path of folder where plots will be saved')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture'],
 help = 'target distribution to use')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
@@ -56,6 +56,9 @@ if target == '4-mixture':
 if target == 'cauchy':
     from targets.cauchy import *
     xlim = np.array([-10, 10])
+if target == '5-mixture':
+    from targets.fivemixture import *
+    xlim = np.array([-3, 15]) # for plotting
 
 
 # import kernel for mixture
@@ -72,6 +75,7 @@ if rkhs == 'rbf':
 # define densities and up
 def logp(x): return logp_aux(x, 1)
 def p(x): return np.exp(logp(x))
+sp = egrad(logp)
 up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
 
 # READ DATA FRAMES IN PATH ####
@@ -111,7 +115,7 @@ db = db.sort_values(by=['number'])
 images = []
 for file_name in db.file_name:
     images.append(imageio.imread(inpath + 'plots/' + file_name))
-imageio.mimsave(path + 'evolution.gif', images, fps = 4)
+imageio.mimsave(path + 'evolution.gif', images, fps = 8)
 # gif done
 
 
@@ -126,7 +130,7 @@ for N in ss:
 
     # initialize plot with target log density
     t = np.linspace(xlim[0], xlim[1], 2000)
-    f = logp(t)
+    f = logp(t[:,np.newaxis])
     plt.plot(t, f, 'k-', label = 'target', linewidth = 1, markersize = 1.5)
     i = 1
 
@@ -136,9 +140,10 @@ for N in ss:
         w = np.array(dat.w)
         T =  np.array(dat.steps)
         dat = dat.drop(['w', 'steps'], axis = 1)
-        x = np.squeeze(np.array(dat))
+        x = np.array(dat)
+        x = x.reshape(x.shape[0],1)
         kk = lbvi.mix_sample(10000, y = x, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-        yy = stats.gaussian_kde(kk, bw_method = 0.05).evaluate(t)
+        yy = stats.gaussian_kde(np.squeeze(kk), bw_method = 0.05).evaluate(t)
 
         # plot log density estimation
         if i == 1: plt.plot(t, np.log(yy), '--b', label = 'approximation')
@@ -169,7 +174,7 @@ for N in ss:
 
     # initialize plot with target log density
     t = np.linspace(xlim[0], xlim[1], 2000)
-    f = p(t)
+    f = p(t[:,np.newaxis])
     plt.plot(t, f, 'k-', label = 'target', linewidth = 1, markersize = 1.5)
     i = 1
 

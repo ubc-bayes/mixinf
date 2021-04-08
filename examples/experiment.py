@@ -2,7 +2,9 @@
 # run simulation with argparse parameters
 
 # PREAMBLE ####
-import numpy as np
+import autograd.numpy as np
+from autograd import elementwise_grad as egrad
+from autograd import grad
 import pandas as pd
 import scipy.stats as stats
 import time, bisect
@@ -23,7 +25,7 @@ parser.add_argument('-N', type = int, nargs = '+',
 help = 'sample sizes on which to run optimization')
 parser.add_argument('-d', '--dim', type = int, nargs = '+',
 help = 'dimensions on which to run optimization')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture'],
 help = 'target distribution to use')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
@@ -104,6 +106,10 @@ if target == 'cauchy':
     from targets.cauchy import *
     plt_lims = np.array([-15, 15, 0.4])
 
+if target == '5-mixture':
+    from targets.fivemixture import *
+    plt_lims = np.array([-3, 15, 1.5])
+
 # import kernel for mixture
 kernel = args.kernel
 if kernel == 'gaussian':
@@ -136,6 +142,8 @@ if verbose: print(f'Begin simulation! approximating a {target} density')
 for K in dims:
     # define target log density
     def logp(x): return logp_aux(x, K)
+    if K == 1: sp = egrad(logp) # returns (N,1)
+    if K > 1: sp = grad(logp) # returns (N,K)
     up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
 
     if verbose: print(f"Dimension K = {K}\n")
@@ -146,7 +154,8 @@ for K in dims:
         # generate sample
         if verbose: print('Generating sample')
         y = sample(N, K)
-        #y = np.array([-2.5, 2.5])MC sample size for gradient estimation in SGD
+
+
         # run algorithm
         w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, weight_max = weight_max, verbose = verbose, plot = plot, plot_path = plotpath, trace = plot)
 

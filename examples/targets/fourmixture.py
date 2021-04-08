@@ -1,9 +1,9 @@
 # returns 1-dim mixture of 4 gaussians
-import numpy as np
+import autograd.numpy as np
 
 
 # gaussian log density
-def lognorm(x, mu, sd): return -0.5 * (x - mu)**2 / sd**2 - 0.5*np.log(2*np.pi) - np.log(sd) # gaussian log density
+def lognorm(x, mu, sd): return -0.5 * np.sum((x - mu)**2, axis = -1) / sd**2 - 0.5*np.log(2*np.pi) - np.log(sd) # gaussian log density
 
 # target mixture settings
 mu = np.array([-3, -2, 2, 3])
@@ -32,24 +32,7 @@ def logp_aux(x, K = 1):
 
 
 
-# score function
-def sp(x, K = 1):
-    #out = np.array([])
-
-    #for i in range(x.shape[0]):
-    #    exponents = np.log(weights) - 0.5*np.log(2 * np.pi * sd**2) - 0.5*(x[i] - mu)**2 / sd + np.log(np.abs(x[i] - mu)) - 2*np.log(sd)
-    #    out = np.append(out, LogSumExp(exponents) / np.exp(logp_aux(np.array([x[i]]))))
-
-    out = np.zeros([x.shape[0]])
-
-    for i in range(mu.shape[0]):
-        out = out + weights[i] * np.exp(lognorm(x, mu[i], sd[i])) * (x - mu[i]) / sd[i]**2
-
-    return out / np.exp(logp_aux(x))
-
-
 # define sampler
-
 ###########
 # auxiliary function
 def mixture_rvs(size, w, x, rho):
@@ -59,19 +42,19 @@ def mixture_rvs(size, w, x, rho):
     returns a shape(size, K) array
     """
     N = x.shape[0]
-    #K = x.shape[1]
+    K = x.shape[1]
 
     inds = np.random.choice(N, size = size, p = w, replace = True) # indices that will be chosen
     #rand = np.random.randn(size, K) # sample from standard normal but more efficiently than as above
-    rand = np.random.randn(size) # sample from standard normal but more efficiently than as above
+    rand = np.random.randn(size,K) # sample from standard normal but more efficiently than as above
     # return scaled and translated random draws
     sigmas = rho[inds] # index std deviations for ease
     #return rand * sigmas[:, np.newaxis] + x[inds, :]
-    return rand * sigmas + x[inds]
+    return rand * sigmas[:,np.newaxis] + x[inds,:]
 ###########
 
 def sample(size, K):
-    return np.squeeze(mixture_rvs(size, weights, mu, sd * np.ones(weights.shape[0])))
+    return mixture_rvs(size, weights, np.repeat(mu,K).reshape(mu.shape[0],K), sd * np.ones(weights.shape[0]))
 
 
 def w_maxiters(k, long_opt = False):
@@ -80,5 +63,5 @@ def w_maxiters(k, long_opt = False):
     return 50
 
 def w_schedule(k):
-    if k == 0: return 0.005
-    return 0.000001
+    if k == 0: return 1
+    return 0.1
