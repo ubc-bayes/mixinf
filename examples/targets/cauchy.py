@@ -3,21 +3,20 @@ import autograd.numpy as np
 from autograd import elementwise_grad as egrad
 from autograd import grad
 import scipy.stats as stats
-import argparse
+from scipy.special import loggamma
 
 
 # CREATE DENSITY ####
 
-
-#def log p_aux(x, K):
-#    df = 1               # degrees of freedom
-#    mu =  0 * np.ones(K) # location parameter, defaults to 0
-#    return np.squeeze(- 0.5 * (df + K) * np.log( 1 + ((x - mu)**2).sum(axis = -1) / df ))
-
 gamma = 1
 mu = 0
 
-def logp_aux(x, K = 1): return -np.log(np.pi * gamma) - np.log(1 + np.sum((x - mu)**2, axis = -1) / gamma)
+#def logp_aux(x, K = 1): return -np.log(np.pi * gamma) - np.log(1 + np.sum((x - mu)**2, axis = -1) / gamma)
+def logp_aux(x, K = 1):
+    # x is shape(N,K)
+    mu =  np.zeros(K)    # location parameter, defaults to 0
+    nu = 0.5 * (1+K)
+    return np.squeeze(loggamma(nu) - nu*np.log(np.pi) -  nu*np.log( 1 + ((x - mu)**2).sum(axis = -1) ))
 
 
 # CREATE SAMPLER ####

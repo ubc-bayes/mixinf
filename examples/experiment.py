@@ -25,7 +25,7 @@ parser.add_argument('-N', type = int, nargs = '+',
 help = 'sample sizes on which to run optimization')
 parser.add_argument('-d', '--dim', type = int, nargs = '+',
 help = 'dimensions on which to run optimization')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana'],
 help = 'target distribution to use')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
@@ -96,24 +96,31 @@ tol = args.tol
 t_increment = args.t_inc
 t_max = args.t_max
 
+
 # import target density and sampler
 target = args.target
 if target == '4-mixture':
     from targets.fourmixture import *
-    plt_lims = np.array([-6, 6, 1.5])
+    plt_lims = np.array([-6, 6, 0, 1.5])
 
 if target == 'cauchy':
     from targets.cauchy import *
-    plt_lims = np.array([-15, 15, 0.4])
+    plt_lims = np.array([-15, 15, 0, 0.4])
 
 if target == '5-mixture':
     from targets.fivemixture import *
-    plt_lims = np.array([-3, 15, 1.5])
+    plt_lims = np.array([-3, 15, 0, 1.5])
+
+if target == 'banana':
+    from targets.banana import *
+    plt_lims = np.array([-15, 15, -15, 15])
+
 
 # import kernel for mixture
 kernel = args.kernel
 if kernel == 'gaussian':
     from kernels.gaussian import *
+
 
 # import RKHS kernel
 rkhs = args.rkhs
@@ -143,7 +150,12 @@ for K in dims:
     # define target log density
     def logp(x): return logp_aux(x, K)
     if K == 1: sp = egrad(logp) # returns (N,1)
-    if K > 1: sp = grad(logp) # returns (N,K)
+    if K > 1:
+        sp = egrad(logp) # returns (N,K)
+        # fix plot lims for xy plane (instead of y being density height)
+        plt_lims[2] = plt_lims[0]
+        plt_lims[3] = plt_lims[1]
+
     up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
 
     if verbose: print(f"Dimension K = {K}\n")
@@ -157,7 +169,7 @@ for K in dims:
 
 
         # run algorithm
-        w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, weight_max = weight_max, verbose = verbose, plot = plot, plot_path = plotpath, trace = plot)
+        w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, weight_max = weight_max, verbose = verbose, plot = plot, plt_lims = plt_lims, plot_path = plotpath, trace = plot)
 
         # save results
         if verbose: print('Saving results')

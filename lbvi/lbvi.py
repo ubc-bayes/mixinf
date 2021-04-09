@@ -136,7 +136,7 @@ def simplex_project(x):
 
 
 ###################################
-def plotting(y, T, w, logp, plot_path, iter_no, plt_lims, kernel_sampler, N = 10000):
+def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler, plt_lims = None, N = 10000):
     """
     function that plots the target density and approximation, used in each iteration of the main routine
 
@@ -147,34 +147,60 @@ def plotting(y, T, w, logp, plot_path, iter_no, plt_lims, kernel_sampler, N = 10
         - logp target log density
         - plot_path string with plath to save figures in
         - iter_no integer with iteration number for title
-        - plt_lims is a 3-array with the plotting limits (xinf, xsup, ysup, in that order)
         - kernel_sampler is a function that generates samples from the mixture kernels
+        - plt_lims is an array with the plotting limits (xinf, xsup, yinf, ysup)
         - N mixture sample size
     """
+    plt.clf()
 
+    # univariate data plotting
     if y.shape[1] == 1:
         # get plotting limits
         x_lower = plt_lims[0]
         x_upper = plt_lims[1]
-        y_upper = plt_lims[2]
+        y_upper = plt_lims[3]
 
         # plot target density
         tt = np.linspace(x_lower, x_upper, 1000)
         zz = np.exp(logp(tt[:, np.newaxis]))
-        plt.clf()
         plt.plot(tt, zz, '-k', label = 'target')
 
-        # generate approximation
+        # generate and plot approximation
         kk = np.squeeze(mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler))
-
-        #yy = stats.gaussian_kde(kk, bw_method = 0.05).evaluate(tt)
-
-        # plot approximation
-        #plt.plot(tt, yy, '--b', label = 'approximation')
         plt.hist(kk, label = 'approximation', density = True, bins = 75)
         plt.plot(np.squeeze(y), np.zeros(y.shape[0]), 'ok')
-        #plt.plot(y[argmin], np.zeros(1), 'or')
+
+        # beautify and save plot
         plt.ylim(0, y_upper)
+        plt.xlim(x_lower, x_upper)
+        plt.legend()
+        plt.suptitle('l-bvi approximation to density')
+        plt.title('iter: ' + str(iter_no))
+        plt.savefig(plot_path + 'iter_' + str(iter_no) + '.jpg', dpi = 300)
+
+    # bivariate dataplotting
+    if y.shape[1] == 2:
+        # get plotting limits
+        x_lower = plt_lims[0]
+        x_upper = plt_lims[1]
+        y_lower = plt_lims[2]
+        y_upper = plt_lims[3]
+
+        # plot target density
+        xx = np.linspace(x_lower, x_upper, 1000)
+        yy = np.linspace(y_lower, y_upper, 1000)
+        tt = np.array(np.meshgrid(xx, yy)).T.reshape(1000**2, 2)
+        f = np.exp(logp(tt)).reshape(1000, 1000).T
+        fig,ax=plt.subplots(1,1)
+        cp = ax.contourf(xx, yy, f, label = 'target')
+        fig.colorbar(cp)
+
+        # generate and plot approximation
+        kk = mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler)
+        plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'approximation')
+
+        # beautify and save plot
+        plt.ylim(y_lower, y_upper)
         plt.xlim(x_lower, x_upper)
         plt.legend()
         plt.suptitle('l-bvi approximation to density')
@@ -368,7 +394,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B, kernel_sampl
 
 
 ###################################
-def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, weight_max = 20, verbose = False, plot = True, plot_path = 'plots', trace = False):
+def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, weight_max = 20, verbose = False, plot = True, plt_lims = None, plot_path = 'plots', trace = False):
     """
     locally-adapted boosting variational inference main routine
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
@@ -380,7 +406,6 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters =
         - t_max integer with max number of steps allowed per chain
         - up function to calculate expected value of when estimating ksd
         - kernel_sampler is a function that generates samples from the mixture kernels
-        - plt_lims is a 3-array with the plotting limits (xinf, xsup, ysup)
         - w_maxiters is a function that receives the iteration number and a boolean indicating whether opt is long or not and outputs the max number of iterations for weight optimization
         - w_schedule is a function that receives the iteration number and outputs the step size for the weight optimization
         - B number of MC samples for estimating ksd and gradients
@@ -388,6 +413,8 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters =
         - tol is a float with the tolerance below which the algorithm breaks the loop and stops
         - weight_max is an integer indicating max number of iterations without weight optimization (if no new kernels are added to mixture)
         - verbose is boolean indicating whether to print messages
+        - plot is boolean indicating whether to generate plots of the approximation at each iteration (only supported for uni and bivariate data)
+        - plt_lims is an array with the plotting limits (xinf, xsup, yinf, ysup)
         - trace is boolean indicating whether to print a trace plot of the objective function
         - tracepath is the path in which the trace plot is saved if generated
     outputs:
@@ -397,6 +424,8 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters =
 
     N = y.shape[0]
     K = y.shape[1]
+
+    if K > 2: plot = False # no plotting beyond bivariate data
 
     if w_maxiters is None:
         # define sgd maxiter function
@@ -437,7 +466,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters =
 
     # plot initial approximation
     if verbose: print('plotting')
-    plotting(y, T, w, logp, plot_path, iter_no = 0, plt_lims = plt_lims, kernel_sampler = kernel_sampler, N = 10000)
+    plotting(y, T, w, logp, plot_path, iter_no = 0, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
 
     if verbose: print()
 
@@ -493,7 +522,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, plt_lims, w_maxiters =
 
 
         if verbose: print('plotting')
-        plotting(y, T, w, logp, plot_path, iter_no = iter_no + 1, plt_lims = plt_lims, kernel_sampler = kernel_sampler, N = 10000)
+        plotting(y, T, w, logp, plot_path, iter_no = iter_no + 1, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
 
         if verbose: print()
         # end for
