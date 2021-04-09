@@ -13,18 +13,13 @@ todo
 
 ## Examples
 
-### Sequential mixinf
 
-todo
-
-### Batch mixinf
-
-todo
 
 ## Directory roadmap
 
 Each directory contains its own README file. In general:
 - `examples` contains self-contained examples that approximate one of the target distributions in its `targets` subdirectory
+- `lbvi` contains the main functions used for L-BVI Bayesian inference
 
 
 ### todo
