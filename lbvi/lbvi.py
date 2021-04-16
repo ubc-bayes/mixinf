@@ -136,7 +136,7 @@ def simplex_project(x):
 
 
 ###################################
-def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler, plt_lims = None, N = 10000):
+def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler = None, plt_lims = None, N = 10000):
     """
     function that plots the target density and approximation, used in each iteration of the main routine
 
@@ -147,7 +147,7 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler, plt_lims = None,
         - logp target log density
         - plot_path string with plath to save figures in
         - iter_no integer with iteration number for title
-        - kernel_sampler is a function that generates samples from the mixture kernels
+        - kernel_sampler is a function that generates samples from the mixture kernels (if None, the sample is plotted)
         - plt_lims is an array with the plotting limits (xinf, xsup, yinf, ysup)
         - N mixture sample size
     """
@@ -165,10 +165,13 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler, plt_lims = None,
         zz = np.exp(logp(tt[:, np.newaxis]))
         plt.plot(tt, zz, '-k', label = 'target')
 
-        # generate and plot approximation
-        kk = np.squeeze(mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler))
-        plt.hist(kk, label = 'approximation', density = True, bins = 75)
-        plt.plot(np.squeeze(y), np.zeros(y.shape[0]), 'ok')
+        if kernel_sampler is None:
+            plt.hist(y, label = '', density = True, bins = 75)
+        else:
+            # generate and plot approximation
+            kk = np.squeeze(mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler))
+            plt.hist(kk, label = 'approximation', density = True, bins = 75)
+            plt.plot(np.squeeze(y), np.zeros(y.shape[0]), 'ok')
 
         # beautify and save plot
         plt.ylim(0, y_upper)
@@ -195,17 +198,25 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler, plt_lims = None,
         cp = ax.contourf(xx, yy, f, label = 'target')
         fig.colorbar(cp)
 
-        # generate and plot approximation
-        kk = mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler)
-        plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'approximation')
+        if kernel_sampler is None:
+            plt.scatter(y[:,0], y[:,1], marker='.', c='k', alpha = 0.2, label = '')
+        else:
+            # generate and plot approximation
+            kk = mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler)
+            plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'approximation')
 
         # beautify and save plot
         plt.ylim(y_lower, y_upper)
         plt.xlim(x_lower, x_upper)
         plt.legend()
         plt.suptitle('l-bvi approximation to density')
-        plt.title('iter: ' + str(iter_no))
+        # assign plot title
+        if kernel_sampler is None:
+            plt.title('initial sample')
+        else:
+            plt.title('iter: ' + str(iter_no))
         plt.savefig(plot_path + 'iter_' + str(iter_no) + '.jpg', dpi = 300)
+
 ###################################
 
 
@@ -403,7 +414,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - y shape(N,K) array of kernel locations (sample)
         - logp is a function, the target log density
         - t_increment integer with number of steps to increase chain by
-        - t_max integer with max number of steps allowed per chain
+        - t_max integer with max number of steps allowed per chaikernel_samplern
         - up function to calculate expected value of when estimating ksd
         - kernel_sampler is a function that generates samples from the mixture kernels
         - w_maxiters is a function that receives the iteration number and a boolean indicating whether opt is long or not and outputs the max number of iterations for weight optimization
@@ -417,7 +428,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - plt_lims is an array with the plotting limits (xinf, xsup, yinf, ysup)
         - trace is boolean indicating whether to print a trace plot of the objective function
         - tracepath is the path in which the trace plot is saved if generated
-    outputs:
+    outputs:kernel_sampler
         - w, T are shape(y.shape[0], ) arrays with the sample, the weights, and the steps sizes
         - obj is an array with the value of the objective function at each iteration
     """
@@ -439,6 +450,9 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         def w_schedule(k):
             if k == 0: return 0.005
             return 0.000001
+
+    # plot initial sample
+    plotting(y, T = 0, w = 0, logp = logp, plot_path = plot_path, iter_no = -1, kernel_sampler = None, plt_lims = plt_lims, N = 10000)
 
     # init values
     w = np.zeros(N)

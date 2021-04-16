@@ -23,7 +23,7 @@ parser.add_argument('--inpath', type = str, default = 'results/',
 help = 'path of folder where csv files are stored')
 parser.add_argument('--outpath', type = str, default = 'results/plots/',
 help = 'path of folder where plots will be saved')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana'],
 help = 'target distribution to use')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
@@ -49,24 +49,28 @@ extension = args.extension
 
 
 # IMPORT TARGET DENSITY ####
+# and plotting limits as well
 target = args.target
 if target == '4-mixture':
     from targets.fourmixture import *
-    xlim = np.array([-6, 6]) # for plotting
+    xlim = np.array([-6, 6])
     ylim = np.array([-6, 6])
 if target == 'cauchy':
     from targets.cauchy import *
-    xlim = np.array([-10, 10]) # for plotting
+    xlim = np.array([-10, 10])
     ylim = np.array([-10, 10])
 if target == '5-mixture':
     from targets.fivemixture import *
-    xlim = np.array([-3, 15]) # for plotting
+    xlim = np.array([-3, 15])
     ylim = np.array([-3, 15])
 if target == 'banana':
     from targets.banana import *
-    xlim = np.array([-15, 15]) # for plotting
+    xlim = np.array([-15, 15])
     ylim = np.array([-15, 15])
-
+if target == 'double-banana':
+    from targets.double_banana import *
+    xlim = np.array([-2.5, 2.5])
+    ylim = np.array([-1, 1])
 
 # import kernel for mixture
 kernel = args.kernel
@@ -103,6 +107,7 @@ print('begin plotting!')
 # code from https://stackoverflow.com/questions/41228209/making-gif-from-images-using-imageio-in-python
 jpg_dir = inpath + 'plots/'
 jpg_dir = os.listdir(jpg_dir)
+#jpg_dir = glob.glob(jpg_dir + 'iter_*.jpg')
 jpg_dir = np.setdiff1d(jpg_dir, 'weight_trace')
 number = np.zeros(len(jpg_dir))
 i = 0

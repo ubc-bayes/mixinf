@@ -11,7 +11,7 @@ import time, bisect
 import matplotlib.pyplot as plt
 plt.rcParams.update({'figure.max_open_warning': 0})
 import argparse
-import sys, os
+import sys, os, shutil
 import warnings
 
 # import the suite of functions from parent directory
@@ -25,7 +25,7 @@ parser.add_argument('-N', type = int, nargs = '+',
 help = 'sample sizes on which to run optimization')
 parser.add_argument('-d', '--dim', type = int, nargs = '+',
 help = 'dimensions on which to run optimization')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana'],
 help = 'target distribution to use')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
@@ -67,10 +67,22 @@ plotpath = args.plotpath
 # check if necessary folder structure exists, and create it if it doesn't
 if not os.path.exists(path + 'results/'):
     os.makedirs(path + 'results/')
+else:
+    shutil.rmtree(path + 'results/plots/')
 
-if plot & (not os.path.exists(plotpath + 'results/plots/')):
-    os.makedirs(plotpath + 'results/plots/')
-    if not os.path.exists(plotpath + 'results/plot/weight_trace/'):
+#if plot & (not os.path.exists(plotpath + 'results/plots/')): # if no plots directory, create
+#    os.makedirs(plotpath + 'results/plots/')
+#elif plot & os.path.exists(plotpath + 'results/plots/'):     # if plots directory, delete
+#    shutil.rmtree(path + 'results/plots/')
+#    os.makedirs(plotpath + 'results/plots/')
+#    os.makedirs(plotpath + 'results/plots/weight_trace/')
+
+# if you want to plot and a plot folder exists, delete it and create new ones. If if doesn't exist, create it
+if plot:
+    if os.path.exists(plotpath + 'results/plots/'):
+        shutil.rmtree(path + 'results/plots/')
+    else:
+        os.makedirs(plotpath + 'results/plots/')
         os.makedirs(plotpath + 'results/plots/weight_trace/')
 
 if plot: plotpath = plotpath + 'results/plots/'
@@ -114,6 +126,10 @@ if target == '5-mixture':
 if target == 'banana':
     from targets.banana import *
     plt_lims = np.array([-15, 15, -15, 15])
+
+if target == 'double-banana':
+    from targets.double_banana import *
+    plt_lims = np.array([-2.5, 2.5, -1, 2])
 
 
 # import kernel for mixture
