@@ -33,3 +33,16 @@ def w_maxiters(k, long_opt = False):
 def w_schedule(k):
     if k == 0: return 1
     return 0.01
+
+
+# CREATE BVI SCHEDULES
+# schedule tuning
+b1 = 0.01
+gamma_alpha = lambda k : b1 / np.sqrt(k+1)
+
+b2 = 0.05
+gamma_init = lambda k : b2 / np.sqrt(k+1)
+
+# regularization
+ell = 1
+regularization = lambda k : ell / np.sqrt(k+2)

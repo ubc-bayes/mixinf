@@ -1,4 +1,4 @@
-# plot the results of univariate simulation stored in .cvs files in given folder
+# plot the results of bivariate simulation stored in .cvs files in given folder
 
 # PREAMBLE ####
 import glob
@@ -26,7 +26,7 @@ parser.add_argument('--inpath', type = str, default = 'results/',
 help = 'path of folder where csv files are stored')
 parser.add_argument('--outpath', type = str, default = 'results/plots/',
 help = 'path of folder where plots will be saved')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana'],
 help = 'target distribution to use')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
@@ -55,13 +55,24 @@ extension = args.extension
 target = args.target
 if target == '4-mixture':
     from targets.fourmixture import *
-    xlim = np.array([-6, 6]) # for plotting
+    xlim = np.array([-6, 6])
+    ylim = np.array([-6, 6])
 if target == 'cauchy':
     from targets.cauchy import *
     xlim = np.array([-10, 10])
+    ylim = np.array([-10, 10])
 if target == '5-mixture':
     from targets.fivemixture import *
-    xlim = np.array([-3, 15]) # for plotting
+    xlim = np.array([-3, 15])
+    ylim = np.array([-3, 15])
+if target == 'banana':
+    from targets.banana import *
+    xlim = np.array([-15, 15])
+    ylim = np.array([-15, 15])
+if target == 'double-banana':
+    from targets.double_banana import *
+    xlim = np.array([-2.5, 2.5])
+    ylim = np.array([-1, 1])
 
 
 # import kernel for mixture
@@ -107,53 +118,34 @@ alphas = np.load(tmp_path + 'weights.npy')
 sqrtSigmas = np.zeros(Sigmas.shape)
 for i in range(Sigmas.shape[0]):
     sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
-
-
-# LOG DENSITY PLOT
-# initialize plot with target log density
-t = np.linspace(xlim[0], xlim[1], 2000)
-f = logp(t[:,np.newaxis])
-plt.plot(t, f, 'k-', label = 'Target', linewidth = 1, markersize = 1.5)
-
-# add lbvi log density based on kde
-kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-yy = stats.gaussian_kde(np.squeeze(kk), bw_method = 0.05).evaluate(t)
-plt.plot(t, np.log(yy), '--b', label = 'LBVI')
-
-# add bvi log density
 bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
-plt.plot(t, bvi_logq(t[:,np.newaxis]), '--m', label='BBBVI')
-
-# add labels
-plt.xlabel('x')
-plt.ylabel('Log-density')
-plt.title('Log-density comparison')
-plt.legend()
-
-# save plot
-plt.savefig(path + 'log-density_comparison.' + extension, dpi=900)
-plt.clf()
-##########################
-
 
 # DENSITY PLOT
-# initialize plot with target density
-t = np.linspace(xlim[0], xlim[1], 2000)
-f = p(t[:,np.newaxis])
-plt.plot(t, f, 'k-', label = 'Target', linewidth = 1, markersize = 1.5)
+# initialize plot with target density contour
+xx = np.linspace(xlim[0], xlim[1], 1000)
+yy = np.linspace(ylim[0], ylim[1], 1000)
+tt = np.array(np.meshgrid(xx, yy)).T.reshape(1000**2, 2)
+f = np.exp(logp(tt)).reshape(1000, 1000).T
+fig,ax=plt.subplots(1,1)
+cp = ax.contour(xx, yy, f, label = 'Target')
+#fig.colorbar(cp)
 
-# add lbvi log density based on kde
+# add lbvi samples
 kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-plt.hist(kk, label = 'LBVI', density = True, bins = 50)
+plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'LBVI')
 
-# add bvi log density
-plt.plot(t, np.exp(bvi_logq(t[:,np.newaxis])), '--m', label='BBBVI')
+# add bvi density
+f = np.exp(bvi_logq(tt)).reshape(1000, 1000).T
+#fig,ax=plt.subplots(1,1)
+cp = ax.contour(xx, yy, f, label = 'BBBVI', colors = 'magenta')
+#fig.colorbar(cp)
 
 # add labels
 plt.xlabel('x')
-plt.ylabel('Density')
+plt.ylabel('y')
+plt.xlim(xlim[0], xlim[1])
+plt.ylim(ylim[0], ylim[1])
 plt.title('Density comparison')
-plt.legend()
 
 # save plot
 plt.savefig(path + 'density_comparison.' + extension, dpi=900)

@@ -462,14 +462,14 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     long_opt = False
 
     # init mixture
-    if verbose: print('choosing first mixture')
+    if verbose: print('choosing first kernel')
     tmp_ksd = np.zeros(N)
     for n in range(N):
         tmp_ksd[n] = ksd(logp = logp, y = y[n,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, B = B)
         # end for
 
     argmin = np.argmin(tmp_ksd) # ksd minimizer
-    if verbose: print('first element: ' + str(y[argmin]))
+    if verbose: print('first sample point chosen: ' + str(y[argmin]))
     w[argmin] = 1 # update weight
     T[argmin] = t_increment # update steps
     active = np.array([argmin]) # update active locations, kernel_sampler
@@ -494,9 +494,9 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         if convergence: break
 
 
-        if verbose: print('choosing next step')
+        if verbose: print('choosing next kernel')
         argmin = choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B = B, kernel_sampler = kernel_sampler)
-        if verbose: print('chosen element: ' + str(y[argmin]))
+        if verbose: print('chosen sample point: ' + str(y[argmin]))
 
         # update steps
         T[argmin] = T[argmin] + t_increment

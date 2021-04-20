@@ -249,12 +249,16 @@ def bvi(logp, N, K, regularization = 1., gamma_init = None, gamma_alpha = None, 
     # init values
     mus = np.zeros((N,K))
     mus[0:,] = mu
+
     Sigmas = np.zeros((N,K,K))
     Sigmas[0,:,:] = Sigma
+
     sqrtSigmas = np.zeros((N,K,K))
     sqrtSigmas[0,:,:] = SigmaSqrt
+
     alphas = np.zeros(N)
     alphas[0] = 1
+
     objs = np.zeros(N)
     objs[0] = KL(logq, sample_q, logp, 100000)
     if verbose: print('KL to target: ' + str(objs[0]))
