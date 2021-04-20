@@ -452,7 +452,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
             return 0.000001
 
     # plot initial sample
-    plotting(y, T = 0, w = 0, logp = logp, plot_path = plot_path, iter_no = -1, kernel_sampler = None, plt_lims = plt_lims, N = 10000)
+    if plot: plotting(y, T = 0, w = 0, logp = logp, plot_path = plot_path, iter_no = -1, kernel_sampler = None, plt_lims = plt_lims, N = 10000)
 
     # init values
     w = np.zeros(N)
@@ -479,8 +479,9 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
 
     # plot initial approximation
-    if verbose: print('plotting')
-    plotting(y, T, w, logp, plot_path, iter_no = 0, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
+    if plot:
+        if verbose: print('plotting')
+        plotting(y, T, w, logp, plot_path, iter_no = 0, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
 
     if verbose: print()
 
@@ -530,13 +531,14 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, B = 100000))
         if verbose: print('objective: ' + str(obj[-1]))
 
-
+        # update convergence
         if verbose: print('updating convergence')
         if np.abs(obj[-1]) < tol: convergence = True
 
-
-        if verbose: print('plotting')
-        plotting(y, T, w, logp, plot_path, iter_no = iter_no + 1, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
+        # plot current approximation
+        if plot:
+            if verbose: print('plotting')
+            plotting(y, T, w, logp, plot_path, iter_no = iter_no + 1, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
 
         if verbose: print()
         # end for
