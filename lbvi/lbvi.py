@@ -127,7 +127,7 @@ def simplex_project(x):
     N = x.shape[0]
     mu = -np.sort(-x) # sort x in descending order
     rho_aux = mu - (1 / np.arange(1, N+1)) * (np.cumsum(mu) - 1) # build array to get rho
-    rho = bisect.bisect_left(-rho_aux, 0) # first element grater than 0
+    rho = bisect.bisect_left(-rho_aux, 0) # first element greater than 0
     theta = (np.sum(mu[:rho]) - 1) / rho #
     x = np.maximum(x - theta, 0)
 
