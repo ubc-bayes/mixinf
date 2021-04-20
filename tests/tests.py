@@ -140,8 +140,8 @@ np.random.seed(seed)
 # save simulation details
 if verbose: print('saving simulation settings')
 
-settings_text = 'lbvi and bvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\ntolerance: ' +  str(tol) + '\nrandom seed: ' + str(seed)
-settings_text = settings_text + '\n\nlbvi settings:' + '\nno. of kernel basis functions: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' + rkhs + '\nstep increments: ' + str(t_increment) + '\nmax no. of steps per kernel: ' + str(t_max)
+settings_text = 'lbvi and bvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\ngradient MC sample size: ' + str(B) + '\ntolerance: ' +  str(tol) + '\nrandom seed: ' + str(seed)
+settings_text = settings_text + '\n\nlbvi settings:' + '\nno. of kernel basis functions: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' + rkhs + '\nstep increments: ' + str(t_increment) + '\nmax no. of steps per kernel: ' + str(t_max) + '\nmax no. of steps before optimizing weights again: ' + str(weight_max) + '\nmax no of iterations: ' + str(maxiter)
 settings = os.open(path + 'settings.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
 os.write(settings, settings_text.encode())
 os.close(settings)
@@ -207,5 +207,4 @@ if verbose: print('BBBVI simulation')
 
 
 
-
-print('done with simulation!')
+if verbose: print('done with BBBVI simulation!')

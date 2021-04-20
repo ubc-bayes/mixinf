@@ -15,22 +15,10 @@ import cProfile, pstats, io
 
 
 
-def update_mu(logq, logp, theta_0):
+def LogSumExp(x):
+    maxx = np.maximum(x)
+    return maxx + np.log(np.sum(np.exp(x-maxx)))
 
-    K = theta_0.shape[0]
-
-    # define optimization target
-    target = lambda theta : np.log(np.exp(logq(theta)) + 1e-10) - np.log(np.exp(logp(theta)) + 1e-10)
-
-    # solve optimization
-    prob = minimize(target, theta_0, method = 'L-BFGS-B')
-
-    # make sure optimization was done properly
-    if not prob.success:
-        print('mean optimization failed')
-        return theta_0
-
-    return prob.x
 
 def mixture_sample(size, mus, sqrtSigmas, alphas):
 
@@ -146,7 +134,7 @@ def update_alpha(logq, sample_q, logh, sample_h, logp, K, gamma_alpha = None, B 
         plt.xlabel('iteration')
         plt.ylabel('objective')
         plt.title('KL traceplot')
-        plt.savefig(plotpath + 'traceplot_' + str(iteration) + '.jpg', dpi = 300)
+        plt.savefig(plotpath + 'alpha_traceplot_' + str(iteration) + '.jpg', dpi = 300)
         plt.clf()
 
     if verbose: print('alpha optimized in ' + str(k+1) + ' iterations')
@@ -155,14 +143,29 @@ def update_alpha(logq, sample_q, logh, sample_h, logp, K, gamma_alpha = None, B 
 
 
 
-def init_gaussian(logp, K, gamma_init = None, B = 1000, maxiter = 500, tol = 0.001, verbose = True, traceplot = True, plotpath = 'plots/'):
+def new_gaussian(logp, K, mu0 = None, var0 = None, gamma_init = None, B = 1000, maxiter = 500, tol = 0.001, verbose = True, traceplot = True, plotpath = 'plots/', iteration = 1):
 
     if gamma_init is None:
         gamma_init = lambda k : 0.01/np.sqrt(k+1)
 
-    # init values at std normal
-    mu = np.zeros((1,K))
-    var = 3
+    # init values at inflated std normal if not specified
+    if mu0 is None:
+        mu = np.zeros((1,K))
+    else:
+        mu = mu0
+
+    if var0 is None:
+        Sigma = 3*np.eye(K)
+        SigmaLogDet = K*np.log(3)
+        SigmaInv = np.eye(K)/3
+        SigmaSqrt = np.sqrt(3)*np.eye(K)
+    else:
+        Sigma = var0*np.eye(K)
+        SigmaLogDet = K*np.log(var0)
+        SigmaInv = np.eye(K)/var0
+        SigmaSqrt = np.sqrt(var0)*np.eye(K)
+
+
     init_obj = np.array([])
     convergence = False
 
@@ -175,33 +178,43 @@ def init_gaussian(logp, K, gamma_init = None, B = 1000, maxiter = 500, tol = 0.0
 
         # current approximation
         if verbose: print('building current approx')
-        logq = lambda x : -0.5*K*np.log(2*np.pi*var) - 0.5*np.sum(np.power(x-mu, 2), axis = -1) / var
-        sample_q = lambda size : mu + np.random.randn(size,K) / np.sqrt(var)
+        logq = lambda x : -0.5*K*np.log(2*np.pi) - 0.5*K*SigmaLogDet - 0.5*((x-mu).dot(SigmaInv)*(x-mu)).sum(axis=-1)
+        sample_q = lambda size : mu + np.random.randn(size,K)@SigmaSqrt
 
         # estimate gradients
         if verbose: print('estimating gradients')
         qs = sample_q(B)
-        logp1 = (1 + logq(qs) - logp(qs)).reshape(B,K) # relevant quantity
-        grad_mu = -logp1.mean(axis=0)
+        logp1 = (1 + logq(qs) - logp(qs)) # relevant quantity
+        matprod = np.matmul(SigmaInv + SigmaInv.T, (qs-mu)[:,:,np.newaxis])
+        grad_mu = (0.5*logp1.reshape(B,1)*np.squeeze(matprod, axis=-1)).mean(axis=0)
         if verbose: print('mu gradient: ' + str(grad_mu))
-        grad_var = (1/(2*var)) * (logp1 * (((qs-mu)**2).sum(axis=-1)/var - K)[:,np.newaxis]).mean(axis=0)
-        if verbose: print('var gradient: ' + str(grad_var))
+        grad_Sigma = 0.5 * np.matmul(SigmaInv.T, (logp1[:,np.newaxis,np.newaxis] * np.matmul(np.matmul((qs-mu)[:,:,np.newaxis], (qs-mu)[:,np.newaxis,:]), SigmaInv))).mean(axis=0)
+        if verbose: print('Sigma gradient: ' + str(grad_Sigma))
 
         # update estimates
         if verbose: print('updating estimates')
         mu -= gamma_init(k)*grad_mu
         if verbose: print('new mu: ' + str(mu))
-        var -= gamma_init(k)*grad_var
-        if verbose: print('new var: ' + str(var))
+        Sigma -= gamma_init(k)*grad_Sigma
+        if not np.all(np.linalg.eigvals(Sigma) > 0):
+            print('covariance matrix not positive definite, taking absolute value')
+            Sigma = np.abs(np.linalg.det(Sigma))*np.eye(K)
+        if verbose: print('new Sigma: ' + str(Sigma))
+
+        # update covariance matrix
+        sign, logdet = np.linalg.slogdet(Sigma)
+        SigmaLogDet = logdet
+        SigmaInv = np.linalg.inv(Sigma)
+        SigmaSqrt = sqrtm(Sigma)
 
         # estimate objective
         if traceplot:
-            init_obj = np.append(init_obj, KL(logq, sample_q, logp, B))
+            init_obj = np.append(init_obj, KL(logq, sample_q, logp, 100000))
             if verbose: print('new KL: ' + str(init_obj[-1]))
 
         # update convergence
         if verbose: print('updating convergence')
-        if np.maximum(np.linalg.norm(grad_mu), np.linalg.norm(grad_var)) < tol: convergence = True
+        if np.maximum(np.linalg.norm(grad_mu), np.linalg.norm(grad_Sigma)) < tol: convergence = True
 
         #if verbose: print(':', end='')
         if verbose: print()
@@ -214,35 +227,32 @@ def init_gaussian(logp, K, gamma_init = None, B = 1000, maxiter = 500, tol = 0.0
         plt.xlabel('iteration')
         plt.ylabel('objective')
         plt.title('KL traceplot')
-        plt.savefig(plotpath + 'traceplot_1.jpg', dpi = 300)
+        plt.savefig(plotpath + 'new_component_traceplot_' + str(iteration) + '.jpg', dpi = 300)
         plt.clf()
 
-    return mu.reshape(K), np.squeeze(var)
+    return mu.reshape(K), Sigma.reshape(K,K), SigmaSqrt.reshape(K,K), SigmaLogDet, SigmaInv.reshape(K,K)
+
 
 
 
 def bvi(logp, N, K, regularization = 1., gamma_init = None, gamma_alpha = None, B = 1000, verbose = True, traceplot = True, plotpath = 'plots/'):
 
     # initialize
-    # todo run vi for one iteration to init
-    #mu = np.zeros(K) + 0.2
-    #Sigma = np.eye(K)
     if verbose: print('getting initial approximation')
-    mu, var = init_gaussian(logp, K, gamma_init = gamma_init, B = 10000, maxiter = 5000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
-    Sigma = var * np.eye(K)
+    mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, gamma_init = gamma_init, B = B, maxiter = 1000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
     if verbose: print('initial mean: ' + str(mu))
-    if verbose: print('initial isotropic variance: ' + str(var))
+    if verbose: print('initial variance: ' + str(Sigma))
 
-    def logq(x): return -0.5*K*np.log(2*np.pi*var) - 0.5*np.sum(np.power(x-mu, 2), axis = -1) / var
-    def sample_q(size): return mu + np.random.randn(size,K) / np.sqrt(var)
+    def logq(x): return -0.5*K*np.log(2*np.pi) - 0.5*K*SigmaLogDet - 0.5*((x-mu).dot(SigmaInv)*(x-mu)).sum(axis=-1)
+    def sample_q(size): return mu + np.random.randn(size,K)@SigmaSqrt
 
-    # save values
+    # init values
     mus = np.zeros((N,K))
     mus[0:,] = mu
     Sigmas = np.zeros((N,K,K))
     Sigmas[0,:,:] = Sigma
     sqrtSigmas = np.zeros((N,K,K))
-    sqrtSigmas[0,:,:] = sqrtm(Sigma)
+    sqrtSigmas[0,:,:] = SigmaSqrt
     alphas = np.zeros(N)
     alphas[0] = 1
     objs = np.zeros(N)
@@ -254,57 +264,38 @@ def bvi(logp, N, K, regularization = 1., gamma_init = None, gamma_alpha = None, 
     for iter_no in range(1, N):
         if verbose: print('iteration ' + str(iter_no+1))
 
-        # draw from inflation of current mixture
-        inflation = np.random.poisson(size=(1,K))
-        theta_0 = inflation*sample_q(1)
+        # draw initial guess from inflation of current mixture
+        inflation = np.random.poisson(size=(1,K)) + 1
+        mu_guess = inflation*sample_q(1)
+        Sigma_guess = inflation[0,0]*np.amax(np.diagonal(Sigma))
 
-        # optimize mean via BFGS
-        if verbose: print('optimizing mean')
+        # get new gaussian
+        if verbose: print('obtaining new component')
+        logresidual = lambda x : (logp(x) - logq(x)) / regularization(iter_no)
         try:
-            mu = update_mu(logq, logp, theta_0)
+            mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logresidual, K, mu0 = mu_guess, var0 = Sigma_guess, gamma_init = gamma_init, B = B, maxiter = 1000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath, iteration = iter_no+1)
         except:
-            print('mean optimization failed')
-            mu = mus[iter_no,:]
+            if verbose: print('new component optimization failed, setting to previous component')
+
+        # update mean
         mus[iter_no,:] = mu
-        if verbose:  print('new mean: ' + str(mu))
-
-        # get covariance matrix
-        if verbose: print('obtaining new covariance matrix')
-        H = hessian(lambda theta : np.log(np.exp(logq(theta)) + 1e-10) - np.log(np.exp(logp(theta)) + 1e-10))(mu)
-
-        # check that hessian is 2d (sometimes it's nd; this is a feature of autograd's broadcasting)
-        if H.ndim == 3: H = H.diagonal(axis1=1, axis2=2)
-        if verbose: print('hessian: ' + str(H))
-
-        # try inverting hessian
-        try:
-            Sigma = 0.5 * regularization * np.linalg.inv(H)
-        except:
-            print('singular covariance matrix, not updating')
-            Sigma = Sigmas[iter_no-1,:,:]
-        if not np.all(np.linalg.eigvals(Sigma) > 0):
-            print('covariance matrix not positive definite, taking absolute value')
-            Sigma = np.abs(Sigma)
+        if verbose: print('new mean: ' + str(mu))
 
         # update sigma and get sqrt
         Sigmas[iter_no,:,:] = Sigma
-        sqrtSigma = sqrtm(Sigma)
-        sqrtSigmas[iter_no,:,:] = sqrtSigma
+        sqrtSigmas[iter_no,:,:] = SigmaSqrt
         if verbose: print('new covariance: ' + str(Sigma))
 
-        # define new component
-        if verbose: print('defining new component')
-        def logh(x):
-            sign, logdet = np.linalg.slogdet(Sigma)
-            return -0.5*K*np.log(2*np.pi) - 0.5*logdet - 0.5*(np.dot((x-mu), 2*H/regularization)*(x-mu)).sum(axis=-1)
-        def sample_h(size): return mu + np.matmul(np.random.randn(size, K), sqrtSigma)
+        # define new component logpdf and sampler
+        def logh(x): return -0.5*K*np.log(2*np.pi) - 0.5*SigmaLogDet - 0.5*(np.dot((x-mu), SigmaInv)*(x-mu)).sum(axis=-1)
+        def sample_h(size): return mu + np.matmul(np.random.randn(size, K), SigmaSqrt)
 
         # optimize weights
         if verbose: print('optimizing weights')
         try:
-            alpha = update_alpha(logq, sample_q, logh, sample_h, logp, K, gamma_alpha = gamma_alpha, B = B, verbose = verbose, traceplot = traceplot, plotpath = plotpath, maxiter = 250, tol = 1e-10, iteration = iter_no+1)
+            alpha = update_alpha(logq, sample_q, logh, sample_h, logp, K, gamma_alpha = gamma_alpha, B = B, verbose = verbose, traceplot = traceplot, plotpath = plotpath, maxiter = 1000, tol = 1e-10, iteration = iter_no+1)
             if np.isnan(alpha):
-                print('weights are NaN; setting new weight to 0')
+                print('weight is NaN; setting new weight to 0')
                 alpha = 0
         except:
             print('weight optimization failed; setting new weight to 0')
@@ -314,8 +305,6 @@ def bvi(logp, N, K, regularization = 1., gamma_init = None, gamma_alpha = None, 
         if verbose: print('new weight: ' + str(alpha))
 
         # define new mixture
-        if verbose: print('building new mixture')
-        logq = update_mixture(logh, alpha, logq)
         logq = lambda x : mixture_logpdf(x, mus[0:iter_no,:], Sigmas[0:iter_no,:,:], alphas[0:iter_no])
         sample_q = lambda size : mixture_sample(size, mus, sqrtSigmas, alphas)
 
@@ -324,10 +313,6 @@ def bvi(logp, N, K, regularization = 1., gamma_init = None, gamma_alpha = None, 
         objs[iter_no] = KL(logq, sample_q, logp, 100000)
         if verbose: print('KL to target: ' + str(objs[iter_no]))
 
-        # break if stuck in an error loop where nothing gets updated
-        #if np.array_equal(mus[iter_no-1,:], mus[iter_no,:]) and np.array_equal(Sigmas[iter_no-1,:,:], Sigmas[iter_no,:,:]) and alphas[iter_no-1]==alphas[iter_no]:
-        #    if verbose: print('no updates from last iteration; breaking')
-        #    break
 
         if verbose: print()
     # end for
@@ -340,4 +325,5 @@ def bvi(logp, N, K, regularization = 1., gamma_init = None, gamma_alpha = None, 
     if verbose: print('KL: ' + str(objs[iter_no]))
 
     iter_no += 1
+
     return mus[0:iter_no,:], Sigmas[0:iter_no,:,:], alphas[0:iter_no], objs[0:iter_no]
