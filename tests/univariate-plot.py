@@ -161,5 +161,31 @@ plt.clf()
 ##########################
 
 
+# TIMES PLOT
+
+# retrieve lbvi times
+lbvi_times_dir = glob.glob(inpath + 'times/lbvi*')
+lbvi_times = np.array([])
+for file in lbvi_times_dir:
+    lbvi_times = np.append(lbvi_times, np.load(file))
+
+# retrieve bvi times
+bvi_times_dir = glob.glob(inpath + 'times/bvi*')
+bvi_times = np.array([])
+for file in bvi_times_dir:
+    bvi_times = np.append(bvi_times, np.load(file))
+
+# merge in data frame
+times = pd.DataFrame({'method' : np.append(np.repeat('LBVI', lbvi_times.shape[0]), np.repeat('BVI', bvi_times.shape[0])), 'time' : np.append(lbvi_times, bvi_times)})
+
+
+# plot
+fig, ax1 = plt.subplots()
+times.boxplot(column = 'time', by = 'method', grid = False)
+plt.xlabel('Method')
+plt.ylabel('Running time (s)')
+plt.title('')
+plt.suptitle('')
+plt.savefig(path + 'times.' + extension, dpi=900, bbox_inches='tight')
 
 print('done plotting!')

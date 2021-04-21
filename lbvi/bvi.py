@@ -199,6 +199,7 @@ def new_gaussian(logp, K, mu0 = None, var0 = None, gamma_init = None, B = 1000, 
         if not np.all(np.linalg.eigvals(Sigma) > 0):
             print('covariance matrix not positive definite, taking absolute value')
             Sigma = np.abs(np.linalg.det(Sigma))*np.eye(K)
+        Sigma = np.minimum(Sigma, 1e2) # don't let variance explote
         if verbose: print('new Sigma: ' + str(Sigma))
 
         # update covariance matrix

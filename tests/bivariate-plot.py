@@ -137,7 +137,8 @@ plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'LBVI')
 # add bvi density
 f = np.exp(bvi_logq(tt)).reshape(1000, 1000).T
 #fig,ax=plt.subplots(1,1)
-cp = ax.contour(xx, yy, f, label = 'BBBVI', colors = 'magenta')
+#cp = ax.contour(xx, yy, f, label = 'BBBVI', colors = 'magenta')
+cp = ax.contour(xx, yy, f, label = 'BBBVI', cmap = 'inferno')
 #fig.colorbar(cp)
 
 # add labels
