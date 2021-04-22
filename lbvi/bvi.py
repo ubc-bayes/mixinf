@@ -203,10 +203,18 @@ def new_gaussian(logp, K, mu0 = None, var0 = None, gamma_init = None, B = 1000, 
         if verbose: print('new Sigma: ' + str(Sigma))
 
         # update covariance matrix
-        sign, logdet = np.linalg.slogdet(Sigma)
-        SigmaLogDet = logdet
-        SigmaInv = np.linalg.inv(Sigma)
-        SigmaSqrt = sqrtm(Sigma)
+        if K == 1:
+            SigmaLogDet = np.squeeze(Sigma)
+            SigmaInv = 1/Sigma
+            SigmaSqrt = np.sqrt(Sigma)
+        elif K==2:
+            SigmaLogDet = np.log(Sigma[0,0]*Sigma[1,1] - Sigma[0,1]*Sigma[1,0])
+            SigmaInv = np.array([[Sigma[1,1], -Sigma[0,1]], [-Sigma[1,0], Sigma[1,1]]])/np.exp(SigmaLogDet)
+            SigmaSqrt = sqrtm(Sigma)
+        else:
+            sign, SigmaLogDet = np.linalg.slogdet(Sigma)
+            SigmaInv = np.linalg.inv(Sigma)
+            SigmaSqrt = sqrtm(Sigma)
 
         # estimate objective
         if traceplot:
