@@ -23,7 +23,7 @@ parser.add_argument('--inpath', type = str, default = 'results/',
 help = 'path of folder where csv files are stored')
 parser.add_argument('--outpath', type = str, default = 'results/plots/',
 help = 'path of folder where plots will be saved')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana', 'banana-gaussian'],
 help = 'target distribution to use')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
@@ -71,6 +71,10 @@ if target == 'double-banana':
     from targets.double_banana import *
     xlim = np.array([-2.5, 2.5])
     ylim = np.array([-1, 1])
+if target == 'banana-gaussian':
+    from targets.banana_gaussian import *
+    xlim = np.array([-3, 3])
+    ylim = np.array([-2, 3])
 
 # import kernel for mixture
 kernel = args.kernel

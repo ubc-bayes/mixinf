@@ -81,84 +81,85 @@ def p(x): return np.exp(logp(x))
 sp = egrad(logp)
 up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
 
-
-
+# get number of repetitions in simulation
+reps = len(glob.glob(inpath + 'settings*'))
 
 # PLOT ####
 print('begin plotting!')
 
+for r in range(reps):
 
-# retrieve lbvi settings
-tmp_path = inpath + 'lbvi/'
-y = np.load(tmp_path + 'y.npy')
-w = np.load(tmp_path + 'w.npy')
-T = np.load(tmp_path + 'T.npy')
-
-
-
-
-# retrieve bvi settings and build sqrt matrices
-tmp_path = inpath + 'bvi/'
-mus = np.load(tmp_path + 'means.npy')
-Sigmas = np.load(tmp_path + 'covariances.npy')
-alphas = np.load(tmp_path + 'weights.npy')
-
-# build sqrt matrices array
-sqrtSigmas = np.zeros(Sigmas.shape)
-for i in range(Sigmas.shape[0]):
-    sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
+    # retrieve lbvi settings
+    tmp_path = inpath + 'lbvi/'
+    y = np.load(tmp_path + 'y_' + str(r+1) + '.npy')
+    w = np.load(tmp_path + 'w_' + str(r+1) + '.npy')
+    T = np.load(tmp_path + 'T_' + str(r+1) + '.npy')
 
 
-# LOG DENSITY PLOT
-# initialize plot with target log density
-t = np.linspace(xlim[0], xlim[1], 2000)
-f = logp(t[:,np.newaxis])
-plt.plot(t, f, 'k-', label = 'Target', linewidth = 1, markersize = 1.5)
-
-# add lbvi log density based on kde
-kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-yy = stats.gaussian_kde(np.squeeze(kk), bw_method = 0.05).evaluate(t)
-plt.plot(t, np.log(yy), '--b', label = 'LBVI')
-
-# add bvi log density
-bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
-plt.plot(t, bvi_logq(t[:,np.newaxis]), '--m', label='BBBVI')
-
-# add labels
-plt.xlabel('x')
-plt.ylabel('Log-density')
-plt.title('Log-density comparison')
-plt.legend()
-
-# save plot
-plt.savefig(path + 'log-density_comparison.' + extension, dpi=900)
-plt.clf()
-##########################
 
 
-# DENSITY PLOT
-# initialize plot with target density
-t = np.linspace(xlim[0], xlim[1], 2000)
-f = p(t[:,np.newaxis])
-plt.plot(t, f, 'k-', label = 'Target', linewidth = 1, markersize = 1.5)
+    # retrieve bvi settings and build sqrt matrices
+    tmp_path = inpath + 'bvi/'
+    mus = np.load(tmp_path + 'means_' + str(r+1) + '.npy')
+    Sigmas = np.load(tmp_path + 'covariances_' + str(r+1) + '.npy')
+    alphas = np.load(tmp_path + 'weights_' + str(r+1) + '.npy')
 
-# add lbvi log density based on kde
-kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-plt.hist(kk, label = 'LBVI', density = True, bins = 50)
+    # build sqrt matrices array
+    sqrtSigmas = np.zeros(Sigmas.shape)
+    for i in range(Sigmas.shape[0]):
+        sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
 
-# add bvi log density
-plt.plot(t, np.exp(bvi_logq(t[:,np.newaxis])), '--m', label='BBBVI')
 
-# add labels
-plt.xlabel('x')
-plt.ylabel('Density')
-plt.title('Density comparison')
-plt.legend()
+    # LOG DENSITY PLOT
+    # initialize plot with target log density
+    t = np.linspace(xlim[0], xlim[1], 2000)
+    f = logp(t[:,np.newaxis])
+    plt.plot(t, f, 'k-', label = 'Target', linewidth = 1, markersize = 1.5)
 
-# save plot
-plt.savefig(path + 'density_comparison.' + extension, dpi=900)
-plt.clf()
-##########################
+    # add lbvi log density based on kde
+    kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
+    yy = stats.gaussian_kde(np.squeeze(kk), bw_method = 0.05).evaluate(t)
+    plt.plot(t, np.log(yy), '--b', label = 'LBVI')
+
+    # add bvi log density
+    bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
+    plt.plot(t, bvi_logq(t[:,np.newaxis]), '--m', label='BBBVI')
+
+    # add labels
+    plt.xlabel('x')
+    plt.ylabel('Log-density')
+    #plt.title('Log-density comparison')
+    plt.legend()
+
+    # save plot
+    plt.savefig(path + 'log-density_comparison' + str(r+1) + '.' + extension, dpi=900)
+    plt.clf()
+    ##########################
+
+
+    # DENSITY PLOT
+    # initialize plot with target density
+    t = np.linspace(xlim[0], xlim[1], 2000)
+    f = p(t[:,np.newaxis])
+    plt.plot(t, f, 'k-', label = 'Target', linewidth = 1, markersize = 1.5)
+
+    # add lbvi log density based on kde
+    kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
+    plt.hist(kk, label = 'LBVI', density = True, bins = 50)
+
+    # add bvi log density
+    plt.plot(t, np.exp(bvi_logq(t[:,np.newaxis])), '--m', label='BBBVI')
+
+    # add labels
+    plt.xlabel('x')
+    plt.ylabel('Density')
+    #plt.title('Density comparison')
+    plt.legend()
+
+    # save plot
+    plt.savefig(path + 'density_comparison'  + str(r+1) + '.' + extension, dpi=900)
+    plt.clf()
+    ##########################
 
 
 # TIMES PLOT

@@ -25,7 +25,7 @@ parser.add_argument('-N', type = int, nargs = '+',
 help = 'sample sizes on which to run optimization')
 parser.add_argument('-d', '--dim', type = int, nargs = '+',
 help = 'dimensions on which to run optimization')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana', 'banana-gaussian'],
 help = 'target distribution to use')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
@@ -131,10 +131,14 @@ if target == 'double-banana':
     from targets.double_banana import *
     plt_lims = np.array([-2.5, 2.5, -1, 2])
 
+if target == 'banana-gaussian':
+    from targets.banana_gaussian import *
+    plt_lims = np.array([-3, 3, -2, 3])
+
 
 # import kernel for mixture
-kernel = args.kernel
-if kernel == 'gaussian':
+sample_kernel = args.kernel
+if sample_kernel == 'gaussian':
     from kernels.gaussian import *
 
 
@@ -145,6 +149,11 @@ if rkhs == 'rbf':
 
 
 # SIMULATION ####
+if verbose: print('running LBVI')
+if verbose: print()
+if verbose: print('approximating a ' + target + ' distribution')
+if verbose: print('using ' + str(sample_kernel) + ' mcmc sampler')
+if verbose: print('using ' + str(rkhs) + ' rkhs kernel')
 
 import lbvi # functions to do normal seq-opt variational mixture inference
 
@@ -154,13 +163,14 @@ seed = np.random.choice(np.arange(1, 1000000))
 np.random.seed(seed)
 
 # save simulation details
-if verbose: print('Saving simulation settings')
+if verbose: print('saving simulation settings')
+if verbose: print()
+
 settings_text = 'dims: ' + ' '.join(dims.astype('str')) + '\nno. of kernel basis functions: ' + ' '.join(ss.astype('str')) + '\ntarget: ' + target + '\nmax no of iterations: ' + str(maxiter) + '\ngradient MC sample size B: ' + str(B) + '\nalg tolerance ' +    str(tol) + '\nrandom seed: ' + str(seed)
 settings = os.open(path + 'settings.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
 os.write(settings, settings_text.encode())
 os.close(settings)
 
-if verbose: print(f'Begin simulation! approximating a {target} density')
 # start simulation
 for K in dims:
     # define target log density
@@ -174,21 +184,24 @@ for K in dims:
 
     up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
 
-    if verbose: print(f"Dimension K = {K}\n")
+    if verbose: print('dimension: ' + str(K))
 
     for N in ss:
-        if verbose: print(f"No. of kernel basis N = {N}\n")
+        if verbose: print('sample size: ' + str(N))
 
         # generate sample
-        if verbose: print('Generating sample')
+        if verbose: print('generating sample')
         y = sample(N, K)
 
 
         # run algorithm
+        if verbose: print('start lbvi optimization')
+        if verbose: print()
         w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, weight_max = weight_max, verbose = verbose, plot = plot, plt_lims = plt_lims, plot_path = plotpath, trace = plot)
 
         # save results
-        if verbose: print('Saving results')
+        if verbose: print()
+        if verbose: print('saving results')
         title = 'results' + '_N' + str(N) + '_K' + str(K) + '_' + str(time.time())
 
         out = pd.DataFrame(y)

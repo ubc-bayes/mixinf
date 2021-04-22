@@ -26,7 +26,7 @@ parser.add_argument('--inpath', type = str, default = 'results/',
 help = 'path of folder where csv files are stored')
 parser.add_argument('--outpath', type = str, default = 'results/plots/',
 help = 'path of folder where plots will be saved')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana', 'banana-gaussian'],
 help = 'target distribution to use')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
@@ -73,7 +73,10 @@ if target == 'double-banana':
     from targets.double_banana import *
     xlim = np.array([-2.5, 2.5])
     ylim = np.array([-1, 1])
-
+if target == 'banana-gaussian':
+    from targets.banana_gaussian import *
+    xlim = np.array([-3, 3])
+    ylim = np.array([-2, 3])
 
 # import kernel for mixture
 kernel = args.kernel
@@ -92,67 +95,96 @@ def p(x): return np.exp(logp(x))
 sp = egrad(logp)
 up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
 
-
+# get number of repetitions in simulation
+reps = len(glob.glob(inpath + 'settings*'))
 
 
 # PLOT ####
 print('begin plotting!')
 
+for r in range(reps):
 
-# retrieve lbvi settings
-tmp_path = inpath + 'lbvi/'
-y = np.load(tmp_path + 'y.npy')
-w = np.load(tmp_path + 'w.npy')
-T = np.load(tmp_path + 'T.npy')
+    # retrieve lbvi settings
+    tmp_path = inpath + 'lbvi/'
+    y = np.load(tmp_path + 'y_' + str(r+1) + '.npy')
+    w = np.load(tmp_path + 'w_' + str(r+1) + '.npy')
+    T = np.load(tmp_path + 'T_' + str(r+1) + '.npy')
 
 
 
 
-# retrieve bvi settings and build sqrt matrices
-tmp_path = inpath + 'bvi/'
-mus = np.load(tmp_path + 'means.npy')
-Sigmas = np.load(tmp_path + 'covariances.npy')
-alphas = np.load(tmp_path + 'weights.npy')
+    # retrieve bvi settings and build sqrt matrices
+    tmp_path = inpath + 'bvi/'
+    mus = np.load(tmp_path + 'means_' + str(r+1) + '.npy')
+    Sigmas = np.load(tmp_path + 'covariances_' + str(r+1) + '.npy')
+    alphas = np.load(tmp_path + 'weights_' + str(r+1) + '.npy')
 
-# build sqrt matrices array
-sqrtSigmas = np.zeros(Sigmas.shape)
-for i in range(Sigmas.shape[0]):
-    sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
-bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
+    # build sqrt matrices array
+    sqrtSigmas = np.zeros(Sigmas.shape)
+    for i in range(Sigmas.shape[0]):
+        sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
+    bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
 
-# DENSITY PLOT
-# initialize plot with target density contour
-xx = np.linspace(xlim[0], xlim[1], 1000)
-yy = np.linspace(ylim[0], ylim[1], 1000)
-tt = np.array(np.meshgrid(xx, yy)).T.reshape(1000**2, 2)
-f = np.exp(logp(tt)).reshape(1000, 1000).T
-fig,ax=plt.subplots(1,1)
-cp = ax.contour(xx, yy, f, label = 'Target')
-#fig.colorbar(cp)
+    # DENSITY PLOT
+    # initialize plot with target density contour
+    xx = np.linspace(xlim[0], xlim[1], 1000)
+    yy = np.linspace(ylim[0], ylim[1], 1000)
+    tt = np.array(np.meshgrid(xx, yy)).T.reshape(1000**2, 2)
+    f = np.exp(logp(tt)).reshape(1000, 1000).T
+    fig,ax=plt.subplots(1,1)
+    cp = ax.contour(xx, yy, f, label = 'Target')
+    #fig.colorbar(cp)
 
-# add lbvi samples
-kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'LBVI')
+    # add lbvi samples
+    kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
+    plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'LBVI')
 
-# add bvi density
-f = np.exp(bvi_logq(tt)).reshape(1000, 1000).T
-#fig,ax=plt.subplots(1,1)
-#cp = ax.contour(xx, yy, f, label = 'BBBVI', colors = 'magenta')
-cp = ax.contour(xx, yy, f, label = 'BBBVI', cmap = 'inferno')
-#fig.colorbar(cp)
+    # add bvi density
+    f = np.exp(bvi_logq(tt)).reshape(1000, 1000).T
+    #fig,ax=plt.subplots(1,1)
+    #cp = ax.contour(xx, yy, f, label = 'BBBVI', colors = 'magenta')
+    cp = ax.contour(xx, yy, f, label = 'BBBVI', cmap = 'inferno')
+    #fig.colorbar(cp)
 
-# add labels
-plt.xlabel('x')
-plt.ylabel('y')
-plt.xlim(xlim[0], xlim[1])
-plt.ylim(ylim[0], ylim[1])
-plt.title('Density comparison')
+    # add labels
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.xlim(xlim[0], xlim[1])
+    plt.ylim(ylim[0], ylim[1])
+    #plt.title('Density comparison')
 
-# save plot
-plt.savefig(path + 'density_comparison.' + extension, dpi=900)
-plt.clf()
-##########################
+    # save plot
+    plt.savefig(path + 'density_comparison'  + str(r+1) + '.' + extension, dpi=900)
+    plt.clf()
+    ##########################
 
+
+# TIMES PLOT
+
+# retrieve lbvi times
+lbvi_times_dir = glob.glob(inpath + 'times/lbvi*')
+lbvi_times = np.array([])
+for file in lbvi_times_dir:
+    lbvi_times = np.append(lbvi_times, np.load(file))
+
+# retrieve bvi times
+bvi_times_dir = glob.glob(inpath + 'times/bvi*')
+bvi_times = np.array([])
+for file in bvi_times_dir:
+    bvi_times = np.append(bvi_times, np.load(file))
+
+# merge in data frame
+times = pd.DataFrame({'method' : np.append(np.repeat('LBVI', lbvi_times.shape[0]), np.repeat('BVI', bvi_times.shape[0])), 'time' : np.append(lbvi_times, bvi_times)})
+
+
+# plot
+fig, ax1 = plt.subplots()
+times.boxplot(column = 'time', by = 'method', grid = False)
+plt.xlabel('Method')
+plt.ylabel('Running time (s)')
+plt.title('')
+plt.suptitle('')
+plt.savefig(path + 'times.' + extension, dpi=900, bbox_inches='tight')
 
 
 print('done plotting!')
