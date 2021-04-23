@@ -98,6 +98,9 @@ up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
 # get number of repetitions in simulation
 reps = len(glob.glob(inpath + 'settings*'))
 
+# init number of kernels for plotting later
+lbvi_kernels = np.array([])
+bvi_kernels = np.array([])
 
 # PLOT ####
 print('begin plotting!')
@@ -109,8 +112,7 @@ for r in range(reps):
     y = np.load(tmp_path + 'y_' + str(r+1) + '.npy')
     w = np.load(tmp_path + 'w_' + str(r+1) + '.npy')
     T = np.load(tmp_path + 'T_' + str(r+1) + '.npy')
-
-
+    lbvi_kernels = np.append(lbvi_kernels, w[w > 0].shape[0])
 
 
     # retrieve bvi settings and build sqrt matrices
@@ -118,6 +120,7 @@ for r in range(reps):
     mus = np.load(tmp_path + 'means_' + str(r+1) + '.npy')
     Sigmas = np.load(tmp_path + 'covariances_' + str(r+1) + '.npy')
     alphas = np.load(tmp_path + 'weights_' + str(r+1) + '.npy')
+    bvi_kernels = np.append(bvi_kernels, alphas[alphas > 0].shape[0])
 
     # build sqrt matrices array
     sqrtSigmas = np.zeros(Sigmas.shape)
@@ -185,6 +188,24 @@ plt.ylabel('Running time (s)')
 plt.title('')
 plt.suptitle('')
 plt.savefig(path + 'times.' + extension, dpi=900, bbox_inches='tight')
+####################
 
+
+# NON-ZERO KERNELS PLOT
+
+# merge in data frame
+kernels = pd.DataFrame({'method' : np.append(np.repeat('LBVI', lbvi_kernels.shape[0]), np.repeat('BVI', bvi_kernels.shape[0])), 'kernels' : np.append(lbvi_kernels, bvi_kernels)})
+
+
+# plot
+plt.clf()
+fig, ax1 = plt.subplots()
+kernels.boxplot(column = 'kernels', by = 'method', grid = False)
+plt.xlabel('Method')
+plt.ylabel('Number of non-zero kernels')
+plt.title('')
+plt.suptitle('')
+plt.savefig(path + 'kernels.' + extension, dpi=900, bbox_inches='tight')
+###################
 
 print('done plotting!')

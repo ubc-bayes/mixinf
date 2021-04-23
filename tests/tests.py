@@ -56,6 +56,8 @@ parser.add_argument('--bvi_kernels', type = int,
 help = 'number of kernels to add in the bvi mixture')
 parser.add_argument('--outpath', type = str, default = '',
 help = 'path of file to output')
+parser.add_argument('--seed', type = int, default = -1,
+help = 'seed for reproducibility')
 #parser.add_argument('--plots', action = "store_true",
 #help = 'whether to generate and save plots during the optimization')
 #parser.add_argument('--plotpath', type = str, default = '',
@@ -119,6 +121,7 @@ verbose = args.verbose
 B = args.B
 weight_max = args.weight_max
 reps = args.reps
+seed0 = args.seed
 
 # alg settings
 maxiter = args.maxiter
@@ -188,9 +191,13 @@ for r in range(reps):
     if verbose: print('simulation ' + str(r+1))
 
     # create and save seed
-    #seed = np.random.choice(np.arange(1, 1000000))
-    #seed = 637230 # cauchy
-    seed = 696023 # banana-gaussian
+    if seed0 == -1:
+        # if not specified, generate seed at random
+        seed = np.random.choice(np.arange(1, 1000000))
+    else:
+        # if specified, use it and account for repetitions by adding small increments
+        seed = seed0 + r
+
     np.random.seed(seed)
 
     # save simulation details

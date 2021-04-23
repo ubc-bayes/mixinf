@@ -62,10 +62,10 @@ def w_schedule(k):
 
 # CREATE BVI SCHEDULES
 # schedule tuning
-b1 = 0.01
+b1 = 0.001
 gamma_alpha = lambda k : b1 / np.sqrt(k+1)
 
-b2 = 0.005
+b2 = 0.001
 gamma_init = lambda k : b2 / np.sqrt(k+1)
 
 # regularization
