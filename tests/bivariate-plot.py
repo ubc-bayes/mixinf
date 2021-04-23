@@ -10,6 +10,7 @@ from scipy.special import gamma
 from scipy.linalg import sqrtm
 import matplotlib.pyplot as plt
 plt.rcParams.update({'figure.max_open_warning': 0})
+plt.rcParams.update({'font.size': 16})
 import argparse
 import sys, os
 import imageio
@@ -157,7 +158,7 @@ for r in range(reps):
     #plt.title('Density comparison')
 
     # save plot
-    plt.savefig(path + 'density_comparison'  + str(r+1) + '.' + extension, dpi=900)
+    plt.savefig(path + 'density_comparison'  + str(r+1) + '.' + extension, dpi=900, bbox_inches='tight')
     plt.clf()
     ##########################
 
