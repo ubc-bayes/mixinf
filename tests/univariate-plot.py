@@ -114,6 +114,10 @@ for r in range(reps):
     for i in range(Sigmas.shape[0]):
         sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
 
+    # retrieve rwmh sample
+    tmp_path = inpath + 'rwmh/'
+    rwmh = np.squeeze(np.load(tmp_path + 'y_' + str(r+1) + '.npy'), axis=1)
+
 
     # LOG DENSITY PLOT
     # initialize plot with target log density
@@ -130,10 +134,15 @@ for r in range(reps):
     bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
     plt.plot(t, bvi_logq(t[:,np.newaxis]), '--m', label='BBBVI')
 
+    # add rwmh log density based on kde
+    yy = stats.gaussian_kde(rwmh, bw_method = 0.15).evaluate(t)
+    plt.plot(t, np.log(yy), '--y', label = 'RWMH')
+
     # add labels
     plt.xlabel('x')
     plt.ylabel('Log-density')
     #plt.title('Log-density comparison')
+    plt.xlim(xlim)
     plt.legend()
 
     # save plot
@@ -148,17 +157,22 @@ for r in range(reps):
     f = p(t[:,np.newaxis])
     plt.plot(t, f, 'k-', label = 'Target', linewidth = 1, markersize = 1.5)
 
-    # add lbvi log density based on kde
+    # add rwmh histogram
+    plt.hist(rwmh, label = 'RWMH', density = True, bins = 50, alpha = 0.6, facecolor = 'khaki', edgecolor='black')
+
+    # add lbvi histogram
     kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-    plt.hist(kk, label = 'LBVI', density = True, bins = 50)
+    plt.hist(kk, label = 'LBVI', density = True, bins = 50, alpha = 0.6, facecolor = 'blue', edgecolor='black')
 
     # add bvi log density
     plt.plot(t, np.exp(bvi_logq(t[:,np.newaxis])), '--m', label='BBBVI')
+
 
     # add labels
     plt.xlabel('x')
     plt.ylabel('Density')
     #plt.title('Density comparison')
+    plt.xlim(xlim)
     plt.legend()
 
     # save plot

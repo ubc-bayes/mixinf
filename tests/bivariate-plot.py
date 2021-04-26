@@ -129,6 +129,10 @@ for r in range(reps):
         sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
     bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
 
+    # retrieve rwmh sample
+    tmp_path = inpath + 'rwmh/'
+    rwmh = np.load(tmp_path + 'y_' + str(r+1) + '.npy')
+
     # DENSITY PLOT
     # initialize plot with target density contour
     xx = np.linspace(xlim[0], xlim[1], 1000)
@@ -139,9 +143,12 @@ for r in range(reps):
     cp = ax.contour(xx, yy, f, label = 'Target')
     #fig.colorbar(cp)
 
+    # add rwmh samples
+    plt.scatter(rwmh[:,0], rwmh[:,1], marker='.', c='khaki', alpha = 0.9, label = 'RWMH')
+
     # add lbvi samples
     kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-    plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'LBVI')
+    plt.scatter(kk[:,0], kk[:,1], marker='.', c='b', alpha = 0.4, label = 'LBVI')
 
     # add bvi density
     f = np.exp(bvi_logq(tt)).reshape(1000, 1000).T
@@ -153,8 +160,9 @@ for r in range(reps):
     # add labels
     plt.xlabel('x')
     plt.ylabel('y')
-    plt.xlim(xlim[0], xlim[1])
-    plt.ylim(ylim[0], ylim[1])
+    plt.xlim(xlim)
+    plt.ylim(ylim)
+    plt.legend()
     #plt.title('Density comparison')
 
     # save plot

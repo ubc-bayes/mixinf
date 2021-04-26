@@ -11,7 +11,7 @@ def r_sampler(T, y): return sd * np.random.randn(T, y.shape[1]) + y # gaussian s
 def kernel_sampler(y, T, S, logp):
     # shape(N,K) array of locations y
     # shape(N,) array with no. steps per location T
-    # sample size N
+    # sample size S
     # target logdensity logp
     #
     # out: array of shape(S, N, K)
