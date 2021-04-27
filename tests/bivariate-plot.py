@@ -29,10 +29,18 @@ parser.add_argument('--outpath', type = str, default = 'results/plots/',
 help = 'path of folder where plots will be saved')
 parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana', 'banana-gaussian'],
 help = 'target distribution to use')
+parser.add_argument('--lbvi', action = "store_true",
+help = 'plot lbvi?')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
 help = 'kernel to use in mixtures')
 parser.add_argument('--rkhs', type = str, default = 'rbf', choices=['rbf'],
 help = 'RKHS kernel to use')
+parser.add_argument('--bvi', action = "store_true",
+help = 'plot bbbvi?')
+parser.add_argument('--gvi', action = "store_true",
+help = 'plot standard gaussian vi?')
+parser.add_argument('--rwmh', action = "store_true",
+help = 'plot random-walk metropolis-hastings?')
 parser.add_argument('--extension', type = str, default = 'png', choices = ['pdf', 'png', 'jpg'],
 help = 'extension of plots')
 
@@ -50,6 +58,11 @@ if not os.path.exists(path):
 inpath = args.inpath
 extension = args.extension
 
+# import flags
+lbvi_flag = args.lbvi
+bvi_flag = args.bvi
+rwmh_flag = args.rwmh
+gvi_flag = args.gvi
 
 
 # IMPORT TARGET DENSITY ####
@@ -108,38 +121,37 @@ print('begin plotting!')
 
 for r in range(reps):
 
-    # retrieve lbvi settings
-    tmp_path = inpath + 'lbvi/'
-    y = np.load(tmp_path + 'y_' + str(r+1) + '.npy')
-    w = np.load(tmp_path + 'w_' + str(r+1) + '.npy')
-    T = np.load(tmp_path + 'T_' + str(r+1) + '.npy')
-    lbvi_kernels = np.append(lbvi_kernels, w[w > 0].shape[0])
+    if lbvi_flag:
+        # retrieve lbvi settings
+        tmp_path = inpath + 'lbvi/'
+        y = np.load(tmp_path + 'y_' + str(r+1) + '.npy')
+        w = np.load(tmp_path + 'w_' + str(r+1) + '.npy')
+        T = np.load(tmp_path + 'T_' + str(r+1) + '.npy')
+        lbvi_kernels = np.append(lbvi_kernels, w[w > 0].shape[0])
 
 
-    # retrieve bvi settings and build sqrt matrices
-    tmp_path = inpath + 'bvi/'
-    mus = np.load(tmp_path + 'means_' + str(r+1) + '.npy')
-    Sigmas = np.load(tmp_path + 'covariances_' + str(r+1) + '.npy')
-    alphas = np.load(tmp_path + 'weights_' + str(r+1) + '.npy')
-    bvi_kernels = np.append(bvi_kernels, alphas[alphas > 0].shape[0])
-
-    # build sqrt matrices array
-    #sqrtSigmas = np.zeros(Sigmas.shape)
-    #for i in range(Sigmas.shape[0]):
-    #    sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
+    if bvi_flag:
+        # retrieve bvi settings and build sqrt matrices
+        tmp_path = inpath + 'bvi/'
+        mus = np.load(tmp_path + 'means_' + str(r+1) + '.npy')
+        Sigmas = np.load(tmp_path + 'covariances_' + str(r+1) + '.npy')
+        alphas = np.load(tmp_path + 'weights_' + str(r+1) + '.npy')
+        bvi_kernels = np.append(bvi_kernels, alphas[alphas > 0].shape[0])
 
 
+    if gvi_flag:
+        # retrieve gvi settings
+        tmp_path = inpath + 'gvi/'
+        mu = np.load(tmp_path + 'mean_' + str(r+1) + '.npy')
+        Sigma = np.load(tmp_path + 'covariance_' + str(r+1) + '.npy')
+        SigmaInv = np.load(tmp_path + 'inv_covariance_' + str(r+1) + '.npy')
+        SigmaLogDet = np.load(tmp_path + 'logdet_covariance_' + str(r+1) + '.npy')
 
-    # retrieve gvi settings
-    tmp_path = inpath + 'gvi/'
-    mu = np.load(tmp_path + 'mean_' + str(r+1) + '.npy')
-    Sigma = np.load(tmp_path + 'covariance_' + str(r+1) + '.npy')
-    SigmaInv = np.load(tmp_path + 'inv_covariance_' + str(r+1) + '.npy')
-    SigmaLogDet = np.load(tmp_path + 'logdet_covariance_' + str(r+1) + '.npy')
 
-    # retrieve rwmh sample
-    tmp_path = inpath + 'rwmh/'
-    rwmh = np.load(tmp_path + 'y_' + str(r+1) + '.npy')
+    if rwmh_flag:
+        # retrieve rwmh sample
+        tmp_path = inpath + 'rwmh/'
+        rwmh = np.squeeze(np.load(tmp_path + 'y_' + str(r+1) + '.npy'), axis=1)
 
     # DENSITY PLOT
     # initialize plot with target density contour
@@ -151,28 +163,27 @@ for r in range(reps):
     cp = ax.contour(xx, yy, f, label = 'Target')
     #fig.colorbar(cp)
 
-    # add rwmh samples
-    plt.scatter(rwmh[:,0], rwmh[:,1], marker='.', c='khaki', alpha = 0.9, label = 'RWMH')
+    if rwmh_flag:
+        # add rwmh samples
+        plt.scatter(rwmh[:,0], rwmh[:,1], marker='.', c='khaki', alpha = 0.9, label = 'RWMH')
 
-    # add lbvi samples
-    kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-    plt.scatter(kk[:,0], kk[:,1], marker='.', c='b', alpha = 0.4, label = 'LBVI')
+    if lbvi_flag:
+        # add lbvi samples
+        kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
+        plt.scatter(kk[:,0], kk[:,1], marker='.', c='b', alpha = 0.4, label = 'LBVI')
 
-    # add bvi density
-    bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
-    f = np.exp(bvi_logq(tt)).reshape(1000, 1000).T
-    #fig,ax=plt.subplots(1,1)
-    #cp = ax.contour(xx, yy, f, label = 'BBBVI', colors = 'magenta')
-    cp = ax.contour(xx, yy, f, label = 'BBBVI', cmap = 'inferno')
-    #fig.colorbar(cp)
+    if bvi_flag:
+        # add bvi density
+        bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
+        f = np.exp(bvi_logq(tt)).reshape(1000, 1000).T
+        cp = ax.contour(xx, yy, f, label = 'BBBVI', cmap = 'inferno')
 
-    # add gvi density
-    gvi_logq = lambda x : -0.5*2*np.log(2*np.pi) - 0.5*2*np.log(SigmaLogDet) - 0.5*((x-mu).dot(SigmaInv)*(x-mu)).sum(axis=-1)
-    f = np.exp(gvi_logq(tt)).reshape(1000, 1000).T
-    #fig,ax=plt.subplots(1,1)
-    #cp = ax.contour(xx, yy, f, label = 'BBBVI', colors = 'magenta')
-    cp = ax.contour(xx, yy, f, label = 'BBBVI', cmap = 'magma')
-    #fig.colorbar(cp)
+    if gvi_flag:
+        # add gvi density
+        gvi_logq = lambda x : -0.5*2*np.log(2*np.pi) - 0.5*2*np.log(SigmaLogDet) - 0.5*((x-mu).dot(SigmaInv)*(x-mu)).sum(axis=-1)
+        f = np.exp(gvi_logq(tt)).reshape(1000, 1000).T
+        cp = ax.contour(xx, yy, f, label = 'BBBVI', cmap = 'magma')
+
 
     # add labels
     plt.xlabel('x')
@@ -188,50 +199,51 @@ for r in range(reps):
     ##########################
 
 
-# TIMES PLOT
+# TIMES PLOT #################
+if lbvi_flag and bvi_flag:
 
-# retrieve lbvi times
-lbvi_times_dir = glob.glob(inpath + 'times/lbvi*')
-lbvi_times = np.array([])
-for file in lbvi_times_dir:
-    lbvi_times = np.append(lbvi_times, np.load(file))
+    # retrieve lbvi times
+    lbvi_times_dir = glob.glob(inpath + 'times/lbvi*')
+    lbvi_times = np.array([])
+    for file in lbvi_times_dir:
+        lbvi_times = np.append(lbvi_times, np.load(file))
 
-# retrieve bvi times
-bvi_times_dir = glob.glob(inpath + 'times/bvi*')
-bvi_times = np.array([])
-for file in bvi_times_dir:
-    bvi_times = np.append(bvi_times, np.load(file))
+    # retrieve bvi times
+    bvi_times_dir = glob.glob(inpath + 'times/bvi*')
+    bvi_times = np.array([])
+    for file in bvi_times_dir:
+        bvi_times = np.append(bvi_times, np.load(file))
 
-# merge in data frame
-times = pd.DataFrame({'method' : np.append(np.repeat('LBVI', lbvi_times.shape[0]), np.repeat('BVI', bvi_times.shape[0])), 'time' : np.append(lbvi_times, bvi_times)})
+    # merge in data frame
+    times = pd.DataFrame({'method' : np.append(np.repeat('LBVI', lbvi_times.shape[0]), np.repeat('BVI', bvi_times.shape[0])), 'time' : np.append(lbvi_times, bvi_times)})
 
 
-# plot
-fig, ax1 = plt.subplots()
-times.boxplot(column = 'time', by = 'method', grid = False)
-plt.xlabel('Method')
-plt.ylabel('Running time (s)')
-plt.title('')
-plt.suptitle('')
-plt.savefig(path + 'times.' + extension, dpi=900, bbox_inches='tight')
-####################
-
+    # plot
+    plt.clf()
+    fig, ax1 = plt.subplots()
+    times.boxplot(column = 'time', by = 'method', grid = False)
+    plt.xlabel('Method')
+    plt.ylabel('Running time (s)')
+    plt.title('')
+    plt.suptitle('')
+    plt.savefig(path + 'times.' + extension, dpi=900, bbox_inches='tight')
+###################
 
 # NON-ZERO KERNELS PLOT
+if lbvi_flag and bvi_flag:
 
-# merge in data frame
-kernels = pd.DataFrame({'method' : np.append(np.repeat('LBVI', lbvi_kernels.shape[0]), np.repeat('BVI', bvi_kernels.shape[0])), 'kernels' : np.append(lbvi_kernels, bvi_kernels)})
+    # merge in data frame
+    kernels = pd.DataFrame({'method' : np.append(np.repeat('LBVI', lbvi_kernels.shape[0]), np.repeat('BVI', bvi_kernels.shape[0])), 'kernels' : np.append(lbvi_kernels, bvi_kernels)})
 
-
-# plot
-plt.clf()
-fig, ax1 = plt.subplots()
-kernels.boxplot(column = 'kernels', by = 'method', grid = False)
-plt.xlabel('Method')
-plt.ylabel('Number of non-zero kernels')
-plt.title('')
-plt.suptitle('')
-plt.savefig(path + 'kernels.' + extension, dpi=900, bbox_inches='tight')
+    # plot
+    plt.clf()
+    fig, ax1 = plt.subplots()
+    kernels.boxplot(column = 'kernels', by = 'method', grid = False)
+    plt.xlabel('Method')
+    plt.ylabel('Number of non-zero kernels')
+    plt.title('')
+    plt.suptitle('')
+    plt.savefig(path + 'kernels.' + extension, dpi=900, bbox_inches='tight')
 ###################
 
 print('done plotting!')

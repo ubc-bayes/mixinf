@@ -52,6 +52,8 @@ parser.add_argument('--weight_max', type = int, default = 20,
 help = 'number of steps before optimizing weights again in lbvi')
 parser.add_argument('--bvi', action = "store_true",
 help = 'run bbbvi?')
+parser.add_argument('--bvi_diagonal', action = "store_true",
+help = 'should bbbvi be run with a diagonal covariane matrix?')
 parser.add_argument('--bvi_kernels', type = int, default = 20,
 help = 'number of kernels to add in the bvi mixture')
 parser.add_argument('--gvi', action = "store_true",
@@ -80,36 +82,10 @@ args = parser.parse_args()
 # retrieve flags and folder settings
 lbvi_flag = args.lbvi
 bvi_flag = args.bvi
+bvi_diagonal = args.bvi_diagonal
 rwmh_flag = args.rwmh
 gvi_flag = args.gvi
 path = args.outpath
-
-# check if necessary folder structure exists, and create it if it doesn't; if it does, clean it accordying to what is going to be run
-#if not os.path.exists(path + 'results/'):
-#    os.makedirs(path + 'results/')
-#
-#    # create all plotting directories, even if we won't be running smth
-#    os.makedirs(path + 'results/lbvi/')
-#    os.makedirs(path + 'results/bvi/')
-#    os.makedirs(path + 'results/bvi/plots/')
-#else:
-#    if lbvi_flag and bvi_flag:
-#        # if running both again, delete everything and create all plotting directories
-#        shutil.rmtree(path + 'results/')
-#
-#        # create all plotting directories
-#        os.makedirs(path + 'results/lbvi/')
-#        os.makedirs(path + 'results/bvi/')
-#        os.makedirs(path + 'results/bvi/plots/')
-#    elif lbvi_flag and not bvi_flag:
-#        # if running lbvi but not bvi, leave the bvi directory alone, delete lbvi directory, and recreate it
-#        shutil.rmtree(path + 'results/lbvi/')
-#        os.makedirs(path + 'results/lbvi/')
-#    elif not lbvi_flag and bvi_flag:
-#        # if running bvi but not lbvi, leave the lbvi directory alone, delete bvi directory, and recreate it with plotting directory
-#        shutil.rmtree(path + 'results/bvi/')
-#        os.makedirs(path + 'results/bvi/')
-#        os.makedirs(path + 'results/bvi/plots/')
 
 
 if not os.path.exists(path + 'results/'):
@@ -119,7 +95,8 @@ if not os.path.exists(path + 'results/'):
     os.makedirs(path + 'results/lbvi/')
     os.makedirs(path + 'results/bvi/')
     os.makedirs(path + 'results/bvi/plots/')
-    os.makedirst(path + 'results/rwmh/')
+    os.makedirs(path + 'results/rwmh/')
+    os.makedirs(path + 'results/gvi/')
 else:
     # if you have to rerun X, delete and recreate its directory
     if lbvi_flag:
@@ -227,6 +204,7 @@ if verbose:
 if lbvi_flag: print('running LBVI')
 if bvi_flag: print('running BVI')
 if rwmh_flag: print('running RWMH')
+if gvi_flag: print('running Gaussian VI')
 if verbose: print()
 
 for r in range(reps):
@@ -248,7 +226,12 @@ for r in range(reps):
 
     settings_text = 'lbvi and bvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\ngradient MC sample size: ' + str(B) + '\ntolerance: ' +     str(tol) + '\nrandom seed: ' + str(seed)
     if lbvi_flag: settings_text = settings_text + '\n\nlbvi settings:' + '\ninitial sample size: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' +    rkhs + '\nstep increments: ' + str(t_increment) + '\nmax no. of steps per kernel: ' + str(t_max) + '\nmax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nmax no of iterations: ' + str(maxiter)
-    if bvi_flag: settings_text = settings_text + '\n\nbvi settings:' + '\nno. of kernels to add: ' + str(bvi_kernels)
+    if bvi_flag:
+        settings_text = settings_text + '\n\nbvi settings:' + '\nno. of kernels to add: ' + str(bvi_kernels)
+        if bvi_diagonal:
+            settings_text + '\ndiagonal covariance matrix'
+        else:
+            settings_text + '\nfull covariance matrix'
     if rwmh_flag: settings_text = settings_text + '\n\nrwmh settings:' + '\nno. of steps to run chain for: ' + str(rwmh_T)
     settings = os.open(path + 'settings' + str(r+1) + '.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
     os.write(settings, settings_text.encode())
@@ -306,11 +289,23 @@ for r in range(reps):
         if verbose: print('BBBVI simulation')
         tmp_path = path + 'bvi/'
         if verbose: print('kernels to add to mixture: ' + str(bvi_kernels))
+        if verbose:
+            if bvi_diagonal:
+                print('bvi will have a diagonal covariance matrix')
+            else:
+                print('bvi will have a full covariance matrix')
+
 
         if verbose: print('start bvi optimization')
         if verbose: print()
+        # split by whether covariance matrix is full or diagonal
         bvi_start = timer()
-        mus, Sigmas, alphas, objs = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, verbose = verbose, traceplot = True, plotpath = path + 'bvi/plots/')
+        if bvi_diagonal:
+            mus, Sigmas, alphas, objs = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, verbose = verbose, traceplot = True, plotpath = path + 'bvi/plots/')
+            # convert Sigmas into stack of arrays
+            Sigmas = np.matmul(np.eye(K), Sigmas[:,:,np.newaxis])
+        else:
+            mus, Sigmas, alphas, objs = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, verbose = verbose, traceplot = True, plotpath = path + 'bvi/plots/')
         bvi_end = timer()
         bvi_time = np.array([bvi_end - bvi_start])
         np.save(path + 'times/bvi_time' + str(r+1) + '_' + str(seed) + '.npy', bvi_time)
