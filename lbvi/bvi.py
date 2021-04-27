@@ -204,7 +204,7 @@ def new_gaussian(logp, K, mu0 = None, var0 = None, gamma_init = None, B = 1000, 
 
         # update covariance matrix
         if K == 1:
-            SigmaLogDet = np.squeeze(Sigma)
+            SigmaLogDet = np.log(np.squeeze(Sigma))
             SigmaInv = 1/Sigma
             SigmaSqrt = np.sqrt(Sigma)
         elif K==2:
@@ -215,6 +215,7 @@ def new_gaussian(logp, K, mu0 = None, var0 = None, gamma_init = None, B = 1000, 
             sign, SigmaLogDet = np.linalg.slogdet(Sigma)
             SigmaInv = np.linalg.inv(Sigma)
             SigmaSqrt = sqrtm(Sigma)
+
 
         # estimate objective
         if traceplot:
@@ -300,7 +301,7 @@ def bvi(logp, N, K, regularization = 1., gamma_init = None, gamma_alpha = None, 
         if verbose: print('new covariance: ' + str(Sigma))
 
         # define new component logpdf and sampler
-        def logh(x): return -0.5*K*np.log(2*np.pi) - 0.5*SigmaLogDet - 0.5*(np.dot((x-mu), SigmaInv)*(x-mu)).sum(axis=-1)
+        def logh(x): return -0.5*K*np.log(2*np.pi) - 0.5*K*SigmaLogDet - 0.5*(np.dot((x-mu), SigmaInv)*(x-mu)).sum(axis=-1)
         def sample_h(size): return mu + np.matmul(np.random.randn(size, K), SigmaSqrt)
 
         # optimize weights

@@ -124,10 +124,18 @@ for r in range(reps):
     bvi_kernels = np.append(bvi_kernels, alphas[alphas > 0].shape[0])
 
     # build sqrt matrices array
-    sqrtSigmas = np.zeros(Sigmas.shape)
-    for i in range(Sigmas.shape[0]):
-        sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
-    bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
+    #sqrtSigmas = np.zeros(Sigmas.shape)
+    #for i in range(Sigmas.shape[0]):
+    #    sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
+
+
+
+    # retrieve gvi settings
+    tmp_path = inpath + 'gvi/'
+    mu = np.load(tmp_path + 'mean_' + str(r+1) + '.npy')
+    Sigma = np.load(tmp_path + 'covariance_' + str(r+1) + '.npy')
+    SigmaInv = np.load(tmp_path + 'inv_covariance_' + str(r+1) + '.npy')
+    SigmaLogDet = np.load(tmp_path + 'logdet_covariance_' + str(r+1) + '.npy')
 
     # retrieve rwmh sample
     tmp_path = inpath + 'rwmh/'
@@ -151,10 +159,19 @@ for r in range(reps):
     plt.scatter(kk[:,0], kk[:,1], marker='.', c='b', alpha = 0.4, label = 'LBVI')
 
     # add bvi density
+    bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
     f = np.exp(bvi_logq(tt)).reshape(1000, 1000).T
     #fig,ax=plt.subplots(1,1)
     #cp = ax.contour(xx, yy, f, label = 'BBBVI', colors = 'magenta')
     cp = ax.contour(xx, yy, f, label = 'BBBVI', cmap = 'inferno')
+    #fig.colorbar(cp)
+
+    # add gvi density
+    gvi_logq = lambda x : -0.5*2*np.log(2*np.pi) - 0.5*2*np.log(SigmaLogDet) - 0.5*((x-mu).dot(SigmaInv)*(x-mu)).sum(axis=-1)
+    f = np.exp(gvi_logq(tt)).reshape(1000, 1000).T
+    #fig,ax=plt.subplots(1,1)
+    #cp = ax.contour(xx, yy, f, label = 'BBBVI', colors = 'magenta')
+    cp = ax.contour(xx, yy, f, label = 'BBBVI', cmap = 'magma')
     #fig.colorbar(cp)
 
     # add labels

@@ -110,9 +110,17 @@ for r in range(reps):
     bvi_kernels = np.append(bvi_kernels, alphas[alphas > 0].shape[0])
 
     # build sqrt matrices array
-    sqrtSigmas = np.zeros(Sigmas.shape)
-    for i in range(Sigmas.shape[0]):
-        sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
+    #sqrtSigmas = np.zeros(Sigmas.shape)
+    #for i in range(Sigmas.shape[0]):
+    #    sqrtSigmas[i,:,:] = sqrtm(Sigmas[i,:,:])
+
+    # retrieve gvi settings
+    tmp_path = inpath + 'gvi/'
+    mu = np.load(tmp_path + 'mean_' + str(r+1) + '.npy')
+    Sigma = np.load(tmp_path + 'covariance_' + str(r+1) + '.npy')
+    SigmaInv = np.load(tmp_path + 'inv_covariance_' + str(r+1) + '.npy')
+    SigmaLogDet = np.load(tmp_path + 'logdet_covariance_' + str(r+1) + '.npy')
+
 
     # retrieve rwmh sample
     tmp_path = inpath + 'rwmh/'
@@ -133,6 +141,10 @@ for r in range(reps):
     # add bvi log density
     bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
     plt.plot(t, bvi_logq(t[:,np.newaxis]), '--m', label='BBBVI')
+
+    # add gvi log density
+    gvi_logq = lambda x : -0.5*1*np.log(2*np.pi) - 0.5*1*np.log(SigmaLogDet) - 0.5*((x-mu).dot(SigmaInv)*(x-mu)).sum(axis=-1)
+    plt.plot(t, gvi_logq(t[:,np.newaxis]), linestyle = 'dashed', color = 'forestgreen', label='GVI')
 
     # add rwmh log density based on kde
     yy = stats.gaussian_kde(rwmh, bw_method = 0.15).evaluate(t)
@@ -158,14 +170,17 @@ for r in range(reps):
     plt.plot(t, f, 'k-', label = 'Target', linewidth = 1, markersize = 1.5)
 
     # add rwmh histogram
-    plt.hist(rwmh, label = 'RWMH', density = True, bins = 50, alpha = 0.6, facecolor = 'khaki', edgecolor='black')
+    plt.hist(rwmh, label = 'RWMH', density = True, bins = 50, alpha = 0.3, facecolor = 'khaki', edgecolor='black')
 
     # add lbvi histogram
     kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-    plt.hist(kk, label = 'LBVI', density = True, bins = 50, alpha = 0.6, facecolor = 'blue', edgecolor='black')
+    plt.hist(kk, label = 'LBVI', density = True, bins = 50, alpha = 0.3, facecolor = 'blue', edgecolor='black')
 
-    # add bvi log density
+    # add bvi density
     plt.plot(t, np.exp(bvi_logq(t[:,np.newaxis])), '--m', label='BBBVI')
+
+    # add gvi density
+    plt.plot(t, np.exp(gvi_logq(t[:,np.newaxis])), linestyle = 'dashed', color = 'forestgreen', label='GVI')
 
 
     # add labels

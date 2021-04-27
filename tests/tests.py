@@ -54,6 +54,8 @@ parser.add_argument('--bvi', action = "store_true",
 help = 'run bbbvi?')
 parser.add_argument('--bvi_kernels', type = int, default = 20,
 help = 'number of kernels to add in the bvi mixture')
+parser.add_argument('--gvi', action = "store_true",
+help = 'run standard gaussian vi?')
 parser.add_argument('--rwmh', action = "store_true",
 help = 'run random-walk metropolis-hastings?')
 parser.add_argument('--rwmh_T', type = int, default = 1000,
@@ -79,6 +81,7 @@ args = parser.parse_args()
 lbvi_flag = args.lbvi
 bvi_flag = args.bvi
 rwmh_flag = args.rwmh
+gvi_flag = args.gvi
 path = args.outpath
 
 # check if necessary folder structure exists, and create it if it doesn't; if it does, clean it accordying to what is going to be run
@@ -126,6 +129,9 @@ else:
         shutil.rmtree(path + 'results/bvi/')
         os.makedirs(path + 'results/bvi/')
         os.makedirs(path + 'results/bvi/plots/')
+    if gvi_flag:
+        shutil.rmtree(path + 'results/gvi/')
+        os.makedirs(path + 'results/gvi/')
     if rwmh_flag:
         shutil.rmtree(path + 'results/rwmh/')
         os.makedirs(path + 'results/rwmh/')
@@ -189,6 +195,10 @@ if target == 'banana-gaussian':
 sample_kernel = args.kernel
 if sample_kernel == 'gaussian':
     from kernels.gaussian import *
+
+# if running standard gaussian vi, import function
+if gvi_flag:
+    from bvi import new_gaussian as gvi
 
 # if running rwmh, import gaussian rwmh kernel
 if rwmh_flag:
@@ -325,6 +335,27 @@ for r in range(reps):
 
         if verbose: print('done with BBBVI simulation')
         if verbose: print()
+
+    if gvi_flag:
+        if verbose: print('Gaussian VI simulation')
+        tmp_path = path + 'gvi/'
+        if verbose: print('using mean and inflated variance from sample of LBVI sampler as starting params')
+
+        if verbose: print('start gaussian vi optimization')
+        if verbose: print()
+        y = sample(N, K)
+        mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = gvi(logp, K, mu0 = np.mean(y, axis=0), var0 = np.amax(np.var(y, axis=0)), gamma_init = gamma_init, B = B, maxiter = 5000, tol = tol, verbose = False, traceplot = True, plotpath = path + 'gvi/', iteration = 1)
+
+        # save results
+        if verbose: print('saving gvi results')
+        np.save(tmp_path + 'mean_' + str(r+1) + '.npy', mu)
+        np.save(tmp_path + 'covariance_' + str(r+1) + '.npy', Sigma)
+        np.save(tmp_path + 'inv_covariance_' + str(r+1) + '.npy', SigmaInv)
+        np.save(tmp_path + 'logdet_covariance_' + str(r+1) + '.npy', SigmaLogDet)
+
+        if verbose: print('done with Gaussian VI simulation')
+        if verbose: print()
+
 
 
     if rwmh_flag:
