@@ -14,11 +14,13 @@ plt.rcParams.update({'font.size': 16})
 import argparse
 import sys, os
 import imageio
+import pickle as pk
 
 # import the suite of functions from parent directory
 sys.path.insert(1, os.path.join(sys.path[0], '../lbvi/'))
 import lbvi # functions to do locally-adapted boosting variational inference
 import bvi
+import ubvi
 
 # ARG PARSE SETTINGS ####
 parser = argparse.ArgumentParser(description="plot comparison between lbvi and other vi and mcmc methodologies")
@@ -35,6 +37,8 @@ parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaus
 help = 'kernel to use in mixtures')
 parser.add_argument('--rkhs', type = str, default = 'rbf', choices=['rbf'],
 help = 'RKHS kernel to use')
+parser.add_argument('--ubvi', action = "store_true",
+help = 'plot ubvi?')
 parser.add_argument('--bvi', action = "store_true",
 help = 'plot bbbvi?')
 parser.add_argument('--gvi', action = "store_true",
@@ -62,6 +66,7 @@ extension = args.extension
 
 # import flags
 lbvi_flag = args.lbvi
+ubvi_flag = args.ubvi
 bvi_flag = args.bvi
 gvi_flag = args.gvi
 hmc_flag = args.hmc
@@ -102,10 +107,17 @@ reps = len(glob.glob(inpath + 'settings*'))
 
 # init number of kernels for plotting later
 lbvi_kernels = np.array([])
+ubvi_kernels = np.array([])
 bvi_kernels = np.array([])
 
 # PLOT ####
 print('begin plotting!')
+
+if ubvi_flag:
+    # load ubvi results
+    f = open(inpath + 'ubvi/results.pk', 'rb')
+    ubvis = pk.load(f)
+    f.close()
 
 for r in range(reps):
 
@@ -116,6 +128,13 @@ for r in range(reps):
         w = np.load(tmp_path + 'w_' + str(r+1) + '.npy')
         T = np.load(tmp_path + 'T_' + str(r+1) + '.npy')
         lbvi_kernels = np.append(lbvi_kernels, w[w > 0].shape[0])
+
+    if ubvi_flag:
+        # retrieve ubvi results
+        ubvi_mu = ubvis[0][r]['mus']
+        ubvi_Sig = ubvis[0][r]['Sigs']
+        ubvi_wt = ubvis[0][r]['weights']
+        ubvi_kernels = np.append(ubvi_kernels, ubvi_wt[ubvi_wt > 0].shape[0])
 
 
     if bvi_flag:
@@ -160,6 +179,11 @@ for r in range(reps):
         yy = stats.gaussian_kde(np.squeeze(kk), bw_method = 0.15).evaluate(t)
         plt.plot(t, np.log(yy), '--b', label = 'LBVI')
 
+    if ubvi_flag:
+        # add ubvi log density
+        lq = ubvi.mixture_logpdf(t[:, np.newaxis], ubvi_mu, ubvi_Sig, ubvi_wt)
+        plt.plot(t, lq, linestyle = 'dashed', color = 'salmon', label='UBVI')
+
     if bvi_flag:
         # add bvi log density
         bvi_logq = lambda x : bvi.mixture_logpdf(x, mus, Sigmas, alphas)
@@ -173,7 +197,7 @@ for r in range(reps):
     if hmc_flag:
         # add rwmh log density based on kde
         yy = stats.gaussian_kde(hmc, bw_method = 0.15).evaluate(t)
-        plt.plot(t, np.log(yy), linestyle = 'dashed', color = 'cyan', label = 'HMC')
+        plt.plot(t, np.log(yy), linestyle = 'dashed', color = 'deeppink', label = 'HMC')
 
 
     if rwmh_flag:
@@ -206,12 +230,16 @@ for r in range(reps):
 
     if hmc_flag:
         # add rwmh histogram
-        plt.hist(hmc, label = 'HMC', density = True, bins = 50, alpha = 0.3, facecolor = 'cyan', edgecolor='black')
+        plt.hist(hmc, label = 'HMC', density = True, bins = 50, alpha = 0.3, facecolor = 'deeppink', edgecolor='black')
 
     if lbvi_flag:
         # add lbvi histogram
         kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
         plt.hist(kk, label = 'LBVI', density = True, bins = 50, alpha = 0.3, facecolor = 'blue', edgecolor='black')
+
+    if ubvi_flag:
+        # add ubvi density
+        plt.plot(t, np.exp(lq), linestyle = 'dashed', color = 'salmon', label='UBVI')
 
     if bvi_flag:
         # add bvi density
@@ -236,13 +264,19 @@ for r in range(reps):
 
 
 # TIMES PLOT #################
-if lbvi_flag and bvi_flag:
+if lbvi_flag and bvi_flag and ubvi_flag:
 
     # retrieve lbvi times
     lbvi_times_dir = glob.glob(inpath + 'times/lbvi*')
     lbvi_times = np.array([])
     for file in lbvi_times_dir:
         lbvi_times = np.append(lbvi_times, np.load(file))
+
+    # retrieve ubvi times
+    ubvi_times_dir = glob.glob(inpath + 'times/ubvi*')
+    ubvi_times = np.array([])
+    for file in ubvi_times_dir:
+        ubvi_times = np.append(ubvi_times, np.load(file))
 
     # retrieve bvi times
     bvi_times_dir = glob.glob(inpath + 'times/bvi*')
@@ -251,7 +285,7 @@ if lbvi_flag and bvi_flag:
         bvi_times = np.append(bvi_times, np.load(file))
 
     # merge in data frame
-    times = pd.DataFrame({'method' : np.append(np.repeat('LBVI', lbvi_times.shape[0]), np.repeat('BVI', bvi_times.shape[0])), 'time' : np.append(lbvi_times, bvi_times)})
+    times = pd.DataFrame({'method' : np.append(np.repeat('LBVI', lbvi_times.shape[0]), np.append(np.repeat('UBVI', ubvi_times.shape[0]), np.repeat('BVI', bvi_times.shape[0]))), 'time' : np.append(lbvi_times, np.append(ubvi_times, bvi_times))})
 
 
     # plot
@@ -266,10 +300,10 @@ if lbvi_flag and bvi_flag:
 ###################
 
 # NON-ZERO KERNELS PLOT
-if lbvi_flag and bvi_flag:
+if lbvi_flag and bvi_flag and ubvi_flag:
 
     # merge in data frame
-    kernels = pd.DataFrame({'method' : np.append(np.repeat('LBVI', lbvi_kernels.shape[0]), np.repeat('BVI', bvi_kernels.shape[0])), 'kernels' : np.append(lbvi_kernels, bvi_kernels)})
+    kernels = pd.DataFrame({'method' : np.append(np.repeat('LBVI', lbvi_kernels.shape[0]), np.append(np.repeat('UBVI', bvi_kernels.shape[0]), np.repeat('BVI', bvi_kernels.shape[0]))), 'kernels' : np.append(lbvi_kernels, np.append(ubvi_kernels, bvi_kernels))})
 
     # plot
     plt.clf()

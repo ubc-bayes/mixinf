@@ -31,7 +31,7 @@ def HMC(logp, sp, K, epsilon, L, T, burnin = 0.25, p0 = None, verbose = False):
 
     # define potential energy function and gradient
     if verbose: print('getting potential energy and gradient')
-    U = lambda x : -logp(x[:,np.newaxis])
+    U = lambda x : -logp(x)
     gradU = lambda x : -sp(x)
 
     # initialize sample from N(0,10I) if not provided

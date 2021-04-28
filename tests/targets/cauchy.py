@@ -18,6 +18,9 @@ def logp_aux(x, K = 1):
     nu = 0.5 * (1+K)
     return np.squeeze(loggamma(nu) - nu*np.log(np.pi) -  nu*np.log( 1 + ((x - mu)**2).sum(axis = -1) ))
 
+# for ubvi code
+#def logp_ubvi(x): return (- np.log(1 + x**2) - np.log(np.pi)).flatten()
+def logp_ubvi(x): return logp_aux(x,K=1)
 
 # CREATE SAMPLER ####
 def sample(size, K): return 4 * np.random.randn(size, K)
@@ -33,6 +36,11 @@ def w_maxiters(k, long_opt = False):
 def w_schedule(k):
     if k == 0: return 1
     return 0.01
+
+
+# CREATE UBVI SCHEDULES
+adam_learning_rate= lambda itr : 10./np.sqrt(itr+1)
+ubvi_gamma = lambda itr : 1./np.sqrt(1+itr)
 
 
 # CREATE BVI SCHEDULES

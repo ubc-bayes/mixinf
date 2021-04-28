@@ -43,6 +43,9 @@ alpha = 0.5
 def logp_aux(x, K = 2):
     return np.log(alpha*np.exp(logp_banana_aux(x, K)) + (1-alpha)*np.exp(logp_mixture_aux(x, K)))
 
+# define ubvi logpdf
+def logp_ubvi(x): return logp_aux(x,K=2)
+
 def sample(size, K = 2):
     mu = np.zeros(K)
     sd = 2
@@ -59,6 +62,15 @@ def w_schedule(k):
     if k == 0: return 0.1
     return 0.1
 
+
+# CREATE UBVI SCHEDULES
+adam_learning_rate= lambda itr : 0.0000000001/np.sqrt(itr+1)
+ubvi_gamma = lambda itr : 0.000000001/np.sqrt(1+itr)
+
+
+# CREATE UBVI SCHEDULES
+adam_learning_rate= lambda itr : 10./np.sqrt(itr+1)
+ubvi_gamma = lambda itr : 1./np.sqrt(1+itr)
 
 # CREATE BVI SCHEDULES
 # schedule tuning

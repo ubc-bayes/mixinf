@@ -12,13 +12,13 @@ import matplotlib.pyplot as plt
 plt.rcParams.update({'figure.max_open_warning': 0})
 import argparse
 import sys, os, shutil
+import pickle as pk
 import warnings
 from timeit import default_timer as timer
 
 # import the suite of functions from parent directory
 sys.path.insert(1, os.path.join(sys.path[0], '../lbvi/'))
 import lbvi
-import bvi
 
 
 # ARG PARSE SETTINGS ####
@@ -50,6 +50,18 @@ parser.add_argument('--tol', type = float, default = 0.001,
 help = 'step size tolerance at which to stop alg if maxiter not exceeded')
 parser.add_argument('--weight_max', type = int, default = 20,
 help = 'number of steps before optimizing weights again in lbvi')
+parser.add_argument('--ubvi', action = "store_true",
+help = 'run ubvi?')
+parser.add_argument('--ubvi_kernels', type = int, default = 20,
+help = 'number of kernels to add in the ubvi mixture')
+parser.add_argument('--ubvi_init', type = int, default = 10000,
+help = 'number of iterations for component initialization in ubvi')
+parser.add_argument('--ubvi_inflation', type = float, default = 16,
+help = 'inflation for new component initialization in ubvi')
+parser.add_argument('--ubvi_logfg', type = int, default = 10000,
+help = 'number of iterations for logfg estimation in ubvi')
+parser.add_argument('--ubvi_adamiter', type = int, default = 10000,
+help = 'number of iterations for adam weight optimization in ubvi')
 parser.add_argument('--bvi', action = "store_true",
 help = 'run bbbvi?')
 parser.add_argument('--bvi_diagonal', action = "store_true",
@@ -89,10 +101,11 @@ args = parser.parse_args()
 # FOLDER SETTINGS ###############
 # retrieve flags and folder settings
 lbvi_flag = args.lbvi
+ubvi_flag = args.ubvi
 bvi_flag = args.bvi
 bvi_diagonal = args.bvi_diagonal
-rwmh_flag = args.rwmh
 gvi_flag = args.gvi
+rwmh_flag = args.rwmh
 hmc_flag = args.hmc
 path = args.outpath
 
@@ -102,16 +115,21 @@ if not os.path.exists(path + 'results/'):
 
     # create all plotting directories, even if we won't be running smth
     os.makedirs(path + 'results/lbvi/')
+    os.makedirs(path + 'results/ubvi/')
     os.makedirs(path + 'results/bvi/')
     os.makedirs(path + 'results/bvi/plots/')
-    os.makedirs(path + 'results/rwmh/')
     os.makedirs(path + 'results/gvi/')
+    os.makedirs(path + 'results/rwmh/')
     os.makedirs(path + 'results/hmc/')
 else:
     # if you have to rerun X, delete and recreate its directory
     if lbvi_flag:
         shutil.rmtree(path + 'results/lbvi/')
         os.makedirs(path + 'results/lbvi/')
+    if ubvi_flag:
+        shutil.rmtree(path + 'results/ubvi/')
+        os.makedirs(path + 'results/ubvi/')
+        #open('results/ubvi/results.pk', 'a').close()
     if bvi_flag:
         shutil.rmtree(path + 'results/bvi/')
         os.makedirs(path + 'results/bvi/')
@@ -146,15 +164,25 @@ weight_max = args.weight_max
 reps = args.reps
 seed0 = args.seed
 
-# algs settings
+# ALGS SETTINGS
+# lbvi
 maxiter = args.maxiter
 tol = args.tol
 t_increment = args.t_inc
 t_max = args.t_max
+# ubvi
+ubvi_kernels = args.ubvi_kernels
+ubvi_init = args.ubvi_init
+ubvi_inflation = args.ubvi_inflation
+ubvi_logfg = args.ubvi_logfg
+ubvi_adamiter = args.ubvi_adamiter
+# bvi
 bvi_kernels = args.bvi_kernels
+# hmc
 hmc_T = args.hmc_T
 hmc_L = args.hmc_L
 hmc_eps = args.hmc_eps
+# rwmh
 rwmh_T = args.rwmh_T
 
 # import target density and sampler
@@ -189,6 +217,12 @@ sample_kernel = args.kernel
 if sample_kernel == 'gaussian':
     from kernels.gaussian import *
 
+# if running ubvi, import suite of functions
+if ubvi_flag: import ubvi
+
+# if running bvi, import suite of functions
+if bvi_flag: import bvi
+
 # if running standard gaussian vi, import function
 if gvi_flag:
     from bvi import new_gaussian as gvi
@@ -221,6 +255,7 @@ if verbose:
 # print which algorithms are being run
 
 if lbvi_flag: print('running LBVI')
+if ubvi_flag: print('running UBVI')
 if bvi_flag: print('running BVI')
 if gvi_flag: print('running Gaussian VI')
 if hmc_flag: print('running Hamiltonian Monte Carlo')
@@ -246,15 +281,20 @@ for r in range(reps):
 
     # this just writes all the settings of the methods that are being run into a text file, then saves the file for reproducibility
     settings_text = 'lbvi and bvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\ngradient MC sample size: ' + str(B) + '\ntolerance: ' +     str(tol) + '\nrandom seed: ' + str(seed)
-    if lbvi_flag: settings_text = settings_text + '\n\nlbvi settings:' + '\ninitial sample size: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' +    rkhs + '\nstep increments: ' + str(t_increment) + '\nmax no. of steps per kernel: ' + str(t_max) + '\nmax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nmax no of iterations: ' + str(maxiter)
+    if lbvi_flag:
+        settings_text += '\n\nlbvi settings:' + '\ninitial sample size: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' +    rkhs + '\nstep increments: ' + str(t_increment) + '\nmax no. of steps per kernel: ' + str(t_max) + '\nmax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nmax no of iterations: ' + str(maxiter)
+    if ubvi_flag:
+        settings_text += '\n\nubvi settings:' + '\nno. of kernels to add: ' + str(ubvi_kernels) + '\ncomponent initialization sample size: ' + str(ubvi_init) + '\ncomponent initialization inflation: ' + str(ubvi_inflation) + '\nlogfg estimation sample size: ' + str(ubvi_logfg) + '\nadam weight optimization iterations: ' + str(ubvi_adamiter)
     if bvi_flag:
-        settings_text = settings_text + '\n\nbvi settings:' + '\nno. of kernels to add: ' + str(bvi_kernels)
+        settings_text +=  '\n\nbvi settings:' + '\nno. of kernels to add: ' + str(bvi_kernels)
         if bvi_diagonal:
-            settings_text + '\ndiagonal covariance matrix'
+            settings_text +=  '\ndiagonal covariance matrix'
         else:
-            settings_text + '\nfull covariance matrix'
-    if hmc_flag: settings_text = settings_text + '\n\nhmc settings:' + '\nno. of steps to run chain for: ' + str(hmc_T) + '\nno. of steps to run leapfrog integrator for: ' + str(hmc_L) + '\nstep size of leapfrog integrator: ' + str(hmc_eps)
-    if rwmh_flag: settings_text = settings_text + '\n\nrwmh settings:' + '\nno. of steps to run chain for: ' + str(rwmh_T)
+            settings_text +=  '\nfull covariance matrix'
+    if hmc_flag:
+        settings_text +=  '\n\nhmc settings:' + '\nno. of steps to run chain for: ' + str(hmc_T) + '\nno. of steps to run leapfrog integrator for: ' + str(hmc_L) + '\nstep size of leapfrog integrator: ' + str(hmc_eps)
+    if rwmh_flag:
+        settings_text +=  '\n\nrwmh settings:' + '\nno. of steps to run chain for: ' + str(rwmh_T)
     settings = os.open(path + 'settings' + str(r+1) + '.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
     os.write(settings, settings_text.encode())
     os.close(settings)
@@ -306,6 +346,56 @@ for r in range(reps):
         if verbose: print('done with LBVI simulation')
         if verbose: print()
 
+    if ubvi_flag:
+        if verbose: print('UBVI simulation')
+        tmp_path = path + 'ubvi/'
+
+        if verbose:
+            print('kernels to add to mixture: ' + str(ubvi_kernels))
+            print('iterations for component initialization: ' + str(ubvi_init))
+            print('inflation for component initialization: ' + str(ubvi_inflation))
+            print('logfg estimation sample size: ' + str(ubvi_logfg))
+            print('iterations for weight optimization via adam: ' + str(ubvi_adamiter))
+
+
+        # creating gaussian dist and adam weight optimizer
+        gauss = ubvi.Gaussian(K, True)
+        adam = lambda x0, obj, grd : ubvi.ubvi_adam(x0, obj, grd, adam_learning_rate, ubvi_adamiter, callback = gauss.print_perf)
+
+
+        # run algorithm
+        if verbose: print('start ubvi optimization')
+        if verbose: print()
+        ubvi_start = timer()
+        ubvi_y = ubvi.UBVI(logp_ubvi, gauss, adam, n_init = ubvi_init, n_samples = B, n_logfg_samples = ubvi_logfg, init_inflation = ubvi_inflation)
+        ubvi_results = []
+        for n in range(1,ubvi_kernels+1):
+            ubvi_results.append(ubvi_y.build(n))
+
+        ubvi_end = timer()
+        ubvi_time = np.array([ubvi_end - ubvi_start])
+        np.save(path + 'times/ubvi_time' + str(r+1) + '_' + str(seed) + '.npy', ubvi_time)
+        if verbose: print()
+
+        # save results
+        if verbose: print('saving ubvi results')
+        if os.path.exists(tmp_path + 'results.pk'):
+            f = open(tmp_path + 'results.pk', 'rb')
+            res = pk.load(f)
+            f.close()
+            res[0].append(ubvi_results)
+            f = open(tmp_path + 'results.pk', 'wb')
+            pk.dump(res, f)
+            f.close()
+        else:
+            f = open(tmp_path + 'results.pk', 'wb')
+            pk.dump(([ubvi_results]), f)
+            f.close()
+
+        if verbose: print('done with UBVI simulation')
+        if verbose: print()
+
+
 
     if bvi_flag:
         if verbose: print('BBBVI simulation')
@@ -325,7 +415,7 @@ for r in range(reps):
         if bvi_diagonal:
             mus, Sigmas, alphas, objs = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, verbose = verbose, traceplot = True, plotpath = path + 'bvi/plots/')
             # convert Sigmas into stack of arrays
-            Sigmas = np.matmul(np.eye(K), Sigmas[:,:,np.newaxis])
+            #Sigmas = Sigmas[:,np.newaxis]*np.eye(K)
         else:
             mus, Sigmas, alphas, objs = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, verbose = verbose, traceplot = True, plotpath = path + 'bvi/plots/')
         bvi_end = timer()
@@ -374,14 +464,15 @@ for r in range(reps):
         if verbose: print()
 
     if hmc_flag:
-        if verbose: print('HMC simulation')
         tmp_path = path + 'hmc/'
-        if verbose: print('number of steps to run the chain for: ' + str(hmc_T))
-        if verbose: print('number of steps to run the leapfrog integrator for: ' + str(hmc_L))
-        if verbose: print('integrator step size: ' + str(hmc_eps))
+        if verbose:
+            print('HMC simulation')
+            print('number of steps to run the chain for: ' + str(hmc_T))
+            print('number of steps to run the leapfrog integrator for: ' + str(hmc_L))
+            print('integrator step size: ' + str(hmc_eps))
+            print()
+            print('start running chain')
 
-        if verbose: print('start running chain')
-        if verbose: print()
         p0 = sample(1, K).reshape(K)
         hmc_y = hmc.HMC(logp = logp, sp = sp, K = K, epsilon = hmc_eps, L = hmc_L, T = hmc_T, burnin = 0.25, p0 = p0, verbose = False)
 

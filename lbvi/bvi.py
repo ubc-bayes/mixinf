@@ -28,7 +28,7 @@ def mixture_sample(size, mus, sqrtSigmas, alphas):
     alphas = alphas[options]
     mus = mus[options,:]
     # adjust if diagonal matrix is provided
-    if sqrtSigmas.ndim == 2: sqrtSigmas = np.matmul(np.eye(K), sqrtSigmas[:,:,np.newaxis])
+    if sqrtSigmas.ndim == 2: sqrtSigmas = sqrtSigmas[:,np.newaxis]*np.eye(K)
     sqrtSigmas = sqrtSigmas[options,:,:]
     no_options = alphas.shape[0]
 
@@ -178,7 +178,6 @@ def new_gaussian(logp, K, diagonal = False, mu0 = None, var0 = None, gamma_init 
         SigmaInv = np.eye(K)/var0
         SigmaSqrt = np.sqrt(var0)*np.eye(K)
 
-
     init_obj = np.array([])
     convergence = False
 
@@ -201,15 +200,27 @@ def new_gaussian(logp, K, diagonal = False, mu0 = None, var0 = None, gamma_init 
         # estimate gradients
         if verbose: print('estimating gradients')
         qs = sample_q(B)
-        logp1 = (1 + logq(qs) - logp(qs)) # relevant quantity
+        logarithmp1 = 1 + logq(qs) - logp(qs) # relevant quantity
+
+        if np.isnan(logarithmp1).any():
+            print('nans in logarithmp1 term; breaking')
+            print('iteration: ' + str(k+1))
+            print('mean: ' + str(mu))
+            print('covariance: ' + str(Sigma))
+            print('Sqrt covariance: ' + str(SigmaSqrt))
+            print('SigmaInv: ' + str(SigmaInv))
+            print('mc sample: ' + str(np.squeeze(qs)))
+            print('logq: ' + str(logq(qs)))
+            print('logp: ' + str(logp(qs)))
+            break
 
         if diagonal:
-            grad_mu = np.mean(logp1[:,np.newaxis]*((qs-mu)/Sigma), axis=0)
-            grad_Sigma = np.mean(0.5*logp1[:,np.newaxis]*SigmaInv*(((qs-mu)/SigmaSqrt)**2 - 1), axis=0)
+            grad_mu = np.mean(logarithmp1[:,np.newaxis]*((qs-mu)/Sigma), axis=0)
+            grad_Sigma = np.mean(0.5*logarithmp1[:,np.newaxis]*SigmaInv*(((qs-mu)/SigmaSqrt)**2 - 1), axis=0)
         else:
             matprod = np.matmul(SigmaInv + SigmaInv.T, (qs-mu)[:,:,np.newaxis])
-            grad_mu = (0.5*logp1.reshape(B,1)*np.squeeze(matprod, axis=-1)).mean(axis=0)
-            grad_Sigma = 0.5 * np.matmul(SigmaInv.T, (logp1[:,np.newaxis,np.newaxis] * np.matmul(np.matmul((qs-mu)[:,:,np.newaxis], (qs-mu)[:,np.newaxis,:]), SigmaInv))).mean(axis=0)
+            grad_mu = (0.5*logarithmp1.reshape(B,1)*np.squeeze(matprod, axis=-1)).mean(axis=0)
+            grad_Sigma = 0.5 * np.matmul(SigmaInv.T, (logarithmp1[:,np.newaxis,np.newaxis] * np.matmul(np.matmul((qs-mu)[:,:,np.newaxis], (qs-mu)[:,np.newaxis,:]), SigmaInv))).mean(axis=0)
 
         if verbose: print('mu gradient: ' + str(grad_mu))
         if verbose: print('Sigma gradient: ' + str(grad_Sigma))
@@ -222,7 +233,7 @@ def new_gaussian(logp, K, diagonal = False, mu0 = None, var0 = None, gamma_init 
         if not diagonal and not np.all(np.linalg.eigvals(Sigma) > 0):
             print('covariance matrix not positive definite, taking absolute value')
             Sigma = np.abs(np.linalg.det(Sigma))*np.eye(K)
-        if diagonal: Sigma = np.maximum(0, Sigma) # if diagonal, don't let negative entries exist
+        if diagonal: Sigma = np.maximum(1e-5, Sigma) # if diagonal, don't let negative or 0 entries exist
         Sigma = np.minimum(Sigma, 1e2) # don't let variance explote
         if verbose: print('new Sigma: ' + str(Sigma))
 
@@ -422,14 +433,26 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         # draw initial guess from inflation of current mixture
         inflation = np.random.poisson(size=(1,K)) + 1
         mu_guess = inflation*sample_q(1)
-        Sigma_guess = inflation[0,0]*np.amax(Sigma)
+        #Sigma_guess = inflation[0,0]*np.amax(Sigma)
         Sigma_guess = 3
 
         # get new gaussian
         if verbose: print('obtaining new component')
+        if verbose: print('regularization: ' + str(regularization(iter_no)))
         logresidual = lambda x : (logp(x) - logq(x)) / regularization(iter_no)
+        #print('logq(1) = ' + str(logq(np.ones((1,K)))))
+        #print('logp(1) = ' + str(logp(np.ones((1,K)))))
+        #print('logresidual(1) = ' + str(logresidual(np.ones((1,K)))))
         try:
             mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logresidual, K,  diagonal = True, mu0 = mu_guess, var0 = Sigma_guess, gamma_init = gamma_init, B = B, maxiter = 1000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath, iteration = iter_no+1)
+            if np.isnan(mu).any() or np.isnan(Sigma).any():
+                print('nans in estimates, setting to previous component')
+                mu = mus[iter_no-1,:]
+                Sigma = Sigmas[iter_no-1,:].reshape(K)
+                SigmaSqrt = sqrtSigmas[iter_no-1,:]
+                SigmaLogDet = np.log(np.prod(Sigma))
+                SigmaInv = 1/Sigma
+
         except:
             if verbose: print('new component optimization failed, setting to previous component')
 
