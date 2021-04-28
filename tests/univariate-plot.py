@@ -39,6 +39,8 @@ parser.add_argument('--bvi', action = "store_true",
 help = 'plot bbbvi?')
 parser.add_argument('--gvi', action = "store_true",
 help = 'plot standard gaussian vi?')
+parser.add_argument('--hmc', action = "store_true",
+help = 'plot hamiltonian monte carlo?')
 parser.add_argument('--rwmh', action = "store_true",
 help = 'plot random-walk metropolis-hastings?')
 parser.add_argument('--extension', type = str, default = 'png', choices = ['pdf', 'png', 'jpg'],
@@ -61,8 +63,9 @@ extension = args.extension
 # import flags
 lbvi_flag = args.lbvi
 bvi_flag = args.bvi
-rwmh_flag = args.rwmh
 gvi_flag = args.gvi
+hmc_flag = args.hmc
+rwmh_flag = args.rwmh
 
 # IMPORT TARGET DENSITY ####
 target = args.target
@@ -133,6 +136,12 @@ for r in range(reps):
         SigmaLogDet = np.load(tmp_path + 'logdet_covariance_' + str(r+1) + '.npy')
 
 
+    if hmc_flag:
+        # retrieve hmc sample
+        tmp_path = inpath + 'hmc/'
+        hmc = np.squeeze(np.load(tmp_path + 'y_' + str(r+1) + '.npy'), axis=1)
+
+
     if rwmh_flag:
         # retrieve rwmh sample
         tmp_path = inpath + 'rwmh/'
@@ -161,10 +170,16 @@ for r in range(reps):
         gvi_logq = lambda x : -0.5*1*np.log(2*np.pi) - 0.5*1*np.log(SigmaLogDet) - 0.5*((x-mu).dot(SigmaInv)*(x-mu)).sum(axis=-1)
         plt.plot(t, gvi_logq(t[:,np.newaxis]), linestyle = 'dashed', color = 'forestgreen', label='GVI')
 
+    if hmc_flag:
+        # add rwmh log density based on kde
+        yy = stats.gaussian_kde(hmc, bw_method = 0.15).evaluate(t)
+        plt.plot(t, np.log(yy), linestyle = 'dashed', color = 'cyan', label = 'HMC')
+
+
     if rwmh_flag:
         # add rwmh log density based on kde
         yy = stats.gaussian_kde(rwmh, bw_method = 0.15).evaluate(t)
-        plt.plot(t, np.log(yy), '--y', label = 'RWMH')
+        plt.plot(t, np.log(yy), linestyle = 'dashed', color = 'khaki', label = 'RWMH')
 
     # add labels
     plt.xlabel('x')
@@ -188,6 +203,10 @@ for r in range(reps):
     if rwmh_flag:
         # add rwmh histogram
         plt.hist(rwmh, label = 'RWMH', density = True, bins = 50, alpha = 0.3, facecolor = 'khaki', edgecolor='black')
+
+    if hmc_flag:
+        # add rwmh histogram
+        plt.hist(hmc, label = 'HMC', density = True, bins = 50, alpha = 0.3, facecolor = 'cyan', edgecolor='black')
 
     if lbvi_flag:
         # add lbvi histogram

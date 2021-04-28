@@ -58,6 +58,14 @@ parser.add_argument('--bvi_kernels', type = int, default = 20,
 help = 'number of kernels to add in the bvi mixture')
 parser.add_argument('--gvi', action = "store_true",
 help = 'run standard gaussian vi?')
+parser.add_argument('--hmc', action = "store_true",
+help = 'run hamiltonian monte carlo?')
+parser.add_argument('--hmc_T', type = int, default = 1000,
+help = 'number of steps to run hmc for')
+parser.add_argument('--hmc_L', type = int, default = 100,
+help = 'number of steps to run leapfrog within hmc')
+parser.add_argument('--hmc_eps', type = float, default = 0.01,
+help = 'step size for leapfrog within hmc')
 parser.add_argument('--rwmh', action = "store_true",
 help = 'run random-walk metropolis-hastings?')
 parser.add_argument('--rwmh_T', type = int, default = 1000,
@@ -85,6 +93,7 @@ bvi_flag = args.bvi
 bvi_diagonal = args.bvi_diagonal
 rwmh_flag = args.rwmh
 gvi_flag = args.gvi
+hmc_flag = args.hmc
 path = args.outpath
 
 
@@ -97,6 +106,7 @@ if not os.path.exists(path + 'results/'):
     os.makedirs(path + 'results/bvi/plots/')
     os.makedirs(path + 'results/rwmh/')
     os.makedirs(path + 'results/gvi/')
+    os.makedirs(path + 'results/hmc/')
 else:
     # if you have to rerun X, delete and recreate its directory
     if lbvi_flag:
@@ -109,6 +119,9 @@ else:
     if gvi_flag:
         shutil.rmtree(path + 'results/gvi/')
         os.makedirs(path + 'results/gvi/')
+    if hmc_flag:
+        shutil.rmtree(path + 'results/hmc/')
+        os.makedirs(path + 'results/hmc/')
     if rwmh_flag:
         shutil.rmtree(path + 'results/rwmh/')
         os.makedirs(path + 'results/rwmh/')
@@ -139,6 +152,9 @@ tol = args.tol
 t_increment = args.t_inc
 t_max = args.t_max
 bvi_kernels = args.bvi_kernels
+hmc_T = args.hmc_T
+hmc_L = args.hmc_L
+hmc_eps = args.hmc_eps
 rwmh_T = args.rwmh_T
 
 # import target density and sampler
@@ -177,6 +193,9 @@ if sample_kernel == 'gaussian':
 if gvi_flag:
     from bvi import new_gaussian as gvi
 
+# if running hmc, import code for that
+if hmc_flag: import hmc
+
 # if running rwmh, import gaussian rwmh kernel
 if rwmh_flag:
     from kernels.gaussian import r_sampler as rwmh_initial_sampler
@@ -203,8 +222,9 @@ if verbose:
 
 if lbvi_flag: print('running LBVI')
 if bvi_flag: print('running BVI')
-if rwmh_flag: print('running RWMH')
 if gvi_flag: print('running Gaussian VI')
+if hmc_flag: print('running Hamiltonian Monte Carlo')
+if rwmh_flag: print('running RWMH')
 if verbose: print()
 
 for r in range(reps):
@@ -224,6 +244,7 @@ for r in range(reps):
     if verbose: print('saving simulation settings')
     if verbose: print()
 
+    # this just writes all the settings of the methods that are being run into a text file, then saves the file for reproducibility
     settings_text = 'lbvi and bvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\ngradient MC sample size: ' + str(B) + '\ntolerance: ' +     str(tol) + '\nrandom seed: ' + str(seed)
     if lbvi_flag: settings_text = settings_text + '\n\nlbvi settings:' + '\ninitial sample size: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' +    rkhs + '\nstep increments: ' + str(t_increment) + '\nmax no. of steps per kernel: ' + str(t_max) + '\nmax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nmax no of iterations: ' + str(maxiter)
     if bvi_flag:
@@ -232,6 +253,7 @@ for r in range(reps):
             settings_text + '\ndiagonal covariance matrix'
         else:
             settings_text + '\nfull covariance matrix'
+    if hmc_flag: settings_text = settings_text + '\n\nhmc settings:' + '\nno. of steps to run chain for: ' + str(hmc_T) + '\nno. of steps to run leapfrog integrator for: ' + str(hmc_L) + '\nstep size of leapfrog integrator: ' + str(hmc_eps)
     if rwmh_flag: settings_text = settings_text + '\n\nrwmh settings:' + '\nno. of steps to run chain for: ' + str(rwmh_T)
     settings = os.open(path + 'settings' + str(r+1) + '.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
     os.write(settings, settings_text.encode())
@@ -241,16 +263,16 @@ for r in range(reps):
     # define target log density
     def logp(x): return logp_aux(x, K)
 
+    # score and up function for ksd estimation
+    sp = egrad(logp) # returns (N,K)
+    up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
+
     if lbvi_flag:
         if verbose: print('LBVI simulation')
         tmp_path = path + 'lbvi/'
         if verbose: print('using ' + str(sample_kernel) + ' mcmc sampler')
         if verbose: print('using ' + str(rkhs) + ' rkhs kernel')
         if verbose: print('initial sample size: ' + str(N))
-
-        # score and up function for ksd estimation
-        sp = egrad(logp) # returns (N,K)
-        up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
 
         # generate sample
         if verbose: print('generating sample')
@@ -351,7 +373,24 @@ for r in range(reps):
         if verbose: print('done with Gaussian VI simulation')
         if verbose: print()
 
+    if hmc_flag:
+        if verbose: print('HMC simulation')
+        tmp_path = path + 'hmc/'
+        if verbose: print('number of steps to run the chain for: ' + str(hmc_T))
+        if verbose: print('number of steps to run the leapfrog integrator for: ' + str(hmc_L))
+        if verbose: print('integrator step size: ' + str(hmc_eps))
 
+        if verbose: print('start running chain')
+        if verbose: print()
+        p0 = sample(1, K).reshape(K)
+        hmc_y = hmc.HMC(logp = logp, sp = sp, K = K, epsilon = hmc_eps, L = hmc_L, T = hmc_T, burnin = 0.25, p0 = p0, verbose = False)
+
+        # save results
+        if verbose: print('saving hmc results')
+        np.save(tmp_path + 'y_' + str(r+1) + '.npy', hmc_y)
+
+        if verbose: print('done with hmc simulation')
+        if verbose: print()
 
     if rwmh_flag:
         if verbose: print('RWMH simulation')

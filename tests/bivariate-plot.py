@@ -39,6 +39,8 @@ parser.add_argument('--bvi', action = "store_true",
 help = 'plot bbbvi?')
 parser.add_argument('--gvi', action = "store_true",
 help = 'plot standard gaussian vi?')
+parser.add_argument('--hmc', action = "store_true",
+help = 'plot hamiltonian monte carlo?')
 parser.add_argument('--rwmh', action = "store_true",
 help = 'plot random-walk metropolis-hastings?')
 parser.add_argument('--extension', type = str, default = 'png', choices = ['pdf', 'png', 'jpg'],
@@ -61,8 +63,9 @@ extension = args.extension
 # import flags
 lbvi_flag = args.lbvi
 bvi_flag = args.bvi
-rwmh_flag = args.rwmh
 gvi_flag = args.gvi
+rwmh_flag = args.rwmh
+hmc_flag = args.hmc
 
 
 # IMPORT TARGET DENSITY ####
@@ -147,6 +150,11 @@ for r in range(reps):
         SigmaInv = np.load(tmp_path + 'inv_covariance_' + str(r+1) + '.npy')
         SigmaLogDet = np.load(tmp_path + 'logdet_covariance_' + str(r+1) + '.npy')
 
+    if hmc_flag:
+        # retrieve hmc sample
+        tmp_path = inpath + 'hmc/'
+        hmc = np.squeeze(np.load(tmp_path + 'y_' + str(r+1) + '.npy'), axis=1)
+
 
     if rwmh_flag:
         # retrieve rwmh sample
@@ -166,6 +174,10 @@ for r in range(reps):
     if rwmh_flag:
         # add rwmh samples
         plt.scatter(rwmh[:,0], rwmh[:,1], marker='.', c='khaki', alpha = 0.9, label = 'RWMH')
+
+    if hmc_flag:
+        # add rwmh histogram
+        plt.scatter(hmc[:,0], hmc[:,1], marker='.', c='cyan', alpha = 0.9, label = 'HMC')
 
     if lbvi_flag:
         # add lbvi samples
