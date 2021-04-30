@@ -22,7 +22,7 @@ import lbvi
 
 
 # ARG PARSE SETTINGS ####
-parser = argparse.ArgumentParser(description="run lbvi and bbbvi examples for comparison")
+parser = argparse.ArgumentParser(description="run lbvi other vi methods for comparison")
 
 parser.add_argument('-d', '--dim', type = int,
 help = 'dimension on which to run both optimizations')
@@ -367,7 +367,7 @@ for r in range(reps):
         if verbose: print('start ubvi optimization')
         if verbose: print()
         ubvi_start = timer()
-        ubvi_y = ubvi.UBVI(logp_ubvi, gauss, adam, n_init = ubvi_init, n_samples = B, n_logfg_samples = ubvi_logfg, init_inflation = ubvi_inflation)
+        ubvi_y = ubvi.UBVI(logp, gauss, adam, n_init = ubvi_init, n_samples = B, n_logfg_samples = ubvi_logfg, init_inflation = ubvi_inflation)
         ubvi_results = []
         for n in range(1,ubvi_kernels+1):
             ubvi_results.append(ubvi_y.build(n))

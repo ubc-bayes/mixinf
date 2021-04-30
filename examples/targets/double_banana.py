@@ -16,7 +16,7 @@ def logp_aux(x, K = 2):
     return np.squeeze(-0.5*np.sum(x**2, axis=-1)/sigma1 - 0.5*(y - F(x))**2/sigma2)
 
 def sample(size, K = 2):
-    mu = -2*np.ones(K)
+    mu = 0*np.ones(K)
     #mu[0] = -2  # to make it slightly harder!
     #mu[1] = -2  # ditto
     sd = 0.1   # ditto

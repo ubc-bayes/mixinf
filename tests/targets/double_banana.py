@@ -16,10 +16,8 @@ def logp_aux(x, K = 2):
     return np.squeeze(-0.5*np.sum(x**2, axis=-1)/sigma1 - 0.5*(y - F(x))**2/sigma2)
 
 def sample(size, K = 2):
-    mu = -2*np.ones(K)
-    #mu[0] = -2  # to make it slightly harder!
-    #mu[1] = -2  # ditto
-    sd = 0.1   # ditto
+    mu = 0*np.ones(K)
+    sd = 0.1
     return sd * np.random.randn(size, K) + mu
 
 
@@ -32,6 +30,11 @@ def w_maxiters(k, long_opt = False):
 def w_schedule(k):
     if k == 0: return 0.0001
     return 0.0001
+
+
+# CREATE UBVI SCHEDULES
+adam_learning_rate= lambda itr : 1./np.sqrt(itr+1)
+ubvi_gamma = lambda itr : 1./np.sqrt(1+itr)
 
 
 # CREATE BVI SCHEDULES
