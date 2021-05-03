@@ -405,7 +405,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B, kernel_sampl
 
 
 ###################################
-def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, weight_max = 20, verbose = False, plot = True, plt_lims = None, plot_path = 'plots', trace = False):
+def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, verbose = False, plot = True, plt_lims = None, plot_path = 'plots', trace = False):
     """
     locally-adapted boosting variational inference main routine
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
@@ -422,6 +422,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - B number of MC samples for estimating ksd and gradients
         - maxiter is an integer with the max the number of algo iterations
         - tol is a float with the tolerance below which the algorithm breaks the loop and stops
+        - stop_up indicates the stopping criterion. If None, the ksd provided will be used. Else, provide an auxiliary up function, which will be used to build a surrogate ksd to determine convergence
         - weight_max is an integer indicating max number of iterations without weight optimization (if no new kernels are added to mixture)
         - verbose is boolean indicating whether to print messages
         - plot is boolean indicating whether to generate plots of the approximation at each iteration (only supported for uni and bivariate data)
@@ -432,9 +433,17 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - w, T are shape(y.shape[0], ) arrays with the sample, the weights, and the steps sizes
         - obj is an array with the value of the objective function at each iteration
     """
+    if verbose:
+        print('running locally-adapted boosting variational inference')
+        print()
 
     N = y.shape[0]
     K = y.shape[1]
+    if stop_up is None:
+        aux_up = up
+    else:
+        aux_up = stop_up
+        if verbose: print('using surrogate up for convergence assessment')
 
     if K > 2: plot = False # no plotting beyond bivariate data
 
@@ -488,9 +497,9 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
     for iter_no in range(maxiter):
 
-        if verbose: print('iteration ' + str(iter_no + 1))
-
-        if verbose: print('assessing convergence')
+        if verbose:
+            print('iteration ' + str(iter_no + 1))
+            print('assessing convergence')
         if convergence: break
 
 
@@ -528,7 +537,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
         # estimate objective
         if verbose: print('estimating objective function')
-        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, B = 100000))
+        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, B = 100000))
         if verbose: print('ksd: ' + str(obj[-1]))
 
         # update convergence

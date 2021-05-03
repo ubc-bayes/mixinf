@@ -86,6 +86,28 @@ def KL(logq, sample_q, logp, B = 1000):
 
 
 
+def ksd(logp, sample_q, up, B = 1000):
+    """
+    estimate ksd
+
+    inputs:
+        - p target logdensity
+        - sample_q is a function that generates samples from the variational approximation
+        - up function to calculate expected value of
+        - B number of MC samples
+    outputs:
+        - scalar, the estimated ksd
+    """
+
+    # generate samples
+    X = sample_q(2*B) # sample from mixture
+
+    Y = X[-B:, :]
+    X = X[:B, :]
+
+    return np.abs(up(X, Y).mean())
+
+
 def update_alpha(logq, sample_q, logh, sample_h, logp, K, gamma_alpha = None, B = 1000, verbose = False, traceplot = True, plotpath = 'plots/', maxiter = 500, tol = 0.01, iteration = 1):
 
     if gamma_alpha is None:
@@ -292,12 +314,17 @@ def new_gaussian(logp, K, diagonal = False, mu0 = None, var0 = None, gamma_init 
 
 
 
-def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, B = 1000, verbose = True, traceplot = True, plotpath = 'plots/'):
+def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, B = 1000, tol = 0.0001, verbose = True, traceplot = True, plotpath = 'plots/', stop_up = None):
+
+    if verbose:
+        print('running boosting black-box variational inference')
+        print()
 
     if regularization is None:
         regularization = lambda k : 1/np.sqrt(k+2)
 
     # initialize
+    convergence = False
     if verbose: print('getting initial approximation')
     mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, diagonal = False, gamma_init = gamma_init, B = B, maxiter = 1000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
     if verbose: print('initial mean: ' + str(mu))
@@ -320,13 +347,18 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
     alphas[0] = 1
 
     objs = np.zeros(N)
-    objs[0] = KL(logq, sample_q, logp, 100000)
-    if verbose: print('KL to target: ' + str(objs[0]))
+    if stop_up is None:
+        objs[0] = KL(logq, sample_q, logp, 100000)
+        if verbose: print('KL to target: ' + str(objs[0]))
+    else:
+        objs[0] = ksd(logp, sample_q, stop_up, B = 100000)
+        if verbose: print('KSD to target: ' + str(objs[0]))
 
     # bvi loop
     print()
     for iter_no in range(1, N):
         if verbose: print('iteration ' + str(iter_no+1))
+        if convergence: break
 
         # draw initial guess from inflation of current mixture
         inflation = np.random.poisson(size=(1,K)) + 1
@@ -373,10 +405,18 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
         logq = lambda x : mixture_logpdf(x, mus[0:iter_no,:], Sigmas[0:iter_no,:,:], alphas[0:iter_no])
         sample_q = lambda size : mixture_sample(size, mus, sqrtSigmas, alphas)
 
-        # estimate kl
-        if verbose: print('estimating new KL')
-        objs[iter_no] = KL(logq, sample_q, logp, 100000)
-        if verbose: print('KL to target: ' + str(objs[iter_no]))
+        # estimate divergence
+        if stop_up is None:
+            if verbose: print('estimating new KL')
+            objs[iter_no] = KL(logq, sample_q, logp, 100000)
+            if verbose: print('KL to target: ' + str(objs[iter_no]))
+        else:
+            if verbose: print('estimating new KSD')
+            objs[iter_no] = ksd(logp, sample_q, stop_up, B = 100000)
+            if verbose: print('KSD to target: ' + str(objs[iter_no]))
+
+        # assess convergence
+        if objs[-1] < tol: convergence = True
 
 
         if verbose: print()
@@ -387,19 +427,24 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
     if verbose: print('means: ' + str(np.squeeze(mus[active])))
     if verbose: print('sigmas: ' + str(np.squeeze(Sigmas[active])))
     if verbose: print('weights: ' + str(np.squeeze(alphas[active])))
-    if verbose: print('KL: ' + str(objs[iter_no]))
+    if verbose: print('divergence: ' + str(objs[iter_no]))
 
     iter_no += 1
 
     return mus[0:iter_no,:], Sigmas[0:iter_no,:,:], alphas[0:iter_no], objs[0:iter_no]
 
 
-def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, B = 1000, verbose = True, traceplot = True, plotpath = 'plots/'):
+def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, B = 1000, tol = 0.0001, verbose = True, traceplot = True, plotpath = 'plots/', stop_up = None):
+
+    if verbose:
+        print('running boosting black-box variational inference with diagonal covariance matrix')
+        print()
 
     if regularization is None:
         regularization = lambda k : 1/np.sqrt(k+2)
 
     # initialize
+    convergence = False
     if verbose: print('getting initial approximation')
     mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, diagonal = True, gamma_init = gamma_init, B = B, maxiter = 1000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
     if verbose: print('initial mean: ' + str(mu))
@@ -422,13 +467,18 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
     alphas[0] = 1
 
     objs = np.zeros(N)
-    objs[0] = KL(logq, sample_q, logp, 100000)
-    if verbose: print('KL to target: ' + str(objs[0]))
+    if stop_up is None:
+        objs[0] = KL(logq, sample_q, logp, 100000)
+        if verbose: print('KL to target: ' + str(objs[0]))
+    else:
+        objs[0] = ksd(logp, sample_q, stop_up, B = 100000)
+        if verbose: print('KSD to target: ' + str(objs[0]))
 
     # bvi loop
     print()
     for iter_no in range(1, N):
         if verbose: print('iteration ' + str(iter_no+1))
+        if convergence: break
 
         # draw initial guess from inflation of current mixture
         inflation = np.random.poisson(size=(1,K)) + 1
@@ -487,10 +537,18 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         logq = lambda x : mixture_logpdf(x, mus[0:iter_no,:], Sigmas[0:iter_no,:], alphas[0:iter_no])
         sample_q = lambda size : mixture_sample(size, mus, sqrtSigmas, alphas)
 
-        # estimate kl
-        if verbose: print('estimating new KL')
-        objs[iter_no] = KL(logq, sample_q, logp, 100000)
-        if verbose: print('KL to target: ' + str(objs[iter_no]))
+        # estimate divergence
+        if stop_up is None:
+            if verbose: print('estimating new KL')
+            objs[iter_no] = KL(logq, sample_q, logp, 100000)
+            if verbose: print('KL to target: ' + str(objs[iter_no]))
+        else:
+            if verbose: print('estimating new KSD')
+            objs[iter_no] = ksd(logp, sample_q, stop_up, B = 100000)
+            if verbose: print('KSD to target: ' + str(objs[iter_no]))
+
+        # assess convergence
+        if objs[-1] < tol: convergence = True
 
 
         if verbose: print()
@@ -501,7 +559,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
     if verbose: print('means: ' + str(np.squeeze(mus[active])))
     if verbose: print('sigmas: ' + str(np.squeeze(Sigmas[active])))
     if verbose: print('weights: ' + str(np.squeeze(alphas[active])))
-    if verbose: print('KL: ' + str(objs[iter_no]))
+    if verbose: print('divergence: ' + str(objs[iter_no]))
 
     iter_no += 1
 

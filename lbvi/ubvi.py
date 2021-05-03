@@ -60,6 +60,11 @@ def kl_estimate(mus, Sigs, wts, logp, p_samps, direction='forward'):
     return kl
 ####################################
 
+# GCD SKD ####################################
+
+
+####################################
+
 
 # COMPONENTS ####################################
 class Component(object):
@@ -247,18 +252,21 @@ def ubvi_adam(x0, obj, grd, learning_rate, num_iters, callback = None):
 # BOOSTING VI ####################################
 class BoostingVI(object):
 
-    def __init__(self, component_dist, opt_alg, n_init = 10, init_inflation = 100, estimate_error = True, verbose = True):
+    def __init__(self, component_dist, opt_alg, up = None, n_init = 10, init_inflation = 100, tol = 0.001, estimate_error = True, verbose = True):
         self.N = 0 #current num of components
         self.component_dist = component_dist #component distribution object
         self.opt_alg = opt_alg #optimization algorithm function
+        self.up = up
         self.weights = np.empty(0) #weights
         self.params = np.empty((0, 0))
         self.cput = 0. #total computation time so far
         self.error = np.inf #error for the current mixture
+        self.ksd = np.inf #ksd for the current mixture
         self.n_init = n_init #number of times to initialize each component
         self.init_inflation = init_inflation #number of times to initialize each component
         self.verbose = verbose
         self.estimate_error = estimate_error
+        self.tol = tol
 
     def build(self, N):
 	#build the approximation up to N components
@@ -316,14 +324,25 @@ class BoostingVI(object):
             if self.estimate_error:
                 err_name, self.error = self._error()
 
+            # GCD: estimate ksd
+            if self.up is None:
+                self.ksd = np.inf
+            else:
+                self.ksd = self._ksd()
+
             #print out the current error
             if self.verbose:
                 print('Component ' + str(self.params.shape[0]) +':')
                 print('Cumulative CPU Time: ' + str(self.cput))
                 if self.estimate_error:
                     print(err_name +': ' + str(self.error))
+                    if self.up is None:
+                        print('oh no')
+                    if self.up is not None:
+                        print('KSD: ' + str(self.ksd))
                 print('Params:' + str(self.component_dist.unflatten(self.params)))
                 print('Weights: ' + str(self.weights))
+
 
         #update self.N to the new # comps
         self.N = N
@@ -332,6 +351,7 @@ class BoostingVI(object):
         output = self._get_mixture()
         output['cput'] = self.cput
         output['obj'] = self.error
+        output['ksd'] = self.ksd
         return output
 
 
@@ -368,6 +388,9 @@ class BoostingVI(object):
 
     def _get_mixture(self):
         raise NotImplementedError
+
+    def _ksd(self):
+        raise NotImplementedError
 ####################################
 
 
@@ -376,7 +399,7 @@ class BoostingVI(object):
 # UBVI ####################################
 class UBVI(BoostingVI):
 
-    def __init__(self, logp, component_dist, opt_alg, n_samples = 100, n_logfg_samples = 100, **kw):
+    def __init__(self, logp, component_dist, opt_alg, up = None, n_samples = 100, n_logfg_samples = 100, tol = 0.001, **kw):
         super().__init__(component_dist, opt_alg, **kw)
         self.logp = logp
         self.n_samples = n_samples
@@ -384,6 +407,8 @@ class UBVI(BoostingVI):
         self.Z = np.empty((0,0))
         self._logfg = np.empty(0)
         self._logfgsum = -np.inf
+        self.up = up
+        self.tol = tol
 
     def _compute_weights(self):
         #compute new row/col for Z
@@ -428,6 +453,15 @@ class UBVI(BoostingVI):
         lg = self._logg(samples)
         ln = np.log(self.n_samples)
         return 1. - np.exp(logsumexp(lf-lg-ln) - 0.5*logsumexp(2*lf-2*lg-ln))
+
+    def _ksd(self):
+        if self.up is None:
+            return np.inf
+        else:
+            samples = self._sample_g(2*self.n_samples)
+            x = samples[:self.n_samples,:]
+            y = samples[-self.n_samples:,:]
+            return np.abs(self.up(x, y).mean())
 
     def _objective(self, x, itr):
         allow_negative = False if itr < 0 else True

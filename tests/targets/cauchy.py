@@ -25,7 +25,8 @@ def logp_ubvi(x): return logp_aux(x,K=1)
 # CREATE SAMPLER ####
 def sample(size, K): return 4 * np.random.randn(size, K)
 
-
+# CREATE EXACT SAMPLER FOR AGNOSTIC KSD ###
+def p_sample(size, K): return np.random.standard_cauchy((size,K))
 
 # CREATE WEIGHT OPT SCHEDULE AND MAXITER
 def w_maxiters(k, long_opt = False):

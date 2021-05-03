@@ -131,9 +131,11 @@ for r in range(reps):
 
     if ubvi_flag:
         # retrieve ubvi results
-        ubvi_mu = ubvis[0][r]['mus']
-        ubvi_Sig = ubvis[0][r]['Sigs']
-        ubvi_wt = ubvis[0][r]['weights']
+        n = len(ubvis[r])
+        ubvi_mu = ubvis[r][n-1]['mus']
+        ubvi_Sig = ubvis[r][n-1]['Sigs']
+        ubvi_wt = ubvis[r][n-1]['weights']
+        ubvi_ksd = np.array([ ubvis[r][i]['ksd'] for i in range(len(ubvis[r]))])
         ubvi_kernels = np.append(ubvi_kernels, ubvi_wt[ubvi_wt > 0].shape[0])
 
 
