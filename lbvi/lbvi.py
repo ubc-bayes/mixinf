@@ -483,7 +483,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     T[argmin] = t_increment # update steps
     active = np.array([argmin]) # update active locations, kernel_sampler
     if verbose: print('number of steps: ' + str(T))
-    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, B = 100000)]) # update objective
+    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, B = 10000)]) # update objective
     if verbose: print('ksd: ' + str(obj[-1]))
 
 
@@ -537,7 +537,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
         # estimate objective
         if verbose: print('estimating objective function')
-        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, B = 100000))
+        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, B = 10000))
         if verbose: print('ksd: ' + str(obj[-1]))
 
         # update convergence
