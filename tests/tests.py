@@ -88,10 +88,6 @@ parser.add_argument('--outpath', type = str, default = '',
 help = 'path of file to output')
 parser.add_argument('--seed', type = int, default = -1,
 help = 'seed for reproducibility')
-#parser.add_argument('--plots', action = "store_true",
-#help = 'whether to generate and save plots during the optimization')
-#parser.add_argument('--plotpath', type = str, default = '',
-#help = 'path to save traceplots if generated')
 parser.add_argument('-v', '--verbose', action = "store_true",
 help = 'should updates on the stats of the algorithm be printed?')
 
@@ -303,7 +299,7 @@ for r in range(reps):
         if verbose: print()
 
         # this just writes all the settings of the methods that are being run into a text file, then saves the file for reproducibility
-        settings_text = 'lbvi and bvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\ngradient MC sample size: ' + str(B) + '\ntolerance: ' +     str(tol) + '\nrandom seed: ' + str(seed)
+        settings_text = 'lbvi and bvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\ngradient MC sample size: ' + str(B) + '\nstopping criterion: ' + stop + '\ntolerance: ' +     str(tol) + '\nrandom seed: ' + str(seed)
         if lbvi_flag:
             settings_text += '\n\nlbvi settings:' + '\ninitial sample size: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' +    rkhs + '\nstep increments: ' + str(t_increment) + '\nmax no. of steps per kernel: ' + str(t_max) + '\nmax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nmax no of iterations: ' + str(maxiter)
         if ubvi_flag:
@@ -419,19 +415,31 @@ for r in range(reps):
             if verbose: print()
             print()
 
-            # save results
+            # save results ###
             if verbose: print('saving ubvi results')
+
+            # extract ksd and trim according to tolerance
+            # first init values then iterate until getting the one with ksd < tol
+            tmp_ksd = np.inf
+            ubvi_ksd[r,i] = ubvi_results[ubvi_kernels-1]['ksd'][-1]
+            jstar = len(ubvi_results[ubvi_kernels-1]['ksd'])
+            for j in range(1, len(ubvi_results[ubvi_kernels-1]['ksd'])):
+                if ubvi_results[ubvi_kernels-1]['ksd'][j] < tol:
+                    ubvi_ksd[r,i] = ubvi_results[ubvi_kernels-1]['ksd'][j]
+                    jstar = j # useful to trim means, sigs, and weights, but it might not be the best idea
+                    break
+
             # extract results
-            mus = ubvi_results[ubvi_kernels-1]['mus']
-            Sigs = ubvi_results[ubvi_kernels-1]['Sigs']
-            weights = ubvi_results[ubvi_kernels-1]['weights']
+            mus = ubvi_results[ubvi_kernels-1]['mus']#[:jstar,:]
+            Sigs = ubvi_results[ubvi_kernels-1]['Sigs']#[:jstar,...]
+            weights = ubvi_results[ubvi_kernels-1]['weights']#[:jstar]
+
             # save them
             np.save(tmp_path + 'means_' + str(r+1) + '_' + str(tol) + '.npy', mus)
             np.save(tmp_path + 'covariances_' + str(r+1) + '_' + str(tol) + '.npy', Sigs)
             np.save(tmp_path + 'weights_' + str(r+1) + '_' + str(tol) + '.npy', weights)
 
             ubvi_times[r,i] = ubvi_end - ubvi_start
-            ubvi_ksd[r,i] = ubvi_results[ubvi_kernels-1]['ksd'][-1]
             ubvi_kernel[r,i] = weights[weights > 0].shape[0]
 
 
