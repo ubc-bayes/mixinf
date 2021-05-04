@@ -11,7 +11,7 @@ import cProfile, pstats, io
 
 
 ###################################
-def mix_sample(size, y, T, w, logp, kernel_sampler):
+def mix_sample(size, y, T, w, logp, kernel_sampler, verbose = False):
     """
     sample from mixture of mcmc kernels
 
@@ -32,10 +32,21 @@ def mix_sample(size, y, T, w, logp, kernel_sampler):
     inds = np.random.choice(N, size = size, p = w, replace = True) # indices to sample from
     values, counts = np.unique(inds, return_counts = True) # sampled values with counts
 
+    if verbose:
+        print()
+        print('values: ' + str(values))
+        print('counts: ' + str(counts))
+        print('sample: ' + str(np.squeeze(y)))
+        print('weights: ' + str(w))
+        print('sample via values: ' + str(np.squeeze(y[values,:])))
+        print('empirical weights: ' + str(counts / counts.sum()))
+
     out = np.empty((1, K)) # init
     for i in range(values.shape[0]):
 
         # for each value, generate a sample of size counts[i]
+        if verbose: print('sampling from kernel centered at ' + str(np.squeeze(y[values[i],:])) + ' with steps ' + str(T[values[i]]))
+        if verbose: print('empirical weight: ' + str(counts[i] / counts.sum()))
         tmp_out = kernel_sampler(y = np.array(y[i, :]).reshape(1, K), T = np.array([T[values[i]]]), S = counts[i], logp = logp).reshape(counts[i], K)
 
         # add to sample
@@ -166,11 +177,11 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler = None, plt_lims 
         plt.plot(tt, zz, '-k', label = 'target')
 
         if kernel_sampler is None:
-            plt.hist(y, label = '', density = True, bins = 75)
+            plt.hist(y, label = '', density = True, alpha = 0.5, facecolor = 'blue', edgecolor='black')
         else:
             # generate and plot approximation
-            kk = np.squeeze(mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler))
-            plt.hist(kk, label = 'approximation', density = True, bins = 75)
+            kk = np.squeeze(mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler, verbose = False))
+            plt.hist(kk, label = 'LBVI', density = True, bins = 75, alpha = 0.5, facecolor = 'blue', edgecolor='black')
             plt.plot(np.squeeze(y), np.zeros(y.shape[0]), 'ok')
 
         # beautify and save plot
@@ -313,7 +324,7 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, tol = 0.0
         if convergence: break # assess convergence
         Dw = w_grad(up, logp, y, T, w, B, kernel_sampler = kernel_sampler) # get gradient
         w_step = 0.9*w_step - (b/np.sqrt(k+1)) * Dw # step size with momentum
-        w_step = - (b/np.sqrt(k+1)) * Dw # step size without momentum
+        #w_step = - (b/np.sqrt(k+1)) * Dw # step size without momentum
         w += w_step # update weight
         w = simplex_project(w) # project to simplex
         if np.linalg.norm(Dw) < tol: convergence = True # update convergence
@@ -429,7 +440,6 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - plt_lims is an array with the plotting limits (xinf, xsup, yinf, ysup)
         - trace is boolean indicating whether to print a trace plot of the objective function
         - tracepath is the path in which the trace plot is saved if generated
-    outputs:kernel_sampler
         - w, T are shape(y.shape[0], ) arrays with the sample, the weights, and the steps sizes
         - obj is an array with the value of the objective function at each iteration
     """
@@ -443,7 +453,9 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         aux_up = up
     else:
         aux_up = stop_up
-        if verbose: print('using surrogate up for convergence assessment')
+        if verbose:
+            print('using surrogate up for convergence assessment')
+            print()
 
     if K > 2: plot = False # no plotting beyond bivariate data
 
@@ -530,10 +542,14 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         # update weights
         if update_weights:
             if verbose: print('updating weights')
-            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, tol = 0.1, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
-            if verbose: print('weights: ' + str(w))
+            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, tol = tol, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
         else:
             if verbose: print('not updating weights')
+
+        if verbose:
+            print('active sample: ' + str(np.squeeze(y[active,:])))
+            print('active steps: ' + str(T[active]))
+            print('active weights: ' + str(w[active]))
 
         # estimate objective
         if verbose: print('estimating objective function')

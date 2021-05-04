@@ -113,6 +113,8 @@ if not os.path.exists(path + 'results/'):
 
     # create all plotting directories, even if we won't be running smth
     os.makedirs(path + 'results/lbvi/')
+    os.makedirs(path + 'results/lbvi/plots/')
+    os.makedirs(path + 'results/lbvi/plots/weight_trace/')
     os.makedirs(path + 'results/ubvi/')
     os.makedirs(path + 'results/bvi/')
     os.makedirs(path + 'results/bvi/plots/')
@@ -124,6 +126,8 @@ else:
     if lbvi_flag:
         shutil.rmtree(path + 'results/lbvi/')
         os.makedirs(path + 'results/lbvi/')
+        os.makedirs(path + 'results/lbvi/plots/')
+        os.makedirs(path + 'results/lbvi/plots/weight_trace/')
     if ubvi_flag:
         shutil.rmtree(path + 'results/ubvi/')
         os.makedirs(path + 'results/ubvi/')
@@ -357,7 +361,7 @@ for r in range(reps):
             if verbose: print('start lbvi optimization')
             if verbose: print()
             lbvi_start = timer()
-            w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, verbose = verbose, plot = False, plt_lims = plt_lims, plot_path = '', trace = False)
+            w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, verbose = verbose, plot = True, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True)
             lbvi_end = timer()
             #lbvi_time = np.array([lbvi_end - lbvi_start])
             #np.save(path + 'times/lbvi_time' + str(r+1) + '_' + str(tol) + '_' + str(seed) + '.npy', lbvi_time)
@@ -493,7 +497,7 @@ for r in range(reps):
                 # convert Sigmas into stack of arrays
                 #Sigmas = Sigmas[:,np.newaxis]*np.eye(K)
             else:
-                mus, Sigmas, alphas, objs = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, tol, verbose = verbose, traceplot = True, plotpath = path + 'bvi/plots/', stop_up = stop_up)
+                mus, Sigmas, alphas, objs = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up)
             bvi_end = timer()
             #bvi_time = np.array([bvi_end - bvi_start])
             #np.save(path + 'times/bvi_time' + str(r+1) + '_' + str(tol) + '_' + str(seed) + '.npy', bvi_time)
