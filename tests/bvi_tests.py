@@ -32,8 +32,8 @@ parser.add_argument('-B', type = int, default = 500,
 help = 'MC sample size for gradient estimation in SGD')
 parser.add_argument('--reps', type = int, default = 1,
 help = 'number of times to run each method')
-parser.add_argument('--tol', type = float, default = 0.001,
-help = 'step size tolerance at which to stop alg if maxiter not exceeded')
+parser.add_argument('--tol', type = float, nargs = '+',
+help = 'sequence of step size tolerance at which to stop alg if maxiter not exceeded')
 parser.add_argument('--stop', type = str, default = 'default', choices=['default', 'median'],
 help = 'stopping criterion for lbvi, bvi, and ubvi. Default is ksd tolerance for lbvi and iter number for the other. Median is using custom ksd with median sq distance bw')
 parser.add_argument('--lbvi', action = "store_true",
@@ -88,10 +88,6 @@ parser.add_argument('--outpath', type = str, default = '',
 help = 'path of file to output')
 parser.add_argument('--seed', type = int, default = -1,
 help = 'seed for reproducibility')
-#parser.add_argument('--plots', action = "store_true",
-#help = 'whether to generate and save plots during the optimization')
-#parser.add_argument('--plotpath', type = str, default = '',
-#help = 'path to save traceplots if generated')
 parser.add_argument('-v', '--verbose', action = "store_true",
 help = 'should updates on the stats of the algorithm be printed?')
 

@@ -261,7 +261,7 @@ class BoostingVI(object):
         self.params = np.empty((0, 0))
         self.cput = 0. #total computation time so far
         self.error = np.inf #error for the current mixture
-        self.ksd = np.inf #ksd for the current mixture
+        self.ksd = np.array([np.inf]) #ksd array
         self.n_init = n_init #number of times to initialize each component
         self.init_inflation = init_inflation #number of times to initialize each component
         self.verbose = verbose
@@ -328,7 +328,7 @@ class BoostingVI(object):
             if self.up is None:
                 self.ksd = np.inf
             else:
-                self.ksd = self._ksd()
+                self.ksd = np.append(self.ksd, self._ksd())
 
             #print out the current error
             if self.verbose:
@@ -336,10 +336,8 @@ class BoostingVI(object):
                 print('Cumulative CPU Time: ' + str(self.cput))
                 if self.estimate_error:
                     print(err_name +': ' + str(self.error))
-                    if self.up is None:
-                        print('oh no')
                     if self.up is not None:
-                        print('KSD: ' + str(self.ksd))
+                        print('KSD: ' + str(self.ksd[-1]))
                 print('Params:' + str(self.component_dist.unflatten(self.params)))
                 print('Weights: ' + str(self.weights))
 
@@ -348,10 +346,12 @@ class BoostingVI(object):
         self.N = N
 
         #generate the nicely-formatted output params
-        output = self._get_mixture()
+        #output = self._get_mixture()
+        output = self.component_dist.unflatten(self.params)
         output['cput'] = self.cput
         output['obj'] = self.error
         output['ksd'] = self.ksd
+        output['weights'] = self.weights
         return output
 
 

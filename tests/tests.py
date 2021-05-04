@@ -32,8 +32,8 @@ parser.add_argument('-B', type = int, default = 500,
 help = 'MC sample size for gradient estimation in SGD')
 parser.add_argument('--reps', type = int, default = 1,
 help = 'number of times to run each method')
-parser.add_argument('--tol', type = float, default = 0.001,
-help = 'step size tolerance at which to stop alg if maxiter not exceeded')
+parser.add_argument('--tol', type = float, nargs = '+',
+help = 'sequence of step size tolerances at which to stop alg if maxiter not exceeded')
 parser.add_argument('--stop', type = str, default = 'default', choices=['default', 'median'],
 help = 'stopping criterion for lbvi, bvi, and ubvi. Default is ksd tolerance for lbvi and iter number for the other. Median is using custom ksd with median sq distance bw')
 parser.add_argument('--lbvi', action = "store_true",
@@ -148,7 +148,8 @@ else:
 
 # finally, rename path and create times directorybvi
 path = path + 'results/'
-if not os.path.exists(path + 'times/'): os.makedirs(path + 'times/')
+if not os.path.exists(path + 'aux/'): os.makedirs(path + 'aux/')
+if not os.path.exists(path + 'settings'): os.makedirs(path + 'settings')
 ###########################
 
 
@@ -166,11 +167,12 @@ weight_max = args.weight_max
 reps = args.reps
 seed0 = args.seed
 stop = args.stop
+tols = np.array(args.tol)
+no_tols = tols.shape[0]
 
 # ALGS SETTINGS
 # lbvi
 maxiter = args.maxiter
-tol = args.tol
 t_increment = args.t_inc
 t_max = args.t_max
 # ubvi
@@ -220,11 +222,25 @@ sample_kernel = args.kernel
 if sample_kernel == 'gaussian':
     from kernels.gaussian import *
 
-# if running ubvi, import suite of functions
-if ubvi_flag: import ubvi
+# if running lbvi, init auxiliary arrays
+if lbvi_flag:
+    lbvi_times = np.zeros((reps, no_tols))
+    lbvi_ksd = np.zeros((reps, no_tols))
+    lbvi_kernel = np.zeros((reps, no_tols))
+
+# if running ubvi, import suite of functions and init aux arrays
+if ubvi_flag:
+    import ubvi
+    ubvi_times = np.zeros((reps, no_tols))
+    ubvi_ksd = np.zeros((reps, no_tols))
+    ubvi_kernel = np.zeros((reps, no_tols))
 
 # if running bvi, import suite of functions
-if bvi_flag: import bvi
+if bvi_flag:
+    import bvi
+    bvi_times = np.zeros((reps, no_tols))
+    bvi_ksd = np.zeros((reps, no_tols))
+    bvi_kernel = np.zeros((reps, no_tols))
 
 # if running standard gaussian vi, import function
 if gvi_flag:
@@ -266,261 +282,311 @@ if rwmh_flag: print('running RWMH')
 if verbose: print()
 
 for r in range(reps):
-    if verbose: print('simulation ' + str(r+1) + '/' + str(reps))
+    print('simulation ' + str(r+1) + '/' + str(reps))
+    for i in range(no_tols):
+        tol = tols[i]
+        if verbose: print('tolerance: ' + str(tol))
 
-    # create and save seed
-    if seed0 == -1:
-        # if not specified, generate seed at random
-        seed = np.random.choice(np.arange(1, 1000000))
-    else:
-        # if specified, use it and account for repetitions by adding small increments
-        seed = seed0 + r
 
-    np.random.seed(seed)
-
-    # save simulation details
-    if verbose: print('saving simulation settings')
-    if verbose: print()
-
-    # this just writes all the settings of the methods that are being run into a text file, then saves the file for reproducibility
-    settings_text = 'lbvi and bvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\ngradient MC sample size: ' + str(B) + '\ntolerance: ' +     str(tol) + '\nrandom seed: ' + str(seed)
-    if lbvi_flag:
-        settings_text += '\n\nlbvi settings:' + '\ninitial sample size: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' +    rkhs + '\nstep increments: ' + str(t_increment) + '\nmax no. of steps per kernel: ' + str(t_max) + '\nmax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nmax no of iterations: ' + str(maxiter)
-    if ubvi_flag:
-        settings_text += '\n\nubvi settings:' + '\nno. of kernels to add: ' + str(ubvi_kernels) + '\ncomponent initialization sample size: ' + str(ubvi_init) + '\ncomponent initialization inflation: ' + str(ubvi_inflation) + '\nlogfg estimation sample size: ' + str(ubvi_logfg) + '\nadam weight optimization iterations: ' + str(ubvi_adamiter)
-    if bvi_flag:
-        settings_text +=  '\n\nbvi settings:' + '\nno. of kernels to add: ' + str(bvi_kernels)
-        if bvi_diagonal:
-            settings_text +=  '\ndiagonal covariance matrix'
+        # create and save seed
+        if seed0 == -1:
+            # if not specified, generate seed at random
+            seed = np.random.choice(np.arange(1, 1000000))
         else:
-            settings_text +=  '\nfull covariance matrix'
-    if hmc_flag:
-        settings_text +=  '\n\nhmc settings:' + '\nno. of steps to run chain for: ' + str(hmc_T) + '\nno. of steps to run leapfrog integrator for: ' + str(hmc_L) + '\nstep size of leapfrog integrator: ' + str(hmc_eps)
-    if rwmh_flag:
-        settings_text +=  '\n\nrwmh settings:' + '\nno. of steps to run chain for: ' + str(rwmh_T)
-    settings = os.open(path + 'settings' + str(r+1) + '.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
-    os.write(settings, settings_text.encode())
-    os.close(settings)
+            # if specified, use it and account for repetitions by adding small increments
+            seed = seed0 + r
+
+        np.random.seed(seed)
+
+        # save simulation details
+        if verbose: print('saving simulation settings')
+        if verbose: print()
+
+        # this just writes all the settings of the methods that are being run into a text file, then saves the file for reproducibility
+        settings_text = 'lbvi and bvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\ngradient MC sample size: ' + str(B) + '\ntolerance: ' +     str(tol) + '\nrandom seed: ' + str(seed)
+        if lbvi_flag:
+            settings_text += '\n\nlbvi settings:' + '\ninitial sample size: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' +    rkhs + '\nstep increments: ' + str(t_increment) + '\nmax no. of steps per kernel: ' + str(t_max) + '\nmax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nmax no of iterations: ' + str(maxiter)
+        if ubvi_flag:
+            settings_text += '\n\nubvi settings:' + '\nno. of kernels to add: ' + str(ubvi_kernels) + '\ncomponent initialization sample size: ' + str(ubvi_init) + '\ncomponent initialization inflation: ' + str(ubvi_inflation) + '\nlogfg estimation sample size: ' + str(ubvi_logfg) + '\nadam weight optimization iterations: ' + str(ubvi_adamiter)
+        if bvi_flag:
+            settings_text +=  '\n\nbvi settings:' + '\nno. of kernels to add: ' + str(bvi_kernels)
+            if bvi_diagonal:
+                settings_text +=  '\ndiagonal covariance matrix'
+            else:
+                settings_text +=  '\nfull covariance matrix'
+        if hmc_flag:
+            settings_text +=  '\n\nhmc settings:' + '\nno. of steps to run chain for: ' + str(hmc_T) + '\nno. of steps to run leapfrog integrator for: ' + str(hmc_L) + '\nstep size of leapfrog integrator: ' + str(hmc_eps)
+        if rwmh_flag:
+            settings_text +=  '\n\nrwmh settings:' + '\nno. of steps to run chain for: ' + str(rwmh_T)
+        settings = os.open(path + 'settings/settings_iter-' + str(r+1) + '_tol-' + str(tol) + '.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
+        os.write(settings, settings_text.encode())
+        os.close(settings)
 
 
-    # define target log density
-    def logp(x): return logp_aux(x, K)
+        # define target log density
+        def logp(x): return logp_aux(x, K)
 
-    # score and up function for ksd estimation
-    sp = egrad(logp) # returns (N,K)
-    up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
-    stop_up = None
+        # score and up function for ksd estimation
+        sp = egrad(logp) # returns (N,K)
+        up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
+        stop_up = None
 
-    # if running median stopping criterion, import functions and create ksd
-    if stop == 'median':
-        import RKHSkernels.rbf_median as rbfm
-        p_x = p_sample(1000, K)
-        p_k, p_kdx, p_kdy, p_kdxdy = rbfm.get_kernel(p_x)   # get kernel and derivatives
-        stop_up = lbvi.up_gen(p_k, sp, p_kdx, p_kdy, p_kdxdy)  # get aux up function
+        # if running median stopping criterion, import functions and create ksd
+        if stop == 'median':
+            import RKHSkernels.rbf_median as rbfm
+            p_x = p_sample(1000, K)
+            p_k, p_kdx, p_kdy, p_kdxdy = rbfm.get_kernel(p_x)   # get kernel and derivatives
+            stop_up = lbvi.up_gen(p_k, sp, p_kdx, p_kdy, p_kdxdy)  # get aux up function
 
-    if verbose:
-        print('stopping criterion: ' + stop)
+        if verbose:
+            print('stopping criterion: ' + stop)
         if stop == 'median':
             if verbose: print('median squared distance bandwidth: ' + str(rbfm.get_gamma(p_x)))
-        print()
-
-    if lbvi_flag:
-        if verbose: print('LBVI simulation')
-        tmp_path = path + 'lbvi/'
-        if verbose:
-            print('using ' + str(sample_kernel) + ' mcmc sampler')
-            print('using ' + str(rkhs) + ' rkhs kernel')
-            print('initial sample size: ' + str(N))
-
-
-        # generate sample
-        if verbose: print('generating sample')
-        y = sample(N, K)
-
-        # run algorithm
-        if verbose: print('start lbvi optimization')
-        if verbose: print()
-        lbvi_start = timer()
-        w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, verbose = verbose, plot = False, plt_lims = plt_lims, plot_path = '', trace = False)
-        lbvi_end = timer()
-        lbvi_time = np.array([lbvi_end - lbvi_start])
-        np.save(path + 'times/lbvi_time' + str(r+1) + '_' + str(seed) + '.npy', lbvi_time)
         if verbose: print()
 
-        # save results
-        if verbose: print('saving lbvi results')
-        np.save(tmp_path + 'y_' + str(r+1) + '.npy', y)
-        np.save(tmp_path + 'w_' + str(r+1) + '.npy', w)
-        np.save(tmp_path + 'T_' + str(r+1) + '.npy', T)
-
-        # plot trace
-        if verbose: print('plotting lbvi objective trace')
-        plt.clf()
-        plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
-        plt.xlabel('iteration')
-        plt.ylabel('kernelized stein discrepancy')
-        plt.title('trace plot of ksd')
-        plt.savefig(tmp_path + 'lbvi_trace' + str(r+1) + '.png', dpi=900)
-
-        if verbose: print('done with LBVI simulation')
-        if verbose: print()
-
-    if ubvi_flag:
-        if verbose: print('UBVI simulation')
-        tmp_path = path + 'ubvi/'
-
-        if verbose:
-            print('kernels to add to mixture: ' + str(ubvi_kernels))
-            print('iterations for component initialization: ' + str(ubvi_init))
-            print('inflation for component initialization: ' + str(ubvi_inflation))
-            print('logfg estimation sample size: ' + str(ubvi_logfg))
-            print('iterations for weight optimization via adam: ' + str(ubvi_adamiter))
+        if lbvi_flag:
+            if verbose: print('LBVI simulation')
+            tmp_path = path + 'lbvi/'
+            if verbose:
+                print('using ' + str(sample_kernel) + ' mcmc sampler')
+                print('using ' + str(rkhs) + ' rkhs kernel')
+                print('initial sample size: ' + str(N))
 
 
-        # creating gaussian dist and adam weight optimizer
-        gauss = ubvi.Gaussian(K, True)
-        adam = lambda x0, obj, grd : ubvi.ubvi_adam(x0, obj, grd, adam_learning_rate, ubvi_adamiter, callback = gauss.print_perf)
+            # generate sample
+            if verbose: print('generating sample')
+            y = sample(N, K)
+
+            # run algorithm
+            if verbose: print('start lbvi optimization')
+            if verbose: print()
+            lbvi_start = timer()
+            w, T, obj = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, verbose = verbose, plot = False, plt_lims = plt_lims, plot_path = '', trace = False)
+            lbvi_end = timer()
+            #lbvi_time = np.array([lbvi_end - lbvi_start])
+            #np.save(path + 'times/lbvi_time' + str(r+1) + '_' + str(tol) + '_' + str(seed) + '.npy', lbvi_time)
+            if verbose: print()
+
+            # save results
+            if verbose: print('saving lbvi results')
+            np.save(tmp_path + 'y_' + str(r+1) + '_' + str(tol) + '.npy', y)
+            np.save(tmp_path + 'w_' + str(r+1) + '_' + str(tol) + '.npy', w)
+            np.save(tmp_path + 'T_' + str(r+1) + '_' + str(tol) + '.npy', T)
+            lbvi_times[r,i] = lbvi_end - lbvi_start
+            lbvi_ksd[r,i] = obj[-1]
+            lbvi_kernel[r,i] = w[w > 0].shape[0]
+
+            # plot trace
+            if verbose: print('plotting lbvi objective trace')
+            plt.clf()
+            plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
+            plt.xlabel('iteration')
+            plt.ylabel('kernelized stein discrepancy')
+            plt.title('trace plot of ksd')
+            plt.savefig(tmp_path + 'lbvi_trace' + str(r+1) + '_' + str(tol) + '.png', dpi=900)
+
+            if verbose: print('done with LBVI simulation')
+            if verbose: print()
+
+        if ubvi_flag:
+            if verbose: print('UBVI simulation')
+            tmp_path = path + 'ubvi/'
+
+            if verbose:
+                print('kernels to add to mixture: ' + str(ubvi_kernels))
+                print('iterations for component initialization: ' + str(ubvi_init))
+                print('inflation for component initialization: ' + str(ubvi_inflation))
+                print('logfg estimation sample size: ' + str(ubvi_logfg))
+                print('iterations for weight optimization via adam: ' + str(ubvi_adamiter))
 
 
-        # run algorithm
-        if verbose: print('starting ubvi optimization')
-        if verbose: print()
-        ubvi_start = timer()
-        ubvi_y = ubvi.UBVI(logp, gauss, adam, n_init = ubvi_init, n_samples = B, up = stop_up, n_logfg_samples = ubvi_logfg, tol = tol, init_inflation = ubvi_inflation)
-        ubvi_results = []
-        for n in range(1,ubvi_kernels+1):
-            ubvi_results.append(ubvi_y.build(n))
-
-        ubvi_end = timer()
-        ubvi_time = np.array([ubvi_end - ubvi_start])
-        np.save(path + 'times/ubvi_time' + str(r+1) + '_' + str(seed) + '.npy', ubvi_time)
-        if verbose: print()
-        print()
-
-        # save results
-        if verbose: print('saving ubvi results')
-        if os.path.exists(tmp_path + 'results.pk'):
-            f = open(tmp_path + 'results.pk', 'rb')
-            res = pk.load(f)
-            f.close()
-            res[0].append(ubvi_results)
-            f = open(tmp_path + 'results.pk', 'wb')
-            pk.dump(res, f)
-            f.close()
-        else:
-            f = open(tmp_path + 'results.pk', 'wb')
-            pk.dump(([ubvi_results]), f)
-            f.close()
-
-        if verbose: print('done with UBVI simulation')
-        if verbose: print()
+            # creating gaussian dist and adam weight optimizer
+            gauss = ubvi.Gaussian(K, True)
+            adam = lambda x0, obj, grd : ubvi.ubvi_adam(x0, obj, grd, adam_learning_rate, ubvi_adamiter, callback = gauss.print_perf)
 
 
-
-    if bvi_flag:
-        if verbose: print('BBBVI simulation')
-        tmp_path = path + 'bvi/'
-        if verbose: print('kernels to add to mixture: ' + str(bvi_kernels))
-        if verbose:
-            if bvi_diagonal:
-                print('bvi mixture components will have a diagonal covariance matrix')
-            else:
-                print('bvi mixture components will have a full covariance matrix')
-
-
-        if verbose: print('start bvi optimization')
-        if verbose: print()
-        # split by whether covariance matrix is full or diagonal
-        bvi_start = timer()
-        if bvi_diagonal:
-            mus, Sigmas, alphas, objs = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, tol, verbose = verbose, traceplot = True, plotpath = path + 'bvi/plots/', stop_up = stop_up)
-            # convert Sigmas into stack of arrays
-            #Sigmas = Sigmas[:,np.newaxis]*np.eye(K)
-        else:
-            mus, Sigmas, alphas, objs = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, tol, verbose = verbose, traceplot = True, plotpath = path + 'bvi/plots/', stop_up = stop_up)
-        bvi_end = timer()
-        bvi_time = np.array([bvi_end - bvi_start])
-        np.save(path + 'times/bvi_time' + str(r+1) + '_' + str(seed) + '.npy', bvi_time)
-        if verbose: print()
-
-        # save results
-        if verbose: print('saving bvi results')
-        np.save(tmp_path + 'means_' + str(r+1) + '.npy', mus)
-        np.save(tmp_path + 'covariances_' + str(r+1) + '.npy', Sigmas)
-        np.save(tmp_path + 'weights_' + str(r+1) + '.npy', alphas)
-
-
-        # plot trace
-        if verbose: print('plotting bvi objective trace')
-        plt.clf()
-        plt.plot(1 + np.arange(objs.shape[0]), objs, '-k')
-        plt.xlabel('iteration')
-        plt.ylabel('KL divergence')
-        plt.title('trace plot of KL')
-        plt.savefig(tmp_path + 'bvi_trace' + str(r+1) + '.png', dpi=900)
-
-
-        if verbose: print('done with BBBVI simulation')
-        if verbose: print()
-
-    if gvi_flag:
-        if verbose: print('Gaussian VI simulation')
-        tmp_path = path + 'gvi/'
-        if verbose: print('using mean and inflated variance from sample of LBVI sampler as starting params')
-
-        if verbose: print('start gaussian vi optimization')
-        if verbose: print()
-        y = sample(N, K)
-        mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = gvi(logp, K, mu0 = np.mean(y, axis=0), var0 = np.amax(np.var(y, axis=0)), gamma_init = gamma_init, B = B, maxiter = 5000, tol = tol, verbose = False, traceplot = True, plotpath = path + 'gvi/', iteration = 1)
-
-        # save results
-        if verbose: print('saving gvi results')
-        np.save(tmp_path + 'mean_' + str(r+1) + '.npy', mu)
-        np.save(tmp_path + 'covariance_' + str(r+1) + '.npy', Sigma)
-        np.save(tmp_path + 'inv_covariance_' + str(r+1) + '.npy', SigmaInv)
-        np.save(tmp_path + 'logdet_covariance_' + str(r+1) + '.npy', SigmaLogDet)
-
-        if verbose: print('done with Gaussian VI simulation')
-        if verbose: print()
-
-    if hmc_flag:
-        tmp_path = path + 'hmc/'
-        if verbose:
-            print('HMC simulation')
-            print('number of steps to run the chain for: ' + str(hmc_T))
-            print('number of steps to run the leapfrog integrator for: ' + str(hmc_L))
-            print('integrator step size: ' + str(hmc_eps))
+            # run algorithm
+            if verbose: print('starting ubvi optimization')
+            if verbose: print()
+            ubvi_start = timer()
+            ubvi_y = ubvi.UBVI(logp, gauss, adam, n_init = ubvi_init, n_samples = B, up = stop_up, n_logfg_samples = ubvi_logfg, tol = tol, init_inflation = ubvi_inflation)
+            ubvi_results = []
+            for n in range(1,ubvi_kernels+1):
+                ubvi_results.append(ubvi_y.build(n))
+            ubvi_end = timer()
+            #ubvi_time = np.array([ubvi_end - ubvi_start])
+            #np.save(path + 'times/ubvi_time' + str(r+1) + '_' + str(tol) + '_' + str(seed) + '.npy', ubvi_time)
+            if verbose: print()
             print()
-            print('start running chain')
 
-        p0 = sample(1, K).reshape(K)
-        hmc_y = hmc.HMC(logp = logp, sp = sp, K = K, epsilon = hmc_eps, L = hmc_L, T = hmc_T, burnin = 0.25, p0 = p0, verbose = False)
+            # save results
+            if verbose: print('saving ubvi results')
+            # extract results
+            mus = ubvi_results[ubvi_kernels-1]['mus']
+            Sigs = ubvi_results[ubvi_kernels-1]['Sigs']
+            weights = ubvi_results[ubvi_kernels-1]['weights']
+            # save them
+            np.save(tmp_path + 'means_' + str(r+1) + '_' + str(tol) + '.npy', mus)
+            np.save(tmp_path + 'covariances_' + str(r+1) + '_' + str(tol) + '.npy', Sigs)
+            np.save(tmp_path + 'weights_' + str(r+1) + '_' + str(tol) + '.npy', weights)
 
-        # save results
-        if verbose: print('saving hmc results')
-        np.save(tmp_path + 'y_' + str(r+1) + '.npy', hmc_y)
-
-        if verbose: print('done with hmc simulation')
-        if verbose: print()
-
-    if rwmh_flag:
-        if verbose: print('RWMH simulation')
-        tmp_path = path + 'rwmh/'
-        if verbose: print('number of steps to run the chain for: ' + str(rwmh_T))
-
-        if verbose: print('start running chain')
-        if verbose: print()
-        y0 = rwmh_initial_sampler(1, np.zeros((1,K))) # generate initial sample from proposal distribution
-        y = np.squeeze(rwmh_sampler(y0, rwmh_T*np.ones(1), 10000, logp), axis=1) # generate sample of size 10,000 starting at y0
-
-        # save results
-        if verbose: print('saving rwmh results')
-        np.save(tmp_path + 'y_' + str(r+1) + '.npy', y)
-
-        if verbose: print('done with RWMH simulation')
-        if verbose: print()
+            ubvi_times[r,i] = ubvi_end - ubvi_start
+            ubvi_ksd[r,i] = ubvi_results[ubvi_kernels-1]['ksd'][-1]
+            ubvi_kernel[r,i] = weights[weights > 0].shape[0]
 
 
+            #if os.path.exists(tmp_path + 'results.pk'):
+            #    f = open(tmp_path + 'results.pk', 'rb')
+            #    res = pk.load(f)
+            #    f.close()
+            #    res[0].append(ubvi_results)
+            #    f = open(tmp_path + 'results.pk', 'wb')
+            #    pk.dump(res, f)
+            #    f.close()
+            #else:
+            #    f = open(tmp_path + 'results.pk', 'wb')
+            #    pk.dump(([ubvi_results]), f)
+            #    f.close()
+
+
+            # plot trace
+            if verbose: print('plotting ubvi ksd trace')
+            plt.clf()
+            objs = ubvi_results[ubvi_kernels-1]['ksd'][1:]
+            plt.plot(1 + np.arange(objs.shape[0]), objs, '-k')
+            plt.xlabel('iteration')
+            plt.ylabel('KSD divergence')
+            plt.title('trace plot of KSD')
+            plt.savefig(tmp_path + 'ubvi_trace' + str(r+1) + '_' + str(tol) + '.png', dpi=900)
+
+
+            if verbose: print('done with UBVI simulation')
+            if verbose: print()
+
+
+
+        if bvi_flag:
+            if verbose: print('BBBVI simulation')
+            tmp_path = path + 'bvi/'
+            if verbose: print('kernels to add to mixture: ' + str(bvi_kernels))
+            if verbose:
+                if bvi_diagonal:
+                    print('bvi mixture components will have a diagonal covariance matrix')
+                else:
+                    print('bvi mixture components will have a full covariance matrix')
+
+
+            if verbose: print('starting bvi optimization')
+            if verbose: print()
+            # split by whether covariance matrix is full or diagonal
+            bvi_start = timer()
+            if bvi_diagonal:
+                mus, Sigmas, alphas, objs = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, tol, verbose = verbose, traceplot = True, plotpath = path + 'bvi/plots/', stop_up = stop_up)
+                # convert Sigmas into stack of arrays
+                #Sigmas = Sigmas[:,np.newaxis]*np.eye(K)
+            else:
+                mus, Sigmas, alphas, objs = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, tol, verbose = verbose, traceplot = True, plotpath = path + 'bvi/plots/', stop_up = stop_up)
+            bvi_end = timer()
+            #bvi_time = np.array([bvi_end - bvi_start])
+            #np.save(path + 'times/bvi_time' + str(r+1) + '_' + str(tol) + '_' + str(seed) + '.npy', bvi_time)
+            if verbose: print()
+
+            # save results
+            if verbose: print('saving bvi results')
+            np.save(tmp_path + 'means_' + str(r+1) + '_' + str(tol) + '.npy', mus)
+            np.save(tmp_path + 'covariances_' + str(r+1) + '_' + str(tol) + '.npy', Sigmas)
+            np.save(tmp_path + 'weights_' + str(r+1) + '_' + str(tol) + '.npy', alphas)
+            bvi_times[r,i] = bvi_end - bvi_start
+            bvi_ksd[r,i] = objs[-1]
+            bvi_kernel[r,i] = alphas[alphas > 0].shape[0]
+
+
+            # plot trace
+            if verbose: print('plotting bvi objective trace')
+            plt.clf()
+            plt.plot(1 + np.arange(objs.shape[0]), objs, '-k')
+            plt.xlabel('iteration')
+            plt.ylabel('KL divergence')
+            plt.title('trace plot of KL')
+            plt.savefig(tmp_path + 'bvi_trace' + str(r+1) + '_' + str(tol) + '.png', dpi=900)
+
+
+            if verbose: print('done with BBBVI simulation')
+            if verbose: print()
+
+        if gvi_flag:
+            if verbose: print('Gaussian VI simulation')
+            tmp_path = path + 'gvi/'
+            if verbose: print('using mean and inflated variance from sample of LBVI sampler as starting params')
+
+            if verbose: print('start gaussian vi optimization')
+            if verbose: print()
+            y = sample(N, K)
+            mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = gvi(logp, K, mu0 = np.mean(y, axis=0), var0 = np.amax(np.var(y, axis=0)), gamma_init = gamma_init, B = B, maxiter = 5000, tol = tol, verbose = False, traceplot = True, plotpath = path + 'gvi/', iteration = 1)
+
+            # save results
+            if verbose: print('saving gvi results')
+            np.save(tmp_path + 'mean_' + str(r+1) + '_' + str(tol) + '.npy', mu)
+            np.save(tmp_path + 'covariance_' + str(r+1) + '_' + str(tol) + '.npy', Sigma)
+            np.save(tmp_path + 'inv_covariance_' + str(r+1) + '_' + str(tol) + '.npy', SigmaInv)
+            np.save(tmp_path + 'logdet_covariance_' + str(r+1) + '_' + str(tol) + '.npy', SigmaLogDet)
+
+            if verbose: print('done with Gaussian VI simulation')
+            if verbose: print()
+
+        if hmc_flag:
+            tmp_path = path + 'hmc/'
+            if verbose:
+                print('HMC simulation')
+                print('number of steps to run the chain for: ' + str(hmc_T))
+                print('number of steps to run the leapfrog integrator for: ' + str(hmc_L))
+                print('integrator step size: ' + str(hmc_eps))
+                print()
+                print('start running chain')
+
+            p0 = sample(1, K).reshape(K)
+            hmc_y = hmc.HMC(logp = logp, sp = sp, K = K, epsilon = hmc_eps, L = hmc_L, T = hmc_T, burnin = 0.25, p0 = p0, verbose = False)
+
+            # save results
+            if verbose: print('saving hmc results')
+            np.save(tmp_path + 'y_' + str(r+1) + '_' + str(tol) + '.npy', hmc_y)
+
+            if verbose: print('done with hmc simulation')
+            if verbose: print()
+
+        if rwmh_flag:
+            if verbose: print('RWMH simulation')
+            tmp_path = path + 'rwmh/'
+            if verbose: print('number of steps to run the chain for: ' + str(rwmh_T))
+
+            if verbose: print('start running chain')
+            if verbose: print()
+            y0 = rwmh_initial_sampler(1, np.zeros((1,K))) # generate initial sample from proposal distribution
+            y = np.squeeze(rwmh_sampler(y0, rwmh_T*np.ones(1), 10000, logp), axis=1) # generate sample of size 10,000 starting at y0
+
+            # save results
+            if verbose: print('saving rwmh results')
+            np.save(tmp_path + 'y_' + str(r+1) + '_' + str(tol) + '.npy', y)
+
+            if verbose: print('done with RWMH simulation')
+            if verbose: print()
+
+
+if verbose: print('saving auxiliary arrays')
+if lbvi_flag:
+    np.save(path + 'aux/lbvi_times.npy', lbvi_times)
+    np.save(path + 'aux/lbvi_ksd.npy', lbvi_ksd)
+    np.save(path + 'aux/lbvi_kernels.npy', lbvi_kernel)
+
+if ubvi_flag:
+    np.save(path + 'aux/ubvi_times.npy', ubvi_times)
+    np.save(path + 'aux/ubvi_ksd.npy', ubvi_ksd)
+    np.save(path + 'aux/ubvi_kernels.npy', ubvi_kernel)
+
+if bvi_flag:
+    np.save(path + 'aux/bvi_times.npy', bvi_times)
+    np.save(path + 'aux/bvi_ksd.npy', bvi_ksd)
+    np.save(path + 'aux/bvi_kernels.npy', bvi_kernel)
 
 
 if verbose: print('done with simulation')
