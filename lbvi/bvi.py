@@ -204,7 +204,10 @@ def new_gaussian(logp, K, diagonal = False, mu0 = None, var0 = None, gamma_init 
     convergence = False
 
     for k in range(maxiter):
-        if verbose: print('iteration: ' + str(k+1))
+        if verbose:
+            print('iteration: ' + str(k+1))
+        else:
+            print(str(k) + '/' + str(maxiter), end = '\r')
 
         # assess convergence
         if verbose: print('assessing convergence')
@@ -327,8 +330,9 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
     convergence = False
     if verbose: print('getting initial approximation')
     mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, diagonal = False, gamma_init = gamma_init, B = B, maxiter = 1000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
-    if verbose: print('initial mean: ' + str(mu))
-    if verbose: print('initial variance: ' + str(Sigma))
+    if verbose:
+        print('initial mean: ' + str(mu))
+        print('initial variance: ' + str(Sigma))
 
     def logq(x): return -0.5*K*np.log(2*np.pi) - 0.5*SigmaLogDet - 0.5*((x-mu).dot(SigmaInv)*(x-mu)).sum(axis=-1)
     def sample_q(size): return mu + np.random.randn(size,K)@SigmaSqrt
@@ -416,20 +420,21 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
             if verbose: print('KSD to target: ' + str(objs[iter_no]))
 
         # assess convergence
-        if objs[-1] < tol: convergence = True
+        if objs[iter_no] < tol: convergence = True
 
 
         if verbose: print()
     # end for
 
-    if verbose: print('done!')
     active = alphas > 0
-    if verbose: print('means: ' + str(np.squeeze(mus[active])))
-    if verbose: print('sigmas: ' + str(np.squeeze(Sigmas[active])))
-    if verbose: print('weights: ' + str(np.squeeze(alphas[active])))
-    if verbose: print('divergence: ' + str(objs[iter_no]))
+    iter_no -= 1
+    if verbose:
+        print('done!')
+        print('means: ' + str(np.squeeze(mus[active])))
+        print('sigmas: ' + str(np.squeeze(Sigmas[active])))
+        print('weights: ' + str(np.squeeze(alphas[active])))
+        print('divergence: ' + str(objs[iter_no]))
 
-    iter_no += 1
 
     return mus[0:iter_no,:], Sigmas[0:iter_no,:,:], alphas[0:iter_no], objs[0:iter_no]
 
@@ -447,8 +452,9 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
     convergence = False
     if verbose: print('getting initial approximation')
     mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, diagonal = True, gamma_init = gamma_init, B = B, maxiter = 1000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
-    if verbose: print('initial mean: ' + str(mu))
-    if verbose: print('initial variance: ' + str(Sigma))
+    if verbose:
+        print('initial mean: ' + str(mu))
+        print('initial variance: ' + str(Sigma))
 
     def logq(x): return -0.5*K*np.log(2*np.pi) - 0.5*SigmaLogDet - 0.5*np.sum(((x-mu)/SigmaSqrt)**2, axis=-1)
     def sample_q(size): return mu + np.random.randn(size,K)*SigmaSqrt
@@ -487,8 +493,9 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         Sigma_guess = 3
 
         # get new gaussian
-        if verbose: print('obtaining new component')
-        if verbose: print('regularization: ' + str(regularization(iter_no)))
+        if verbose:
+            print('obtaining new component')
+            print('regularization: ' + str(regularization(iter_no)))
         logresidual = lambda x : (logp(x) - logq(x)) / regularization(iter_no)
         #print('logq(1) = ' + str(logq(np.ones((1,K)))))
         #print('logp(1) = ' + str(logp(np.ones((1,K)))))
@@ -548,19 +555,20 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
             if verbose: print('KSD to target: ' + str(objs[iter_no]))
 
         # assess convergence
-        if objs[-1] < tol: convergence = True
+        if objs[iter_no] < tol: convergence = True
 
 
         if verbose: print()
     # end for
 
-    if verbose: print('done!')
+    iter_no -= 1
     active = alphas > 0
-    if verbose: print('means: ' + str(np.squeeze(mus[active])))
-    if verbose: print('sigmas: ' + str(np.squeeze(Sigmas[active])))
-    if verbose: print('weights: ' + str(np.squeeze(alphas[active])))
-    if verbose: print('divergence: ' + str(objs[iter_no]))
+    if verbose:
+        print('done!')
+        print('means: ' + str(np.squeeze(mus[active])))
+        print('sigmas: ' + str(np.squeeze(Sigmas[active])))
+        print('weights: ' + str(np.squeeze(alphas[active])))
+        print('divergence: ' + str(objs[iter_no]))
 
-    iter_no += 1
 
     return mus[0:iter_no,:], Sigmas[0:iter_no,:], alphas[0:iter_no], objs[0:iter_no]

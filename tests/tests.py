@@ -412,31 +412,39 @@ for r in range(reps):
             ubvi_y = ubvi.UBVI(logp, gauss, adam, n_init = ubvi_init, n_samples = B, up = stop_up, n_logfg_samples = ubvi_logfg, tol = tol, init_inflation = ubvi_inflation)
             ubvi_results = []
             for n in range(1,ubvi_kernels+1):
-                ubvi_results.append(ubvi_y.build(n))
+                build = ubvi_y.build(n)
+                ubvi_results.append(build)
+                # assess convergence
+                if build['ksd'][-1] < tol:
+                    if verbose: print('tolerance reached; breaking')
+                    break
             ubvi_end = timer()
+
+
             #ubvi_time = np.array([ubvi_end - ubvi_start])
             #np.save(path + 'times/ubvi_time' + str(r+1) + '_' + str(tol) + '_' + str(seed) + '.npy', ubvi_time)
             if verbose: print()
-            print()
 
             # save results ###
             if verbose: print('saving ubvi results')
+            no_ubvi_kernels = len(ubvi_results)
 
             # extract ksd and trim according to tolerance
             # first init values then iterate until getting the one with ksd < tol
-            tmp_ksd = np.inf
-            ubvi_ksd[r,i] = ubvi_results[ubvi_kernels-1]['ksd'][-1]
-            jstar = len(ubvi_results[ubvi_kernels-1]['ksd'])
-            for j in range(1, len(ubvi_results[ubvi_kernels-1]['ksd'])):
-                if ubvi_results[ubvi_kernels-1]['ksd'][j] < tol:
-                    ubvi_ksd[r,i] = ubvi_results[ubvi_kernels-1]['ksd'][j]
-                    jstar = j # useful to trim means, sigs, and weights, but it might not be the best idea
-                    break
+            #tmp_ksd = np.inf
+            #ubvi_ksd[r,i] = ubvi_results[no_ubvi_kernels-1]['ksd'][-1]
+            #jstar = len(ubvi_results[no_ubvi_kernels-1]['ksd']) - 1
+            #for j in range(1, len(ubvi_results[no_ubvi_kernels-1]['ksd'])):
+            #    if ubvi_results[no_ubvi_kernels-1]['ksd'][j] < tol:
+            #        ubvi_ksd[r,i] = ubvi_results[no_ubvi_kernels-1]['ksd'][j]
+            #        jstar = j # useful to trim means, sigs, and weights, but it might not be the best idea
+            #        break
 
             # extract results
-            mus = ubvi_results[ubvi_kernels-1]['mus']#[:jstar,:]
-            Sigs = ubvi_results[ubvi_kernels-1]['Sigs']#[:jstar,...]
-            weights = ubvi_results[ubvi_kernels-1]['weights']#[:jstar]
+            mus = ubvi_results[no_ubvi_kernels-1]['mus']#[:jstar,:]
+            Sigs = ubvi_results[no_ubvi_kernels-1]['Sigs']#[:jstar,...]
+            weights = ubvi_results[no_ubvi_kernels-1]['weights']#[:jstar]
+            weights = weights / weights.sum()
 
             # save them
             np.save(tmp_path + 'means_' + str(r+1) + '_' + str(tol) + '.npy', mus)
@@ -444,6 +452,7 @@ for r in range(reps):
             np.save(tmp_path + 'weights_' + str(r+1) + '_' + str(tol) + '.npy', weights)
 
             ubvi_times[r,i] = ubvi_end - ubvi_start
+            ubvi_ksd[r,i] = ubvi_results[no_ubvi_kernels-1]['ksd'][-1]
             ubvi_kernel[r,i] = weights[weights > 0].shape[0]
 
 
@@ -464,7 +473,7 @@ for r in range(reps):
             # plot trace
             if verbose: print('plotting ubvi ksd trace')
             plt.clf()
-            objs = ubvi_results[ubvi_kernels-1]['ksd'][1:]
+            objs = ubvi_results[no_ubvi_kernels-1]['ksd'][1:]
             plt.plot(1 + np.arange(objs.shape[0]), objs, '-k')
             plt.xlabel('iteration')
             plt.ylabel('KSD divergence')

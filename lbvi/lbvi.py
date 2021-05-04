@@ -40,6 +40,7 @@ def mix_sample(size, y, T, w, logp, kernel_sampler, verbose = False):
         print('weights: ' + str(w))
         print('sample via values: ' + str(np.squeeze(y[values,:])))
         print('empirical weights: ' + str(counts / counts.sum()))
+        print()
 
     out = np.empty((1, K)) # init
     for i in range(values.shape[0]):
@@ -47,11 +48,15 @@ def mix_sample(size, y, T, w, logp, kernel_sampler, verbose = False):
         # for each value, generate a sample of size counts[i]
         if verbose: print('sampling from kernel centered at ' + str(np.squeeze(y[values[i],:])) + ' with steps ' + str(T[values[i]]))
         if verbose: print('empirical weight: ' + str(counts[i] / counts.sum()))
-        tmp_out = kernel_sampler(y = np.array(y[i, :]).reshape(1, K), T = np.array([T[values[i]]]), S = counts[i], logp = logp).reshape(counts[i], K)
+        tmp_out = kernel_sampler(y = np.array(y[values[i], :]).reshape(1, K), T = np.array([T[values[i]]]), S = counts[i], logp = logp).reshape(counts[i], K)
+        if verbose: print('mean from this sample: ' + str(tmp_out.mean()))
 
         # add to sample
         out = np.concatenate((out, tmp_out))
     # end for
+    if verbose:
+        print()
+        print('sample mean: ' + str(out.mean()))
     return out
 ###################################
 
@@ -320,11 +325,11 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, tol = 0.0
     # run optimization
     for k in range(maxiter):
 
-        if verbose: print(':', end = ' ') # to visualize number of iterations
+        if verbose: print(str(k+1) + '/' + str(maxiter), end = '\r') # to visualize number of iterations
         if convergence: break # assess convergence
         Dw = w_grad(up, logp, y, T, w, B, kernel_sampler = kernel_sampler) # get gradient
-        w_step = 0.9*w_step - (b/np.sqrt(k+1)) * Dw # step size with momentum
-        #w_step = - (b/np.sqrt(k+1)) * Dw # step size without momentum
+        #w_step = 0.9*w_step - (b/np.sqrt(k+1)) * Dw # step size with momentum
+        w_step = - (b/np.sqrt(k+1)) * Dw # step size without momentum
         w += w_step # update weight
         w = simplex_project(w) # project to simplex
         if np.linalg.norm(Dw) < tol: convergence = True # update convergence
@@ -342,7 +347,8 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, tol = 0.0
         plt.title('trace plot of ksd in weight optimization')
         plt.savefig(tracepath + str(np.sum(T) / t_increment) + '.jpg', dpi = 300)
 
-    if verbose: print('Weights optimized in ' + str(k+1) + ' iterations')
+    if verbose:
+        print('weights optimized in ' + str(k+1) + ' iterations')
 
     return w
 ###################################
@@ -494,7 +500,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     w[argmin] = 1 # update weight
     T[argmin] = t_increment # update steps
     active = np.array([argmin]) # update active locations, kernel_sampler
-    if verbose: print('number of steps: ' + str(T))
+    #if verbose: print('number of steps: ' + str(T))
     obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, B = 10000)]) # update objective
     if verbose: print('ksd: ' + str(obj[-1]))
 
@@ -521,7 +527,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
         # update steps
         T[argmin] = T[argmin] + t_increment
-        if verbose: print('number of steps: ' + str(T))
+        #if verbose: print('number of steps: ' + str(T))
 
 
         # update active set
@@ -542,19 +548,14 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         # update weights
         if update_weights:
             if verbose: print('updating weights')
-            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, tol = tol, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
+            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, tol = 0, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
         else:
             if verbose: print('not updating weights')
 
-        if verbose:
-            print('active sample: ' + str(np.squeeze(y[active,:])))
-            print('active steps: ' + str(T[active]))
-            print('active weights: ' + str(w[active]))
 
         # estimate objective
         if verbose: print('estimating objective function')
         obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, B = 10000))
-        if verbose: print('ksd: ' + str(obj[-1]))
 
         # update convergence
         if verbose: print('updating convergence')
@@ -564,6 +565,12 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         if plot:
             if verbose: print('plotting')
             plotting(y, T, w, logp, plot_path, iter_no = iter_no + 1, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
+
+        if verbose:
+            print('active sample: ' + str(np.squeeze(y[active,:])))
+            print('active steps: ' + str(T[active]))
+            print('active weights: ' + str(w[active]))
+            print('ksd: ' + str(obj[-1]))
 
         if verbose: print()
         # end for
