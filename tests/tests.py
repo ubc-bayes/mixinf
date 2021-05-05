@@ -302,8 +302,16 @@ for r in range(reps):
         if verbose: print('saving simulation settings')
         if verbose: print()
 
-        # this just writes all the settings of the methods that are being run into a text file, then saves the file for reproducibility
-        settings_text = 'lbvi and bvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\ngradient MC sample size: ' + str(B) + '\nstopping criterion: ' + stop + '\ntolerance: ' +     str(tol) + '\nrandom seed: ' + str(seed)
+        # this just appends all the settings of the methods that are being run into a text file, then saves the file for reproducibility
+        file_name = path + 'settings/settings_iter-' + str(r+1) + '_tol-' + str(tol) + '.txt'
+        if not os.path.isfile(file_name):
+            # if file does not exist, initialize with info
+            settings_text = 'lbvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\ngradient MC sample size: ' + str(B) + '\nstopping criterion: ' + stop + '\ntolerance: ' +     str(tol) + '\nrandom seed: ' + str(seed)
+        else:
+            # if file exists, no need to initilaize
+            settings_text = ''
+
+        # depending on which methods are being run, modify what is being appended to file
         if lbvi_flag:
             settings_text += '\n\nlbvi settings:' + '\ninitial sample size: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' +    rkhs + '\nstep increments: ' + str(t_increment) + '\nmax no. of steps per kernel: ' + str(t_max) + '\nmax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nmax no of iterations: ' + str(maxiter)
         if ubvi_flag:
@@ -318,7 +326,10 @@ for r in range(reps):
             settings_text +=  '\n\nhmc settings:' + '\nno. of steps to run chain for: ' + str(hmc_T) + '\nno. of steps to run leapfrog integrator for: ' + str(hmc_L) + '\nstep size of leapfrog integrator: ' + str(hmc_eps)
         if rwmh_flag:
             settings_text +=  '\n\nrwmh settings:' + '\nno. of steps to run chain for: ' + str(rwmh_T)
-        settings = os.open(path + 'settings/settings_iter-' + str(r+1) + '_tol-' + str(tol) + '.txt', os.O_RDWR|os.O_CREAT) # create new text file for writing and reading
+
+        # finally, open the file and append current settings
+        # os_RDWR gives reading and writing permissions; os.O_APPEND tells python to append instead of rewriting the file; O_CREAT tells python to create the file if it doesn't exist already
+        settings = os.open(file_name, os.O_RDWR|os.O_APPEND|os.O_CREAT)
         os.write(settings, settings_text.encode())
         os.close(settings)
 
@@ -351,7 +362,7 @@ for r in range(reps):
                 print('using ' + str(sample_kernel) + ' mcmc sampler')
                 print('using ' + str(rkhs) + ' rkhs kernel')
                 print('initial sample size: ' + str(N))
-
+ # create new text file for writing and reading, appending text to preserve settings
 
             # generate sample
             if verbose: print('generating sample')

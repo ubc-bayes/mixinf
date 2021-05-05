@@ -118,6 +118,7 @@ def update_alpha(logq, sample_q, logh, sample_h, logp, K, gamma_alpha = None, B 
     alpha_objs = np.array([])
 
     for k in range(maxiter):
+        if verbose: print(str(k) + '/' + str(maxiter), end = '\r')
 
         # assess convergence
         if convergence: break
@@ -157,7 +158,7 @@ def update_alpha(logq, sample_q, logh, sample_h, logp, K, gamma_alpha = None, B 
         # update convergence
         if np.linalg.norm(step) < tol: convergence = True
 
-        if verbose: print(':', end='')
+        #if verbose: print(':', end='')
 
     # end for
 
@@ -427,7 +428,7 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
     # end for
 
     active = alphas > 0
-    iter_no -= 1
+    if convergence: iter_no -= 1 # if it converged, assessment was done in next iterations and we need to decrease
     if verbose:
         print('done!')
         print('means: ' + str(np.squeeze(mus[active])))
@@ -561,7 +562,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         if verbose: print()
     # end for
 
-    iter_no -= 1
+    if convergence: iter_no -= 1 # if it converged, assessment was done in next iterations and we need to decrease
     active = alphas > 0
     if verbose:
         print('done!')
