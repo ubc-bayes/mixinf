@@ -456,9 +456,8 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     N = y.shape[0]
     K = y.shape[1]
     if stop_up is None:
-        aux_up = up
+        stop_up = up
     else:
-        aux_up = stop_up
         if verbose:
             print('using surrogate up for convergence assessment')
             print()
