@@ -118,11 +118,6 @@ bvi_kernels = np.array([])
 # PLOT ####
 print('begin plotting!')
 
-#if ubvi_flag:
-#    # load ubvi results
-#    f = open(inpath + 'ubvi/results.pk', 'rb')
-#    ubvis = pk.load(f)
-#    f.close()
 
 for r in range(reps):
     for tol in tols:

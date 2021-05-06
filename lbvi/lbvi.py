@@ -385,8 +385,8 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B, kernel_sampl
 
         # calculate exactly if this is the only active chain
         if tmp_active.size == 0:
-            d0 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n]]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, B = B)
-            d1 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n] + t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, B = B)
+            d0 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n]]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, B = 100000)
+            d1 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n] + t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, B = 100000)
             grads[n] = d0 - d1 # exact decrease
             break
         #print('active chains: ' + str(tmp_active))
@@ -410,11 +410,11 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B, kernel_sampl
             X_mix = mix_sample(size = 4*B, y = y[tmp_active], T = tmp_T, w = tmp_w, logp = logp, kernel_sampler = kernel_sampler)
             X_kernel = kernel_sampler(y = np.array([y[n]]), T = np.array([tmp_T[n]]), S = 2*B, logp = logp)[:,0,:]
 
-
             # estimate gradient
             grads[n] = up(X_mix[:B,:], X_kernel[:B,:]).mean() + up(X_kernel[B:2*B,:], X_mix[B:2*B,:]).mean() - 2*up(X_mix[2*B:3*B,:], X_mix[3*B:4*B,:]).mean()
 
     # end for
+    #print('sample: ' + str(np.squeeze(y)))
     #print('gradients: ' + str(grads))
     return np.argmin(grads)
 ###################################
