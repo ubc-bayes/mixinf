@@ -104,7 +104,7 @@ def w_maxiters(k, long_opt = False):
     return 100
 
 def w_schedule(k):
-    if k == 0: return 0.1
+    if k == 0: return 1.
     return 0.1
 
 
