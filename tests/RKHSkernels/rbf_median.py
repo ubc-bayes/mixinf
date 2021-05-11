@@ -7,7 +7,7 @@ from autograd import grad
 
 # banwidth of kernel
 def get_gamma(x):
-    # receives sample of size (N,K) and obtains squared median of all samples
+    # receives sample of size (N,K) and obtains median of squared distances between all samples
     return np.median(np.sum((x[:,np.newaxis,:] - x[np.newaxis,:,:])**2, axis=-1))
 
 # kernel and first and second order derivatives
