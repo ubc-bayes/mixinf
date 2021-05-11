@@ -285,8 +285,9 @@ if hmc_flag: print('running Hamiltonian Monte Carlo')
 if rwmh_flag: print('running RWMH')
 if verbose: print()
 
+r_counter = 1
 for r in reps:
-    print('simulation ' + str(r) + '/' + str(no_reps))
+    print('simulation ' + str(r_counter) + '/' + str(no_reps))
     for i in range(no_tols):
         tol = tols[i]
         if verbose: print('tolerance: ' + str(tol))
@@ -390,9 +391,9 @@ for r in reps:
             np.save(tmp_path + 'obj_' + str(r) + '_' + str(tol) + '.npy', obj)
             np.save(tmp_path + 'kernels_' + str(r) + '_' + str(tol) + '.npy', act_k)
 
-            lbvi_times[r-1,i] = cput[-1]
-            lbvi_ksd[r-1,i] = obj[-1]
-            lbvi_kernel[r-1,i] = act_k[-1]
+            lbvi_times[r_counter-1,i] = cput[-1]
+            lbvi_ksd[r_counter-1,i] = obj[-1]
+            lbvi_kernel[r_counter-1,i] = act_k[-1]
 
             # plot trace
             if verbose: print('plotting lbvi objective trace')
@@ -476,9 +477,9 @@ for r in reps:
             np.save(tmp_path + 'obj_' + str(r) + '_' + str(tol) + '.npy', obj)
             np.save(tmp_path + 'kernels_' + str(r) + '_' + str(tol) + '.npy', act_k)
 
-            ubvi_times[r-1,i] = cput[-1]
-            ubvi_ksd[r-1,i] = obj[-1]
-            ubvi_kernel[r-1,i] = act_k[-1]
+            ubvi_times[r_counter-1,i] = cput[-1]
+            ubvi_ksd[r_counter-1,i] = obj[-1]
+            ubvi_kernel[r_counter-1,i] = act_k[-1]
 
 
             #if os.path.exists(tmp_path + 'results.pk'):
@@ -544,9 +545,9 @@ for r in reps:
             np.save(tmp_path + 'obj_' + str(r) + '_' + str(tol) + '.npy', objs)
             np.save(tmp_path + 'kernels_' + str(r) + '_' + str(tol) + '.npy', act_k)
 
-            bvi_times[r-1,i] = cput[-1]
-            bvi_ksd[r-1,i] = objs[-1]
-            bvi_kernel[r-1,i] = act_k[-1]
+            bvi_times[r_counter-1,i] = cput[-1]
+            bvi_ksd[r_counter-1,i] = objs[-1]
+            bvi_kernel[r_counter-1,i] = act_k[-1]
 
 
             # plot trace
@@ -618,6 +619,8 @@ for r in reps:
 
             if verbose: print('done with RWMH simulation')
             if verbose: print()
+
+    r_counter += 1
 
 
 if verbose: print('saving auxiliary arrays')
