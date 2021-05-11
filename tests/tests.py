@@ -570,7 +570,7 @@ for r in reps:
 
             if verbose: print('start gaussian vi optimization')
             if verbose: print()
-            y = sample(N, K)
+            y = sample(100, K)
             mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = gvi(logp, K, mu0 = np.mean(y, axis=0), var0 = np.amax(np.var(y, axis=0)), gamma_init = gamma_init, B = B, maxiter = 5000, tol = tol, verbose = False, traceplot = True, plotpath = path + 'gvi/', iteration = 1)
 
             # save results
