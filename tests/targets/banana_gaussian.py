@@ -52,6 +52,51 @@ def sample(size, K = 2):
     return sd * np.random.randn(size, K) + mu
 
 
+# CREATE EXACT SAMPLER FOR AGNOSTIC KSD ###
+# first define function to sample from gaussian mixture
+###########
+def mixture_rvs(size, w, x, rho):
+    """
+    draws a random sample of size size from the mixture defined by w, x, and rho
+    x is a shape(N, K) array and w, rho are shape(N,) arrays
+    returns a shape(size, K) array
+    """
+    N = x.shape[0]
+    K = x.shape[1]
+    inds = np.random.choice(N, size = size, p = w, replace = True) # indices that will be chosen
+    rand = np.random.randn(size, K) # sample from standard normal
+    sigmas = rho[inds] # index std deviations for ease
+    return rand * np.sqrt(sigmas[:, np.newaxis]) + x[inds]
+###########
+
+
+# now define function to sample from double banana via rwmh
+def double_banana_sample(size, burnin = 0.5):
+    # Gaussian proposals
+    def r_sampler(y): return 1.5 * np.random.randn(1, y.shape[1]) + y # gaussian sampler
+    y = np.array([[0, -1]]) # init
+    n_steps = int(np.round(size/(1-burnin))) # account for burn-in
+    out = np.zeros((n_steps,2))
+    for t in range(n_steps):
+        tmp_y = r_sampler(y) # generate proposal
+        logratio = logp_banana_aux(tmp_y)-logp_banana_aux(y) # log hastings ratio
+        if np.log(np.random.rand(1)) < np.minimum(0, logratio):
+            out[t,:] = tmp_y # accept proposal
+        else:
+            out[t,:] = y     # reject proposal
+    return out[-size:,:]
+
+# now define p sampler
+def p_sample(size, K=2):
+    out = np.zeros((size,2)) # init
+    inds = np.random.choice([0,1], size = size, p = [alpha, 1 - alpha], replace = True) # select indices from banana/gaussian mixture
+    n_banana = inds[inds == 0].shape[0]
+    n_gauss = size - n_banana
+    out[inds == 0,:] = double_banana_sample(n_banana)           # sample from banana
+    out[inds == 1,:] = mixture_rvs(n_gauss, weights, means, sd) # sample from gaussian mixture
+    return out
+
+
 # CREATE WEIGHT OPT SCHEDULE AND MAXITER
 def w_maxiters(k, long_opt = False):
     if k == 0: return 100
@@ -64,13 +109,9 @@ def w_schedule(k):
 
 
 # CREATE UBVI SCHEDULES
-adam_learning_rate= lambda itr : 0.0000000001/np.sqrt(itr+1)
-ubvi_gamma = lambda itr : 0.000000001/np.sqrt(1+itr)
-
-
-# CREATE UBVI SCHEDULES
-adam_learning_rate= lambda itr : 10./np.sqrt(itr+1)
+adam_learning_rate= lambda itr : 0.5/np.sqrt(itr+1)
 ubvi_gamma = lambda itr : 1./np.sqrt(1+itr)
+
 
 # CREATE BVI SCHEDULES
 # schedule tuning
