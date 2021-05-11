@@ -211,7 +211,7 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler = None, plt_lims 
         tt = np.array(np.meshgrid(xx, yy)).T.reshape(1000**2, 2)
         f = np.exp(logp(tt)).reshape(1000, 1000).T
         fig,ax=plt.subplots(1,1)
-        cp = ax.contourf(xx, yy, f, label = 'target')
+        cp = ax.contour(xx, yy, f, levels = 10)
         fig.colorbar(cp)
 
         if kernel_sampler is None:
