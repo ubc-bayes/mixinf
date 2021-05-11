@@ -453,6 +453,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         print('running locally-adapted boosting variational inference')
         print()
 
+    t0 = time.perf_counter()
     N = y.shape[0]
     K = y.shape[1]
     if stop_up is None:
@@ -509,7 +510,12 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         if verbose: print('plotting')
         plotting(y, T, w, logp, plot_path, iter_no = 0, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
 
-    if verbose: print()
+    active_kernels = np.array([1.])
+    cpu_time = np.array([time.perf_counter() - t0])
+
+    if verbose:
+        print('cpu time: ' + str(cpu_time[-1]))
+        print()
 
 
     for iter_no in range(maxiter):
@@ -565,19 +571,27 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
             if verbose: print('plotting')
             plotting(y, T, w, logp, plot_path, iter_no = iter_no + 1, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
 
+        # calculate cumulative computing time and active kernels
+        cpu_time = np.append(cpu_time, time.perf_counter() - t0)
+        active_kernels = np.append(active_kernels, active.shape[0])
+
         if verbose:
+            print('number of active kernels: ' + str(active_kernels[-1]))
             print('active sample: ' + str(np.squeeze(y[active,:])))
             print('active steps: ' + str(T[active]))
             print('active weights: ' + str(w[active]))
             print('ksd: ' + str(obj[-1]))
+            print('cumulative cpu time: ' + str(cpu_time[-1]))
+            print()
 
-        if verbose: print()
         # end for
 
-    if verbose: print('done!')
-    if verbose: print('sample: ' + str(np.squeeze(y)))
-    if verbose: print('weights: ' + str(w))
-    if verbose: print('steps: ' + str(T))
-    if verbose: print('ksd: ' + str(obj[-1]))
+    if verbose:
+        print('done!')
+        print('number of active kernels: ' + str(active_kernels[-1]))
+        print('sample: ' + str(np.squeeze(y)))
+        print('weights: ' + str(w))
+        print('steps: ' + str(T))
+        print('ksd: ' + str(obj[-1]))
 
-    return w, T, obj
+    return w, T, obj, cpu_time, active_kernels

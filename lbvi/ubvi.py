@@ -259,7 +259,7 @@ class BoostingVI(object):
         self.up = up
         self.weights = np.empty(0) #weights
         self.params = np.empty((0, 0))
-        self.cput = 0. #total computation time so far
+        self.cput = np.array([0.]) #total computation time so far
         self.error = np.inf #error for the current mixture
         self.ksd = np.array([np.inf]) #ksd array
         self.n_init = n_init #number of times to initialize each component
@@ -267,6 +267,7 @@ class BoostingVI(object):
         self.verbose = verbose
         self.estimate_error = estimate_error
         self.tol = tol
+        self.active_kernels = np.array([0.])
 
     def build(self, N):
 	#build the approximation up to N components
@@ -318,7 +319,7 @@ class BoostingVI(object):
             if self.weights.shape[0] == 1 and self.weights[0] == 0: self.weights = np.ones(1)
 
             #compute the time taken for this step
-            self.cput += time.perf_counter() - t0
+            self.cput = np.append(self.cput, self.cput[-1] + time.perf_counter() - t0)
 
             #estimate current error if desired
             if self.estimate_error:
@@ -330,6 +331,9 @@ class BoostingVI(object):
             else:
                 self.ksd = np.append(self.ksd, self._ksd())
 
+            # GCD: get active kernels
+            self.active_kernels = np.append(self.active_kernels, self.weights[self.weights > 0].shape[0])
+
             #print out the current error
             if self.verbose:
                 print('Component ' + str(self.params.shape[0]) +':')
@@ -338,6 +342,7 @@ class BoostingVI(object):
                     print(err_name +': ' + str(self.error))
                     if self.up is not None:
                         print('KSD: ' + str(self.ksd[-1]))
+                print('Number of active kernels: ' + str(self.active_kernels[-1]))
                 print('Params:' + str(self.component_dist.unflatten(self.params)))
                 print('Weights: ' + str(self.weights))
 
@@ -352,6 +357,7 @@ class BoostingVI(object):
         output['obj'] = self.error
         output['ksd'] = self.ksd
         output['weights'] = self.weights
+        output['active_kernels'] = self.active_kernels
         return output
 
 

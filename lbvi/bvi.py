@@ -324,6 +324,8 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
         print('running boosting black-box variational inference')
         print()
 
+    t0 = time.perf_counter()
+
     if regularization is None:
         regularization = lambda k : 1/np.sqrt(k+2)
 
@@ -351,16 +353,22 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
     alphas = np.zeros(N)
     alphas[0] = 1
 
-    objs = np.zeros(N)
     if stop_up is None:
-        objs[0] = KL(logq, sample_q, logp, 100000)
+        objs = np.array([KL(logq, sample_q, logp, 100000)])
         if verbose: print('KL to target: ' + str(objs[0]))
     else:
-        objs[0] = ksd(logp, sample_q, stop_up, B = 100000)
+        objs = np.array([ksd(logp, sample_q, stop_up, B = 100000)])
         if verbose: print('KSD to target: ' + str(objs[0]))
 
+    # init cpu time and active kernels
+    active_kernels = np.array([1.])
+    cpu_time = np.array([time.perf_counter() - t0])
+
+    if verbose:
+        print('cumulative cpu time: ' + str(cpu_time[-1]))
+        print()
+
     # bvi loop
-    print()
     for iter_no in range(1, N):
         if verbose: print('iteration ' + str(iter_no+1))
         if convergence: break
@@ -413,31 +421,40 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
         # estimate divergence
         if stop_up is None:
             if verbose: print('estimating new KL')
-            objs[iter_no] = KL(logq, sample_q, logp, 100000)
+            objs = np.append(objs, KL(logq, sample_q, logp, 100000))
             if verbose: print('KL to target: ' + str(objs[iter_no]))
         else:
             if verbose: print('estimating new KSD')
-            objs[iter_no] = ksd(logp, sample_q, stop_up, B = 100000)
+            objs = np.append(objs, ksd(logp, sample_q, stop_up, B = 100000))
             if verbose: print('KSD to target: ' + str(objs[iter_no]))
 
         # assess convergence
-        if objs[iter_no] < tol: convergence = True
+        if objs[-1] < tol: convergence = True
 
+        # calculate cumulative computing time and active kernels
+        if alpha == 0:
+            active_kernels = np.append(active_kernels, active_kernels[-1])
+        else:
+            active_kernels = np.append(active_kernels, active_kernels[-1] + 1)
 
-        if verbose: print()
+        if verbose:
+            print('number of active kernels: ' + str(active_kernels[-1]))
+            print('cumulative cpu time: ' + str(cpu_time[-1]))
+            print()
     # end for
 
     active = alphas > 0
-    if convergence: iter_no -= 1 # if it converged, assessment was done in next iterations and we need to decrease
+    if not convergence: iter_no += 1 # if it converged, assessment was done in next iterations and we need to decrease
     if verbose:
         print('done!')
+        print('number of active kernels: ' + str(active_kernels[-1]))
         print('means: ' + str(np.squeeze(mus[active])))
         print('sigmas: ' + str(np.squeeze(Sigmas[active])))
         print('weights: ' + str(np.squeeze(alphas[active])))
-        print('divergence: ' + str(objs[iter_no]))
+        print('divergence: ' + str(objs[-1]))
 
 
-    return mus[0:iter_no,:], Sigmas[0:iter_no,:,:], alphas[0:iter_no], objs[0:iter_no]
+    return mus[0:iter_no,:], Sigmas[0:iter_no,:,:], alphas[0:iter_no], objs, cpu_time, active_kernels
 
 
 def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, B = 1000, tol = 0.0001, verbose = True, traceplot = True, plotpath = 'plots/', stop_up = None):
@@ -445,6 +462,8 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
     if verbose:
         print('running boosting black-box variational inference with diagonal covariance matrix')
         print()
+
+    t0 = time.perf_counter()
 
     if regularization is None:
         regularization = lambda k : 1/np.sqrt(k+2)
@@ -473,16 +492,22 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
     alphas = np.zeros(N)
     alphas[0] = 1
 
-    objs = np.zeros(N)
     if stop_up is None:
-        objs[0] = KL(logq, sample_q, logp, 100000)
+        objs = np.array([KL(logq, sample_q, logp, 100000)])
         if verbose: print('KL to target: ' + str(objs[0]))
     else:
-        objs[0] = ksd(logp, sample_q, stop_up, B = 100000)
+        objs = np.array([ksd(logp, sample_q, stop_up, B = 100000)])
         if verbose: print('KSD to target: ' + str(objs[0]))
 
+    # init cpu time and active kernels
+    active_kernels = np.array([1.])
+    cpu_time = np.array([time.perf_counter() - t0])
+
+    if verbose:
+        print('cumulative cpu time: ' + str(cpu_time[-1]))
+        print()
+
     # bvi loop
-    print()
     for iter_no in range(1, N):
         if verbose: print('iteration ' + str(iter_no+1))
         if convergence: break
@@ -548,28 +573,38 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         # estimate divergence
         if stop_up is None:
             if verbose: print('estimating new KL')
-            objs[iter_no] = KL(logq, sample_q, logp, 100000)
+            objs = np.append(objs, KL(logq, sample_q, logp, 100000))
             if verbose: print('KL to target: ' + str(objs[iter_no]))
         else:
             if verbose: print('estimating new KSD')
-            objs[iter_no] = ksd(logp, sample_q, stop_up, B = 100000)
+            objs = np.append(objs, ksd(logp, sample_q, stop_up, B = 100000))
             if verbose: print('KSD to target: ' + str(objs[iter_no]))
 
         # assess convergence
-        if objs[iter_no] < tol: convergence = True
+        if objs[-1] < tol: convergence = True
 
+        # calculate cumulative computing time and active kernels
+        if alpha == 0:
+            active_kernels = np.append(active_kernels, active_kernels[-1])
+        else:
+            active_kernels = np.append(active_kernels, active_kernels[-1] + 1)
+        cpu_time = np.append(cpu_time, time.perf_counter() - t0)
 
-        if verbose: print()
+        if verbose:
+            print('number of active kernels: ' + str(active_kernels[-1]))
+            print('cumulative cpu time: ' + str(cpu_time[-1]))
+            print()
     # end for
 
-    if convergence: iter_no -= 1 # if it converged, assessment was done in next iterations and we need to decrease
+    if not convergence: iter_no += 1 # if it did not converged, assessment was done in that iteration and we need to update
     active = alphas > 0
     if verbose:
         print('done!')
+        print('number of active kernels: ' + str(active_kernels[-1]))
         print('means: ' + str(np.squeeze(mus[active])))
         print('sigmas: ' + str(np.squeeze(Sigmas[active])))
         print('weights: ' + str(np.squeeze(alphas[active])))
-        print('divergence: ' + str(objs[iter_no]))
+        print('divergence: ' + str(objs[-1]))
 
 
-    return mus[0:iter_no,:], Sigmas[0:iter_no,:], alphas[0:iter_no], objs[0:iter_no]
+    return mus[0:iter_no,:], Sigmas[0:iter_no,:], alphas[0:iter_no], objs, cpu_time, active_kernels
