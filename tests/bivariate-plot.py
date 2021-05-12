@@ -195,66 +195,14 @@ for r in np.arange(reps):
             rwmh = np.load(tmp_path + 'y_' + str(r+1) + '_' + str(tol) + '.npy')
 
 
-        # LOG DENSITY PLOT
-        #for i in [0,1]:
-        #    # initialize plot with target log density
-        #    t = np.linspace(-50, 50, 2000)
-        #    f = logp(t[:,np.newaxis])
-        #    plt.plot(t, f, linestyle = 'solid', color = 'black', label = 'log p(x)', linewidth = 1.75)
-
-        #    if lbvi_flag:
-        #        # add lbvi log density based on kde
-        #        lbvi_sample = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-        #        lbvi_kde = stats.gaussian_kde(np.squeeze(lbvi_sample), bw_method = 0.25).evaluate(t)
-        #        plt.plot(t, np.log(lbvi_kde), linestyle = 'dashed', color = lbvi_color, label = 'LBVI')
-
-        #    if ubvi_flag:
-        #        # add ubvi log density
-        #        lq = ubvi.mixture_logpdf(t[:, np.newaxis], ubvi_mu, ubvi_Sig, ubvi_wt)
-        #        plt.plot(t, lq, linestyle = 'dashed', color = ubvi_color, label='UBVI')
-
-        #    if bvi_flag:
-        #        # add bvi log density
-        #        plt.plot(t, bvi_logq(t[:,np.newaxis]), linestyle = 'dashed', color = bvi_color, label='BBBVI')
-
-        #    if gvi_flag:
-        #        # add gvi log density
-        #        gvi_logq = lambda x : -0.5*1*np.log(2*np.pi) - 0.5*1*np.log(SigmaLogDet) - 0.5*((x-mu).dot(SigmaInv)*(x-mu)).sum(axis=-1)
-        #        plt.plot(t, gvi_logq(t[:,np.newaxis]), linestyle = 'dashed', color = gvi_color, label='GVI', alpha = muted_alpha)
-
-        #    if hmc_flag:
-        #        # add rwmh log density based on kde
-        #        hmc_kde = stats.gaussian_kde(hmc, bw_method = 1).evaluate(t)
-        #        plt.plot(t, np.log(hmc_kde), linestyle = 'dashed', color = hmc_color, label = 'HMC', alpha = muted_alpha)
-
-
-        #    if rwmh_flag:
-        #        # add rwmh log density based on kde
-        #        rwmh_kde = stats.gaussian_kde(rwmh, bw_method = 0.15).evaluate(t)
-        #        plt.plot(t, np.log(rwmh_kde), linestyle = 'dashed', color = rwmh_color, label = 'RWMH', alpha = muted_alpha)
-
-        #    # add labels
-        #    plt.xlabel('x')
-        #    plt.ylabel('Log-density')
-        #    #plt.title('Log-density comparison')
-        #    plt.xlim(xlim)
-        #    plt.legend(fontsize = legend_fontsize)
-
-        ## save plot
-        #plt.savefig(path + 'logdensities/log-density_comparison' + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
-        #plt.clf()
-        ###########################
-
-
         # DENSITY PLOT
         # initialize plot with target density contour
         nn = 100
         xx = np.linspace(xlim[0], xlim[1], nn)
         yy = np.linspace(ylim[0], ylim[1], nn)
         tt = np.array(np.meshgrid(xx, yy)).T.reshape(nn**2, 2)
-        f = np.exp(logp(tt)).reshape(nn, nn).T
-        #fig,ax=plt.subplots(1,1)
-        cp = plt.contour(xx, yy, f, colors = 'black')
+        lp = logp(tt).reshape(nn, nn).T
+        cp = plt.contour(xx, yy, np.exp(lp), colors = 'black')
         hcp,_ = cp.legend_elements()
         hcps = [hcp[0]]
         legends = ['p(x)']
@@ -270,16 +218,16 @@ for r in np.arange(reps):
 
         if ubvi_flag:
             # add ubvi density
-            lq = ubvi.mixture_logpdf(tt, ubvi_mu, ubvi_Sig, ubvi_wt).reshape(nn, nn).T
-            cp_ubvi = plt.contour(xx, yy, np.exp(lq), colors = ubvi_color)
+            lq_ubvi = ubvi.mixture_logpdf(tt, ubvi_mu, ubvi_Sig, ubvi_wt).reshape(nn, nn).T
+            cp_ubvi = plt.contour(xx, yy, np.exp(lq_ubvi), colors = ubvi_color)
             hcp_ubvi,_ = cp_ubvi.legend_elements()
             hcps.append(hcp_ubvi[0])
             legends.append('UBVI')
 
         if bvi_flag:
             # add bvi density
-            lq = np.exp(bvi_logq(tt)).reshape(nn, nn).T
-            cp_bvi = plt.contour(xx, yy, np.exp(lq), colors = bvi_color)
+            lq_bvi = np.exp(bvi_logq(tt)).reshape(nn, nn).T
+            cp_bvi = plt.contour(xx, yy, np.exp(lq_bvi), colors = bvi_color)
             hcp_bvi,_ = cp_bvi.legend_elements()
             hcps.append(hcp_bvi[0])
             legends.append('BVI')
@@ -287,7 +235,6 @@ for r in np.arange(reps):
         if rwmh_flag:
             # add rwmh kde density
             rwmh_kde = stats.gaussian_kde(rwmh.T, bw_method = 0.15).evaluate(tt.T).reshape(nn, nn).T
-            #plt.plot(t, rwmh_kde, linestyle = 'dashed', color = rwmh_color, label = 'RWMH', alpha = muted_alpha, lw = muted_linewidth)
             cp_rwmh = plt.contour(xx, yy, rwmh_kde, colors = rwmh_color, alpha = muted_alpha, lw = muted_linewidth)
             hcp_rwmh,_ = cp_rwmh.legend_elements()
             hcps.append(hcp_rwmh[0])
@@ -303,8 +250,8 @@ for r in np.arange(reps):
 
         if gvi_flag:
             # add gvi density
-            lq = np.exp(gvi_logq(tt)).reshape(nn, nn).T
-            cp_gvi = plt.contour(xx, yy, np.exp(lq), colors = gvi_color, alpha = muted_alpha, lw = muted_linewidth)
+            lq_gvi = np.exp(gvi_logq(tt)).reshape(nn, nn).T
+            cp_gvi = plt.contour(xx, yy, np.exp(lq_gvi), colors = gvi_color, alpha = muted_alpha, lw = muted_linewidth)
             hcp_gvi,_ = cp_gvi.legend_elements()
             hcps.append(hcp_gvi[0])
             legends.append('GVI')
@@ -313,13 +260,59 @@ for r in np.arange(reps):
         # add labels
         plt.xlim(xlim)
         plt.ylim(ylim)
-        #plt.legend(fontsize = legend_fontsize)
         plt.legend(hcps, legends, fontsize = legend_fontsize)
 
         # save plot
         plt.savefig(path + 'densities/density_comparison'  + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
         plt.clf()
         ##########################
+
+        # LOG DENSITY PLOT
+        for i in [0,1]:
+            # initialize plot with target log density
+            if i == 0: t = np.linspace(xlim[0], xlim[1], nn)
+            if i == 1: t = np.linspace(ylim[0], ylim[1], nn)
+            plt.plot(t, ubvi.logsumexp(lp, axis = 1-i), linestyle = 'solid', color = 'black', label = 'log p(x)', linewidth = 1.75)
+
+            if lbvi_flag:
+                # add lbvi log density based on kde
+                lbvi_kde = stats.gaussian_kde(np.squeeze(lbvi_sample[:,i]), bw_method = 0.25).evaluate(t)
+                plt.plot(t, np.log(lbvi_kde), linestyle = 'dashed', color = lbvi_color, label = 'LBVI')
+
+            if ubvi_flag:
+                # add ubvi log density
+                plt.plot(t, ubvi.logsumexp(lq_ubvi, axis=1-i), linestyle = 'dashed', color = ubvi_color, label='UBVI')
+
+            if bvi_flag:
+                # add bvi log density
+                plt.plot(t, ubvi.logsumexp(lq_bvi, axis=1-i), linestyle = 'dashed', color = bvi_color, label='BBBVI')
+
+            if gvi_flag:
+                # add gvi log density
+                plt.plot(t, ubvi.logsumexp(lq_gvi, axis=1-i), linestyle = 'dashed', color = gvi_color, label='GVI', alpha = muted_alpha)
+
+            if hmc_flag:
+                # add rwmh log density based on kde
+                hmc_kde = stats.gaussian_kde(np.squeeze(hmc[:,i]), bw_method = 1).evaluate(t)
+                plt.plot(t, np.log(hmc_kde), linestyle = 'dashed', color = hmc_color, label = 'HMC', alpha = muted_alpha)
+
+
+            if rwmh_flag:
+                # add rwmh log density based on kde
+                rwmh_kde = stats.gaussian_kde(np.squeeze(rwmh[:,i]), bw_method = 0.15).evaluate(t)
+                plt.plot(t, np.log(rwmh_kde), linestyle = 'dashed', color = rwmh_color, label = 'RWMH', alpha = muted_alpha)
+
+            # add labels and save plot
+            if i == 0:
+                title = 'logdensities/log-density_comparison_xaxis'
+                plt.xlim(xlim)
+            if i == 1:
+                title = 'logdensities/log-density_comparison_yaxis'
+                plt.xlim(ylim)
+            plt.legend(fontsize = legend_fontsize)
+            plt.savefig(path + title + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
+            plt.clf()
+        ###########################
 
 msize = 15
 pltalpha = 0.5
