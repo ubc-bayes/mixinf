@@ -36,46 +36,47 @@ def HMC(logp, sp, K, epsilon, L, T, burnin = 0.25, p0 = None, verbose = False):
 
     # initialize sample from N(0,10I) if not provided
     if p0 is None:
-        p = np.random.randn(K)*10
+        p = np.zeros(K)
     else:
         p = p0
     if verbose: print('initial sample: ' + str(p))
 
+    # get total number of iterations
+    maxiter = int(np.round(T/(1-burnin)))
+
     # init array with sample
-    ps = np.zeros((T+1,K))
+    ps = np.zeros((maxiter+1,K))
     ps[0,:] = p
 
     if verbose: print('running chain')
     if verbose: print()
     # run chain
-    for t in range(T):
-        if verbose: print(str(t+1) + '/' + str(T))
-        print(str(t+1) + '/' + str(T), end = '\r')
+    for t in range(maxiter):
+        if t < maxiter - T:
+            print(str(t+1) + '/' + str(maxiter - T) + ' (burn-in)', end = '\r')
+        else:
+            print(str(t+1 - maxiter + T) + '/' + str(T) + ' (sampling)', end = '\r')
 
         # sample momentum variables from standard normal
         m = np.random.randn(K)
 
         # save initial samples
-        p_init = ps[t]
+        p = ps[t,:]
+        p_init = p
         m_init = m
-        #print('m: ' + str(m))
 
         # take half-step for momentum
         if verbose: print('talking first momentum half-step')
         m -= epsilon * gradU(p) / 2
-        #print('m: ' + str(m))
 
         # do leapfrog integration
         if verbose: print('doing leapfrog iteration')
-        for  i in range(L):
+        for i in range(L):
             # step for position
             p += epsilon*m
-            #print('p: ' + str(p))
-
             # step for momentum, except at end of trajectory
             if i < L-1:
                 m -= epsilon * gradU(p)
-                #print('m: ' + str(m))
         # end for
         if verbose: print('proposal: ' + str(p))
 
@@ -83,18 +84,13 @@ def HMC(logp, sp, K, epsilon, L, T, burnin = 0.25, p0 = None, verbose = False):
         if verbose: print('take last momentum half-step')
         m -= epsilon * gradU(p) / 2
         m = -m
-        #print('m: ' + str(m))
 
         # calculate initial and final energies
         if verbose: print('calculating energies')
         U_init = U(p_init)
-        #print('U_init: ' + str(U_init))
         U_final = U(p)
-        #print('U_final: ' + str(U_final))
         K_init = 0.5 * np.sum(m_init**2)
-        #print('K_init: ' + str(K_init))
         K_final = 0.5 * np.sum(m**2)
-        #print('K_final: ' + str(K_final))
 
         # accept/reject proposal
         if verbose: print('accept/reject step')
@@ -105,14 +101,9 @@ def HMC(logp, sp, K, epsilon, L, T, burnin = 0.25, p0 = None, verbose = False):
         else:
             ps[t+1,:] = p_init
 
-
-        #print(ps)
         if verbose: print()
     # end for
 
     # do burn-in
-    bi =  T - int(round(burnin*T, 0))
-    ps = ps[-bi:,:]
-
-
+    ps = ps[-T:,:]
     return ps
