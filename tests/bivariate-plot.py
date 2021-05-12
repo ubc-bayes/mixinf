@@ -81,6 +81,7 @@ hmc_flag = args.hmc
 rwmh_flag = args.rwmh
 
 # IMPORT TARGET DENSITY ####
+Levels = 4
 target = args.target
 if target == '4-mixture':
     from targets.fourmixture import *
@@ -106,6 +107,7 @@ if target == 'banana-gaussian':
     from targets.banana_gaussian import *
     xlim = np.array([-3, 3])
     ylim = np.array([-2, 3])
+    Levels = 4
 
 
 # import kernel for mixture
@@ -211,7 +213,7 @@ for r in np.arange(reps):
             # add lbvi samples
             lbvi_kde = stats.gaussian_kde(lbvi_sample.T, bw_method = 0.05).evaluate(tt.T).reshape(nn, nn).T
             #plt.scatter(kk[:,0], kk[:,1], marker='.', c='b', alpha = 0.4, label = 'LBVI')
-            cp_lbvi = plt.contour(xx, yy, lbvi_kde, colors = lbvi_color)
+            cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = Levels, colors = lbvi_color)
             hcp_lbvi,_ = cp_lbvi.legend_elements()
             hcps.append(hcp_lbvi[0])
             legends.append('LBVI')
@@ -219,7 +221,7 @@ for r in np.arange(reps):
         if ubvi_flag:
             # add ubvi density
             lq_ubvi = ubvi.mixture_logpdf(tt, ubvi_mu, ubvi_Sig, ubvi_wt).reshape(nn, nn).T
-            cp_ubvi = plt.contour(xx, yy, np.exp(lq_ubvi), colors = ubvi_color)
+            cp_ubvi = plt.contour(xx, yy, np.exp(lq_ubvi), levels = Levels, colors = ubvi_color)
             hcp_ubvi,_ = cp_ubvi.legend_elements()
             hcps.append(hcp_ubvi[0])
             legends.append('UBVI')
@@ -227,7 +229,7 @@ for r in np.arange(reps):
         if bvi_flag:
             # add bvi density
             lq_bvi = np.exp(bvi_logq(tt)).reshape(nn, nn).T
-            cp_bvi = plt.contour(xx, yy, np.exp(lq_bvi), colors = bvi_color)
+            cp_bvi = plt.contour(xx, yy, np.exp(lq_bvi), levels = Levels, colors = bvi_color)
             hcp_bvi,_ = cp_bvi.legend_elements()
             hcps.append(hcp_bvi[0])
             legends.append('BVI')
@@ -235,7 +237,7 @@ for r in np.arange(reps):
         if rwmh_flag:
             # add rwmh kde density
             rwmh_kde = stats.gaussian_kde(rwmh.T, bw_method = 0.15).evaluate(tt.T).reshape(nn, nn).T
-            cp_rwmh = plt.contour(xx, yy, rwmh_kde, colors = rwmh_color, alpha = muted_alpha, lw = muted_linewidth)
+            cp_rwmh = plt.contour(xx, yy, rwmh_kde, levels = Levels, colors = rwmh_color, alpha = muted_alpha, lw = muted_linewidth)
             hcp_rwmh,_ = cp_rwmh.legend_elements()
             hcps.append(hcp_rwmh[0])
             legends.append('RWMH')
@@ -243,7 +245,7 @@ for r in np.arange(reps):
         if hmc_flag:
             # add hmc kde density
             hmc_kde = stats.gaussian_kde(hmc.T, bw_method = 1).evaluate(tt.T).reshape(nn, nn).T
-            cp_hmc = plt.contour(xx, yy, hmc_kde, colors = hmc_color, alpha = muted_alpha, lw = muted_linewidth)
+            cp_hmc = plt.contour(xx, yy, hmc_kde, levels = Levels, colors = hmc_color, alpha = muted_alpha, lw = muted_linewidth)
             hcp_hmc,_ = cp_hmc.legend_elements()
             hcps.append(hcp_hmc[0])
             legends.append('HMC')
@@ -251,7 +253,7 @@ for r in np.arange(reps):
         if gvi_flag:
             # add gvi density
             lq_gvi = np.exp(gvi_logq(tt)).reshape(nn, nn).T
-            cp_gvi = plt.contour(xx, yy, np.exp(lq_gvi), colors = gvi_color, alpha = muted_alpha, lw = muted_linewidth)
+            cp_gvi = plt.contour(xx, yy, np.exp(lq_gvi), levels = Levels, colors = gvi_color, alpha = muted_alpha, lw = muted_linewidth)
             hcp_gvi,_ = cp_gvi.legend_elements()
             hcps.append(hcp_gvi[0])
             legends.append('GVI')
@@ -276,8 +278,8 @@ for r in np.arange(reps):
 
             if lbvi_flag:
                 # add lbvi log density based on kde
-                lbvi_kde = stats.gaussian_kde(np.squeeze(lbvi_sample[:,i]), bw_method = 0.25).evaluate(t)
-                plt.plot(t, np.log(lbvi_kde), linestyle = 'dashed', color = lbvi_color, label = 'LBVI')
+                #lbvi_kde = stats.gaussian_kde(np.squeeze(lbvi_sample[:,i]), bw_method = 0.25).evaluate(t)
+                plt.plot(t, ubvi.logsumexp(np.log(lbvi_kde), axis = 1-i), linestyle = 'dashed', color = lbvi_color, label = 'LBVI')
 
             if ubvi_flag:
                 # add ubvi log density
@@ -293,14 +295,14 @@ for r in np.arange(reps):
 
             if hmc_flag:
                 # add rwmh log density based on kde
-                hmc_kde = stats.gaussian_kde(np.squeeze(hmc[:,i]), bw_method = 1).evaluate(t)
-                plt.plot(t, np.log(hmc_kde), linestyle = 'dashed', color = hmc_color, label = 'HMC', alpha = muted_alpha)
+                #hmc_kde = stats.gaussian_kde(np.squeeze(hmc[:,i]), bw_method = 1).evaluate(t)
+                plt.plot(t, ubvi.logsumexp(np.log(hmc_kde), axis = 1-i), linestyle = 'dashed', color = hmc_color, label = 'HMC', alpha = muted_alpha)
 
 
             if rwmh_flag:
                 # add rwmh log density based on kde
-                rwmh_kde = stats.gaussian_kde(np.squeeze(rwmh[:,i]), bw_method = 0.15).evaluate(t)
-                plt.plot(t, np.log(rwmh_kde), linestyle = 'dashed', color = rwmh_color, label = 'RWMH', alpha = muted_alpha)
+                #rwmh_kde = stats.gaussian_kde(np.squeeze(rwmh[:,i]), bw_method = 0.15).evaluate(t)
+                plt.plot(t, ubvi.logsumexp(np.log(rwmh_kde), axis = 1-i), linestyle = 'dashed', color = rwmh_color, label = 'RWMH', alpha = muted_alpha)
 
             # add labels and save plot
             if i == 0:
