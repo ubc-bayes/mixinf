@@ -23,7 +23,7 @@ import bvi
 import ubvi
 
 # ARG PARSE SETTINGS ####
-parser = argparse.ArgumentParser(description="plot comparison between lbvi and other vi and mcmc methodologies")
+parser = argparse.ArgumentParser(description="plot comparison between lbvi and other vi and mcmc routines")
 
 parser.add_argument('--inpath', type = str, default = 'results/',
 help = 'path of folder where csv files are stored')

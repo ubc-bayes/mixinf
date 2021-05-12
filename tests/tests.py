@@ -22,7 +22,7 @@ import lbvi
 
 
 # ARG PARSE SETTINGS ####
-parser = argparse.ArgumentParser(description="run lbvi other vi methods for comparison")
+parser = argparse.ArgumentParser(description="run lbvi other vi and mcmc methods for comparison")
 
 parser.add_argument('-d', '--dim', type = int,
 help = 'dimension on which to run both optimizations')
