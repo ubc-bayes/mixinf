@@ -207,8 +207,8 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler = None, plt_lims 
 
         # plot target density
         nn = 100
-        xx = np.linspace(xlim[0], xlim[1], nn)
-        yy = np.linspace(ylim[0], ylim[1], nn)
+        xx = np.linspace(x_lower, x_upper, nn)
+        yy = np.linspace(y_lower, y_upper, nn)
         tt = np.array(np.meshgrid(xx, yy)).T.reshape(nn**2, 2)
         lp = logp(tt).reshape(nn, nn).T
         cp = plt.contour(xx, yy, np.exp(lp), colors = 'black')
@@ -225,12 +225,12 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler = None, plt_lims 
             lbvi_kde = stats.gaussian_kde(lbvi_sample.T, bw_method = 0.05).evaluate(tt.T).reshape(nn, nn).T
             cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = Levels, colors = '#39558CFF')
             hcp_lbvi,_ = cp_lbvi.legend_elements()
+            hcps.append(hcp_lbvi[0])
+            legends.append('LBVI')
 
         # beautify and save plot
         plt.ylim(y_lower, y_upper)
         plt.xlim(x_lower, x_upper)
-        hcps = [hcp[0], hcp_lbvi[0]]
-        legends = ['p(x)', 'UBVI']
         #plt.suptitle('l-bvi approximation to density')
         # assign plot title
         #if kernel_sampler is None:

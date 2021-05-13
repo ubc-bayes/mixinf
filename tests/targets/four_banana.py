@@ -13,9 +13,9 @@ def norm_logpdf(x, loc = np.array([0]).reshape(1, 1), scale = np.array([1])):
     return -0.5 * ((x[..., np.newaxis] - loc.T)**2).sum(axis = -2) / scale**2 - 0.5 * K *  np.log(2 * np.pi) - K * np.log(scale)
 
 # mixture settings
-weights = np.ones(4)/2
+weights = np.ones(4)/4
 means = np.array([[0, -2], [-2, 0], [0, 2], [2, 0]])
-sd = 0.3*np.ones(4)
+sd = 0.25*np.ones(4)
 
 def logp_mixture_aux(x, K):
     # evaluate mixture
@@ -29,8 +29,8 @@ def logp_mixture_aux(x, K):
 
 
 def logp_banana_aux(x, K = 2):
-    sigma1 = 1.
-    sigma2 = 1.2
+    sigma1 = 0.75
+    sigma2 = 1.
     y = np.log(20)
     #theta = np.pi
     #A = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]]) # rotation

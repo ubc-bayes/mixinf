@@ -220,7 +220,7 @@ if target == 'banana-gaussian':
     from targets.banana_gaussian import *
     plt_lims = np.array([-3, 3, -2, 3])
 
-if target == 'banana-gaussian':
+if target == 'four-banana':
     from targets.four_banana import *
     plt_lims = np.array([-3, 3, -3, 3])
 
