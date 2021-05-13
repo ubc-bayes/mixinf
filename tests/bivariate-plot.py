@@ -29,7 +29,7 @@ parser.add_argument('--inpath', type = str, default = 'results/',
 help = 'path of folder where csv files are stored')
 parser.add_argument('--outpath', type = str, default = 'results/plots/',
 help = 'path of folder where plots will be saved')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana-gaussian'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana-gaussian', 'four-banana'],
 help = 'target distribution to use')
 parser.add_argument('--reps', type = int, default = 1,
 help = 'number of times each method was run')
@@ -108,6 +108,11 @@ if target == 'banana-gaussian':
     xlim = np.array([-3, 3])
     ylim = np.array([-2, 3])
     Levels = 4
+if target == 'four-banana':
+    from targets.four_banana import *
+    xlim = np.array([-3, 3])
+    ylim = np.array([-3, 3])
+    Levels = 4
 
 
 # import kernel for mixture
@@ -139,9 +144,9 @@ print('begin plotting!')
 lbvi_color = '#39558CFF'
 ubvi_color = '#D64B40FF'
 bvi_color = '#74D055FF'
-gvi_color = '0.6'
-hmc_color = '0.7'
-rwmh_color = '0.8'
+gvi_color = '0.2'
+hmc_color = '0.3'
+rwmh_color = '0.4'
 muted_alpha = 0.4 # for toning down less important lines
 muted_linewidth = 1
 legend_fontsize = 'x-small'
@@ -296,13 +301,13 @@ for r in np.arange(reps):
             if hmc_flag:
                 # add rwmh log density based on kde
                 #hmc_kde = stats.gaussian_kde(np.squeeze(hmc[:,i]), bw_method = 1).evaluate(t)
-                plt.plot(t, ubvi.logsumexp(np.log(hmc_kde), axis = 1-i), linestyle = 'dashed', color = hmc_color, label = 'HMC', alpha = muted_alpha)
+                plt.plot(t, ubvi.logsumexp(np.log(hmc_kde), axis = 1-i), linestyle = 'dashdot', color = hmc_color, label = 'HMC', alpha = muted_alpha)
 
 
             if rwmh_flag:
                 # add rwmh log density based on kde
                 #rwmh_kde = stats.gaussian_kde(np.squeeze(rwmh[:,i]), bw_method = 0.15).evaluate(t)
-                plt.plot(t, ubvi.logsumexp(np.log(rwmh_kde), axis = 1-i), linestyle = 'dashed', color = rwmh_color, label = 'RWMH', alpha = muted_alpha)
+                plt.plot(t, ubvi.logsumexp(np.log(rwmh_kde), axis = 1-i), linestyle = 'dotted', color = rwmh_color, label = 'RWMH', alpha = muted_alpha)
 
             # add labels and save plot
             if i == 0:

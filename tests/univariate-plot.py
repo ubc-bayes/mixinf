@@ -122,9 +122,9 @@ print('begin plotting!')
 lbvi_color = '#39558CFF'
 ubvi_color = '#D64B40FF'
 bvi_color = '#74D055FF'
-gvi_color = '0.6'
-hmc_color = '0.7'
-rwmh_color = '0.8'
+gvi_color = '0.2'
+hmc_color = '0.3'
+rwmh_color = '0.4'
 muted_alpha = 0.4 # for toning down less important lines
 muted_linewidth = 1
 legend_fontsize = 'x-small'
@@ -212,18 +212,18 @@ for r in np.arange(reps):
 
         if hmc_flag:
             # add rwmh log density based on kde
-            hmc_kde = stats.gaussian_kde(hmc, bw_method = 1).evaluate(t)
-            plt.plot(t, np.log(hmc_kde), linestyle = 'dashed', color = hmc_color, label = 'HMC', alpha = muted_alpha)
+            hmc_kde = stats.gaussian_kde(hmc, bw_method = 0.05).evaluate(t)
+            plt.plot(t, np.log(hmc_kde), linestyle = 'dashdot', color = hmc_color, label = 'HMC', alpha = muted_alpha)
 
 
         if rwmh_flag:
             # add rwmh log density based on kde
-            rwmh_kde = stats.gaussian_kde(rwmh, bw_method = 0.15).evaluate(t)
-            plt.plot(t, np.log(rwmh_kde), linestyle = 'dashed', color = rwmh_color, label = 'RWMH', alpha = muted_alpha)
+            rwmh_kde = stats.gaussian_kde(rwmh, bw_method = 0.25).evaluate(t)
+            plt.plot(t, np.log(rwmh_kde), linestyle = 'dotted', color = rwmh_color, label = 'RWMH', alpha = muted_alpha)
 
         # add labels
-        plt.xlabel('x')
-        plt.ylabel('Log-density')
+        #plt.xlabel('x')
+        #plt.ylabel('Log-density')
         #plt.title('Log-density comparison')
         plt.xlim(-50,50)
         plt.legend(fontsize = legend_fontsize)
@@ -259,14 +259,14 @@ for r in np.arange(reps):
         if rwmh_flag:
             # add rwmh histogram
             #plt.hist(rwmh, label = 'RWMH', density = True, bins = 50, alpha = 0.3, facecolor = rwmh_color, edgecolor='black')
-            rwmh_kde = stats.gaussian_kde(rwmh, bw_method = 0.15).evaluate(t)
-            plt.plot(t, rwmh_kde, linestyle = 'dashed', color = rwmh_color, label = 'RWMH', alpha = muted_alpha, lw = muted_linewidth)
+            rwmh_kde = stats.gaussian_kde(rwmh, bw_method = 0.05).evaluate(t)
+            plt.plot(t, rwmh_kde, linestyle = 'dotted', color = rwmh_color, label = 'RWMH', alpha = muted_alpha, lw = muted_linewidth)
 
         if hmc_flag:
             # add rwmh histogram
             #plt.hist(hmc, label = 'HMC', density = True, bins = 50, alpha = 0.3, facecolor = hmc_color, edgecolor='black')
-            hmc_kde = stats.gaussian_kde(hmc, bw_method = 1).evaluate(t)
-            plt.plot(t, hmc_kde, linestyle = 'dashed', color = hmc_color, label = 'HMC', alpha = muted_alpha, lw = muted_linewidth)
+            hmc_kde = stats.gaussian_kde(hmc, bw_method = 0.05).evaluate(t)
+            plt.plot(t, hmc_kde, linestyle = 'dashdot', color = hmc_color, label = 'HMC', alpha = muted_alpha, lw = muted_linewidth)
 
         if gvi_flag:
             # add gvi density
@@ -274,8 +274,8 @@ for r in np.arange(reps):
 
 
         # add labels
-        plt.xlabel('x')
-        plt.ylabel('Density')
+        #plt.xlabel('x')
+        #plt.ylabel('Density')
         #plt.title('Density comparison')
         plt.xlim(xlim)
         plt.legend(fontsize = legend_fontsize)
