@@ -154,6 +154,9 @@ legend_fontsize = 'x-small'
 
 for r in np.arange(reps):
     for tol in tols:
+        lbvi_flag = args.lbvi
+        hmc_flag = args.hmc
+        rwmh_flag = args.rwmh
 
         if lbvi_flag:
             # retrieve lbvi settings
@@ -162,6 +165,11 @@ for r in np.arange(reps):
             w = np.load(tmp_path + 'w_' + str(r+1) + '_' + str(tol) + '.npy')
             T = np.load(tmp_path + 'T_' + str(r+1) + '_' + str(tol) + '.npy')
             lbvi_sample = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
+            lbvi_sample = lbvi_sample[~np.isnan(lbvi_sample).any(axis=-1)]
+            lbvi_sample = lbvi_sample[~np.isinf(lbvi_sample).any(axis=-1)]
+            if lbvi_sample.size == 0:
+                print('not plotting lbvi')
+                lbvi_flag = False
 
         if ubvi_flag:
             # retrieve ubvi results
@@ -194,12 +202,22 @@ for r in np.arange(reps):
             # retrieve hmc sample
             tmp_path = inpath + 'hmc/'
             hmc = np.load(tmp_path + 'y_' + str(r+1) + '_' + str(tol) + '.npy')
+            hmc = hmc[~np.isnan(hmc).any(axis=-1)]
+            hmc = hmc[~np.isinf(hmc).any(axis=-1)]
+            if hmc.size == 0:
+                print('not plotting hmc')
+                hmc_flag = False
 
 
         if rwmh_flag:
             # retrieve rwmh sample
             tmp_path = inpath + 'rwmh/'
             rwmh = np.load(tmp_path + 'y_' + str(r+1) + '_' + str(tol) + '.npy')
+            rwmh = rwmh[~np.isnan(rwmh).any(axis=-1)]
+            rwmh = rwmh[~np.isinf(rwmh).any(axis=-1)]
+            if rwmh.size == 0:
+                print('not plotting rwmh')
+                rwmh_flag = False
 
 
         # DENSITY PLOT
@@ -239,21 +257,6 @@ for r in np.arange(reps):
             hcps.append(hcp_bvi[0])
             legends.append('BVI')
 
-        if rwmh_flag:
-            # add rwmh kde density
-            rwmh_kde = stats.gaussian_kde(rwmh.T, bw_method = 0.15).evaluate(tt.T).reshape(nn, nn).T
-            cp_rwmh = plt.contour(xx, yy, rwmh_kde, levels = Levels, colors = rwmh_color, alpha = muted_alpha, lw = muted_linewidth)
-            hcp_rwmh,_ = cp_rwmh.legend_elements()
-            hcps.append(hcp_rwmh[0])
-            legends.append('RWMH')
-
-        if hmc_flag:
-            # add hmc kde density
-            hmc_kde = stats.gaussian_kde(hmc.T, bw_method = 1).evaluate(tt.T).reshape(nn, nn).T
-            cp_hmc = plt.contour(xx, yy, hmc_kde, levels = Levels, colors = hmc_color, alpha = muted_alpha, lw = muted_linewidth)
-            hcp_hmc,_ = cp_hmc.legend_elements()
-            hcps.append(hcp_hmc[0])
-            legends.append('HMC')
 
         if gvi_flag:
             # add gvi density
@@ -262,6 +265,24 @@ for r in np.arange(reps):
             hcp_gvi,_ = cp_gvi.legend_elements()
             hcps.append(hcp_gvi[0])
             legends.append('GVI')
+
+
+        if rwmh_flag:
+            # add rwmh kde density
+            rwmh_kde = stats.gaussian_kde(rwmh.T, bw_method = 0.15).evaluate(tt.T).reshape(nn, nn).T
+            cp_rwmh = plt.contour(xx, yy, rwmh_kde, linestyles = 'dotted', levels = Levels, colors = rwmh_color, alpha = muted_alpha, lw = muted_linewidth)
+            hcp_rwmh,_ = cp_rwmh.legend_elements()
+            hcps.append(hcp_rwmh[0])
+            legends.append('RWMH')
+
+        if hmc_flag:
+            # add hmc kde density
+            hmc_kde = stats.gaussian_kde(hmc.T, bw_method = 0.2).evaluate(tt.T).reshape(nn, nn).T
+            cp_hmc = plt.contour(xx, yy, hmc_kde, linestyles = 'dashdot', levels = Levels, colors = hmc_color, alpha = muted_alpha, lw = muted_linewidth)
+            #plt.scatter(hmc[:,0], hmc[:,1], color = hmc_color)
+            hcp_hmc,_ = cp_hmc.legend_elements()
+            hcps.append(hcp_hmc[0])
+            legends.append('HMC')
 
 
         # add labels

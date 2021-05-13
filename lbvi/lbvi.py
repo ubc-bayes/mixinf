@@ -224,12 +224,15 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler = None, plt_lims 
         else:
             # generate and plot approximation
             lbvi_sample = mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler)
-            #plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'approximation')
-            lbvi_kde = stats.gaussian_kde(lbvi_sample.T, bw_method = 0.05).evaluate(tt.T).reshape(nn, nn).T
-            cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = 4, colors = '#39558CFF')
-            hcp_lbvi,_ = cp_lbvi.legend_elements()
-            hcps.append(hcp_lbvi[0])
-            legends.append('LBVI')
+            lbvi_sample = lbvi_sample[~np.isnan(lbvi_sample).any(axis=-1)] # remove nans
+            lbvi_sample = lbvi_sample[~np.isinf(lbvi_sample).any(axis=-1)] # remove infs
+            if lbvi_sample.size != 0:
+                 # otherwise no plottting to do =(
+                 lbvi_kde = stats.gaussian_kde(lbvi_sample.T, bw_method = 0.05).evaluate(tt.T).reshape(nn, nn).T
+                 cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = 4, colors = '#39558CFF')
+                 hcp_lbvi,_ = cp_lbvi.legend_elements()
+                 hcps.append(hcp_lbvi[0])
+                 legends.append('LBVI')
 
         # beautify and save plot
         plt.ylim(y_lower, y_upper)
@@ -463,7 +466,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B, kernel_sampl
 
 
 ###################################
-def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, verbose = False, plot = True, plt_lims = None, plot_path = 'plots', trace = False):
+def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = False):
     """
     locally-adapted boosting variational inference main routine
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
@@ -486,7 +489,10 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - plot is boolean indicating whether to generate plots of the approximation at each iteration (only supported for uni and bivariate data)
         - plt_lims is an array with the plotting limits (xinf, xsup, yinf, ysup)
         - trace is boolean indicating whether to print a trace plot of the objective function
-        - tracepath is the path in which the trace plot is saved if generated
+        - plot_path is the path in which the trace plot is saved if generated
+        - gif is boolean and indicates whether a gif with the plots will be created (only if plot is also True)
+
+    outputs:
         - w, T are shape(y.shape[0], ) arrays with the sample, the weights, and the steps sizes
         - obj is an array with the value of the objective function at each iteration
     """
@@ -610,7 +616,10 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         # plot current approximation
         if plot:
             if verbose: print('plotting')
-            plotting(y, T, w, logp, plot_path, iter_no = iter_no + 1, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
+            try:
+                plotting(y, T, w, logp, plot_path, iter_no = iter_no + 1, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
+            except:
+                if verbose: print('plotting failed')
 
         # calculate cumulative computing time and active kernels
         cpu_time = np.append(cpu_time, time.perf_counter() - t0)
@@ -627,7 +636,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
         # end for
 
-    if plot:
+    if plot and gif:
         if verbose: print('plotting gif')
         gif_plot(plot_path)
 

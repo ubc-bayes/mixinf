@@ -44,7 +44,7 @@ def logp_banana_aux(x, K = 2):
 alpha = 0.5
 def logp_aux(x, K = 2):
     return np.log(alpha*np.exp(logp_banana_aux(x, K)) + (1-alpha)*np.exp(logp_mixture_aux(x, K)))
-def logp(x): return logp_aux(x, 2)
+#def logp(x): return logp_aux(x, 2)
 
 # define ubvi logpdf
 def logp_ubvi(x): return logp_aux(x,K=2)
@@ -109,9 +109,10 @@ def p_sample(size, K=2):
 
 # CREATE WEIGHT OPT SCHEDULE AND MAXITER
 def w_maxiters(k, long_opt = False):
+    if k > 10: return 10
     if k == 0: return 100
-    if long_opt: return 100
-    return 100
+    if long_opt: return 50
+    return 20
 
 def w_schedule(k):
     if k == 0: return 1.
