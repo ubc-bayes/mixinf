@@ -209,7 +209,7 @@ for r in np.arange(reps):
         yy = np.linspace(ylim[0], ylim[1], nn)
         tt = np.array(np.meshgrid(xx, yy)).T.reshape(nn**2, 2)
         lp = logp(tt).reshape(nn, nn).T
-        cp = plt.contour(xx, yy, np.exp(lp), colors = 'black')
+        cp = plt.contour(xx, yy, np.exp(lp), levels = Levels, colors = 'black')
         hcp,_ = cp.legend_elements()
         hcps = [hcp[0]]
         legends = ['p(x)']

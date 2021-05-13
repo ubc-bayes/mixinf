@@ -211,7 +211,7 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler = None, plt_lims 
         yy = np.linspace(y_lower, y_upper, nn)
         tt = np.array(np.meshgrid(xx, yy)).T.reshape(nn**2, 2)
         lp = logp(tt).reshape(nn, nn).T
-        cp = plt.contour(xx, yy, np.exp(lp), colors = 'black')
+        cp = plt.contour(xx, yy, np.exp(lp), colors = 'black', levels = 4)
         hcp,_ = cp.legend_elements()
         hcps = [hcp[0]]
         legends = ['p(x)']
@@ -223,7 +223,7 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler = None, plt_lims 
             lbvi_sample = mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler)
             #plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'approximation')
             lbvi_kde = stats.gaussian_kde(lbvi_sample.T, bw_method = 0.05).evaluate(tt.T).reshape(nn, nn).T
-            cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = Levels, colors = '#39558CFF')
+            cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = 4, colors = '#39558CFF')
             hcp_lbvi,_ = cp_lbvi.legend_elements()
             hcps.append(hcp_lbvi[0])
             legends.append('LBVI')
