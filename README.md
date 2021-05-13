@@ -2,12 +2,9 @@
 
 This repository contains a Python package that can be used to do Bayesian inference using locally-adapted boosting variational inference (L-BVI).  
 
-![](fourmixture.gif)
-![](four-banana.gif)
-
 <p float="left">
-  <img src="fourmixture.gif" width="400" />
-  <img src="four-banana.gif" width="400" />
+  <img src="fourmixture.gif" width="500" />
+  <img src="four-banana.gif" width="500" />
 </p>
 
 ## Repository Status
