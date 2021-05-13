@@ -125,12 +125,15 @@ bvi_color = '#74D055FF'
 gvi_color = '0.2'
 hmc_color = '0.3'
 rwmh_color = '0.4'
+normal_linewidth = 4
 muted_alpha = 0.4 # for toning down less important lines
-muted_linewidth = 1
-legend_fontsize = 'x-small'
+muted_linewidth = 3
+#legend_fontsize = 'x-small'
+legend_fontsize = 'medium'
 
 
 #for r in np.arange(reps):
+#    print(str(r+1) + '/'+ str(reps), end='\r')
 #    for tol in tols:
 #
 #        if lbvi_flag:
@@ -190,43 +193,43 @@ legend_fontsize = 'x-small'
 #        # initialize plot with target log density
 #        t = np.linspace(-50, 50, 2000)
 #        f = logp(t[:,np.newaxis])
-#        plt.plot(t, f, linestyle = 'solid', color = 'black', label = 'log p(x)', linewidth = 1.75)
+#        plt.plot(t, f, linestyle = 'solid', color = 'black', label = 'log p(x)', lw = normal_linewidth)
 #
 #        if lbvi_flag:
 #            # add lbvi log density based on kde
 #            lbvi_kde = stats.gaussian_kde(np.squeeze(lbvi_sample), bw_method = 0.25).evaluate(t)
-#            plt.plot(t, np.log(lbvi_kde), linestyle = 'dashed', color = lbvi_color, label = 'LBVI')
+#            plt.plot(t, np.log(lbvi_kde), linestyle = 'dashed', color = lbvi_color, label = 'LBVI', lw = normal_linewidth)
 #
 #        if ubvi_flag:
 #            # add ubvi log density
 #            lq = ubvi.mixture_logpdf(t[:, np.newaxis], ubvi_mu, ubvi_Sig, ubvi_wt)
-#            plt.plot(t, lq, linestyle = 'dashed', color = ubvi_color, label='UBVI')
+#            plt.plot(t, lq, linestyle = 'dashed', color = ubvi_color, label='UBVI', lw = normal_linewidth)
 #
 #        if bvi_flag:
 #            # add bvi log density
-#            plt.plot(t, bvi_logq(t[:,np.newaxis]), linestyle = 'dashed', color = bvi_color, label='BBBVI')
+#            plt.plot(t, bvi_logq(t[:,np.newaxis]), linestyle = 'dashed', color = bvi_color, label='BBBVI', lw = normal_linewidth)
 #
 #        if gvi_flag:
 #            # add gvi log density
-#            plt.plot(t, gvi_logq(t[:,np.newaxis]), linestyle = 'dashed', color = gvi_color, label='GVI', alpha = muted_alpha)
+#            plt.plot(t, gvi_logq(t[:,np.newaxis]), linestyle = 'dashed', color = gvi_color, label='GVI', alpha = muted_alpha, lw = muted_linewidth)
 #
-#        if hmc_flag:
-#            # add rwmh log density based on kde
-#            hmc_kde = stats.gaussian_kde(hmc, bw_method = 0.05).evaluate(t)
-#            plt.plot(t, np.log(hmc_kde), linestyle = 'dashdot', color = hmc_color, label = 'HMC', alpha = muted_alpha)
+#        #if hmc_flag:
+#        #    # add rwmh log density based on kde
+#        #    hmc_kde = stats.gaussian_kde(hmc, bw_method = 0.05).evaluate(t)
+#        #    plt.plot(t, np.log(hmc_kde), linestyle = 'dashdot', color = hmc_color, label = 'HMC', alpha = muted_alpha, lw = muted_linewidth)
 #
 #
-#        if rwmh_flag:
-#            # add rwmh log density based on kde
-#            rwmh_kde = stats.gaussian_kde(rwmh, bw_method = 0.25).evaluate(t)
-#            plt.plot(t, np.log(rwmh_kde), linestyle = 'dotted', color = rwmh_color, label = 'RWMH', alpha = muted_alpha)
+#        #if rwmh_flag:
+#        #    # add rwmh log density based on kde
+#        #    rwmh_kde = stats.gaussian_kde(rwmh, bw_method = 0.25).evaluate(t)
+#        #    plt.plot(t, np.log(rwmh_kde), linestyle = 'dotted', color = rwmh_color, label = 'RWMH', alpha = muted_alpha, lw = muted_linewidth)
 #
 #        # add labels
 #        #plt.xlabel('x')
 #        #plt.ylabel('Log-density')
 #        #plt.title('Log-density comparison')
 #        plt.xlim(-50,50)
-#        plt.legend(fontsize = legend_fontsize)
+#        #plt.legend(fontsize = legend_fontsize)
 #
 #        # save plot
 #        plt.savefig(path + 'logdensities/log-density_comparison' + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
@@ -238,23 +241,23 @@ legend_fontsize = 'x-small'
 #        # initialize plot with target density
 #        t = np.linspace(xlim[0], xlim[1], 2000)
 #        f = p(t[:,np.newaxis])
-#        plt.plot(t, f, linestyle = 'solid', color = 'black', label = 'p(x)', linewidth = 1.75)
+#        plt.plot(t, f, linestyle = 'solid', color = 'black', label = 'p(x)', lw = normal_linewidth)
 #
 #        if lbvi_flag:
 #            # add lbvi histogram
 #            #kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
 #            #plt.hist(kk, label = 'LBVI', density = True, bins = 50, alpha = 0.3, facecolor = lbvi_color, edgecolor='black')
 #            lbvi_kde = stats.gaussian_kde(np.squeeze(lbvi_sample), bw_method = 0.05).evaluate(t)
-#            plt.plot(t, lbvi_kde, linestyle = 'dashed', color = lbvi_color, label = 'LBVI')
+#            plt.plot(t, lbvi_kde, linestyle = 'dashed', color = lbvi_color, label = 'LBVI', lw = normal_linewidth)
 #
 #        if ubvi_flag:
 #            # add ubvi density
 #            lq = ubvi.mixture_logpdf(t[:, np.newaxis], ubvi_mu, ubvi_Sig, ubvi_wt)
-#            plt.plot(t, np.exp(lq), linestyle = 'dashed', color = ubvi_color, label='UBVI')
+#            plt.plot(t, np.exp(lq), linestyle = 'dashed', color = ubvi_color, label='UBVI', lw = normal_linewidth)
 #
 #        if bvi_flag:
 #            # add bvi density
-#            plt.plot(t, np.exp(bvi_logq(t[:,np.newaxis])), linestyle = 'dashed', color = bvi_color, label='BBBVI')
+#            plt.plot(t, np.exp(bvi_logq(t[:,np.newaxis])), linestyle = 'dashed', color = bvi_color, label='BBBVI', lw = normal_linewidth)
 #
 #        if rwmh_flag:
 #            # add rwmh histogram
@@ -278,15 +281,15 @@ legend_fontsize = 'x-small'
 #        #plt.ylabel('Density')
 #        #plt.title('Density comparison')
 #        plt.xlim(xlim)
-#        plt.legend(fontsize = legend_fontsize)
+#        plt.legend(fontsize = legend_fontsize, frameon = False)
 #
 #        # save plot
 #        plt.savefig(path + 'densities/density_comparison'  + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
 #        plt.clf()
 #        ##########################
 
-msize = 15
-pltalpha = 0.5
+msize = 30
+pltalpha = 0.75
 
 # TIMES PLOT #################
 if lbvi_flag and bvi_flag and ubvi_flag:
@@ -388,27 +391,27 @@ if lbvi_flag and bvi_flag and ubvi_flag:
     counter = 1
     for r in np.arange(1,reps+1):
         for tol in tols:
-            lbvi_times = np.load(inpath + 'lbvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-            lbvi_kernels = np.load(inpath + 'lbvi/kernels_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-            lbvi_obj = np.load(inpath + 'lbvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            lbvi_times = np.load(inpath + 'lbvi/cput_' + str(r) + '_' + str(tol) + '.npy')[-1]
+            lbvi_kernels = np.load(inpath + 'lbvi/kernels_' + str(r) + '_' + str(tol) + '.npy')[-1]
+            lbvi_obj = np.load(inpath + 'lbvi/obj_' + str(r) + '_' + str(tol) + '.npy')[-1]
             if counter == 1:
                 ax1.scatter(lbvi_times, np.log(lbvi_obj), c = lbvi_color, label = 'LBVI', s = msize, alpha = pltalpha)
             else:
                 ax1.scatter(lbvi_times, np.log(lbvi_obj), c = lbvi_color, s = msize, alpha = pltalpha)
             ax2.scatter(lbvi_kernels, np.log(lbvi_obj), c = lbvi_color, s = msize, alpha = pltalpha)
 
-            ubvi_times = np.load(inpath + 'ubvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-            ubvi_kernels = np.load(inpath + 'ubvi/kernels_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-            ubvi_obj = np.load(inpath + 'ubvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            ubvi_times = np.load(inpath + 'ubvi/cput_' + str(r) + '_' + str(tol) + '.npy')[-1]
+            ubvi_kernels = np.load(inpath + 'ubvi/kernels_' + str(r) + '_' + str(tol) + '.npy')[-1]
+            ubvi_obj = np.load(inpath + 'ubvi/obj_' + str(r) + '_' + str(tol) + '.npy')[-1]
             if counter == 1:
                 ax1.scatter(ubvi_times, np.log(ubvi_obj), c = ubvi_color, label = 'UBVI', s = msize, alpha = pltalpha)
             else:
                 ax1.scatter(ubvi_times, np.log(ubvi_obj), c = ubvi_color, s = msize, alpha = pltalpha)
             ax2.scatter(ubvi_kernels, np.log(ubvi_obj), c = ubvi_color, s = msize, alpha = pltalpha)
 
-            bvi_times = np.load(inpath + 'bvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-            bvi_kernels = np.load(inpath + 'bvi/kernels_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-            bvi_obj = np.load(inpath + 'bvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            bvi_times = np.load(inpath + 'bvi/cput_' + str(r) + '_' + str(tol) + '.npy')[-1]
+            bvi_kernels = np.load(inpath + 'bvi/kernels_' + str(r) + '_' + str(tol) + '.npy')[-1]
+            bvi_obj = np.load(inpath + 'bvi/obj_' + str(r) + '_' + str(tol) + '.npy')[-1]
             if counter == 1:
                 ax1.scatter(bvi_times, np.log(bvi_obj), c = bvi_color, label = 'BVI', s = msize, alpha = pltalpha)
             else:
@@ -421,7 +424,7 @@ if lbvi_flag and bvi_flag and ubvi_flag:
     # add labels and save
     ax1.set_xlabel('CPU time (s)')
     ax1.set_ylabel('log KSD')
-    ax1.legend(fontsize = legend_fontsize, loc = 'lower right')
+    #ax1.legend(fontsize = legend_fontsize, loc = 'lower right')
     ax2.set_xlabel('Number of non-zero kernels')
     ax2.set_ylabel('log KSD')
     plt.tight_layout()
