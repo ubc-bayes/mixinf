@@ -182,19 +182,19 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler = None, plt_lims 
         plt.plot(tt, zz, '-k', label = 'target')
 
         if kernel_sampler is None:
-            plt.hist(y, label = '', density = True, alpha = 0.5, facecolor = 'blue', edgecolor='black')
+            plt.hist(y, label = '', density = True, alpha = 0.5, facecolor = '#39558CFF', edgecolor='black')
         else:
             # generate and plot approximation
-            kk = np.squeeze(mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler, verbose = False))
-            plt.hist(kk, label = 'LBVI', density = True, bins = 75, alpha = 0.5, facecolor = 'blue', edgecolor='black')
+            lbvi_sample = np.squeeze(mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler, verbose = False))
+            plt.hist(lbvi_sample, label = 'LBVI', density = True, bins = 75, alpha = 0.5, facecolor = 'blue', edgecolor='black')
             plt.plot(np.squeeze(y), np.zeros(y.shape[0]), 'ok')
 
         # beautify and save plot
         plt.ylim(0, y_upper)
         plt.xlim(x_lower, x_upper)
         plt.legend()
-        plt.suptitle('l-bvi approximation to density')
-        plt.title('iter: ' + str(iter_no))
+        #plt.suptitle('l-bvi approximation to density')
+        #plt.title('iter: ' + str(iter_no))
         plt.savefig(plot_path + 'iter_' + str(iter_no) + '.jpg', dpi = 300)
 
     # bivariate dataplotting
@@ -206,31 +206,37 @@ def plotting(y, T, w, logp, plot_path, iter_no, kernel_sampler = None, plt_lims 
         y_upper = plt_lims[3]
 
         # plot target density
-        xx = np.linspace(x_lower, x_upper, 1000)
-        yy = np.linspace(y_lower, y_upper, 1000)
-        tt = np.array(np.meshgrid(xx, yy)).T.reshape(1000**2, 2)
-        f = np.exp(logp(tt)).reshape(1000, 1000).T
-        fig,ax=plt.subplots(1,1)
-        cp = ax.contour(xx, yy, f, levels = 10)
-        fig.colorbar(cp)
+        nn = 100
+        xx = np.linspace(xlim[0], xlim[1], nn)
+        yy = np.linspace(ylim[0], ylim[1], nn)
+        tt = np.array(np.meshgrid(xx, yy)).T.reshape(nn**2, 2)
+        lp = logp(tt).reshape(nn, nn).T
+        cp = plt.contour(xx, yy, np.exp(lp), colors = 'black')
+        hcp,_ = cp.legend_elements()
+        hcps = [hcp[0]]
+        legends = ['p(x)']
 
         if kernel_sampler is None:
             plt.scatter(y[:,0], y[:,1], marker='.', c='k', alpha = 0.2, label = '')
         else:
             # generate and plot approximation
-            kk = mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler)
-            plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'approximation')
+            lbvi_sample = mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler)
+            #plt.scatter(kk[:,0], kk[:,1], marker='.', c='k', alpha = 0.2, label = 'approximation')
+            lbvi_kde = stats.gaussian_kde(lbvi_sample.T, bw_method = 0.05).evaluate(tt.T).reshape(nn, nn).T
+            cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = Levels, colors = '#39558CFF')
+            hcp_lbvi,_ = cp_lbvi.legend_elements()
 
         # beautify and save plot
         plt.ylim(y_lower, y_upper)
         plt.xlim(x_lower, x_upper)
-        plt.legend()
-        plt.suptitle('l-bvi approximation to density')
+        hcps = [hcp[0], hcp_lbvi[0]]
+        legends = ['p(x)', 'UBVI']
+        #plt.suptitle('l-bvi approximation to density')
         # assign plot title
-        if kernel_sampler is None:
-            plt.title('initial sample')
-        else:
-            plt.title('iter: ' + str(iter_no))
+        #if kernel_sampler is None:
+        #    plt.title('initial sample')
+        #else:
+        #    plt.title('iter: ' + str(iter_no))
         plt.savefig(plot_path + 'iter_' + str(iter_no) + '.jpg', dpi = 300)
 
 ###################################
