@@ -436,4 +436,56 @@ if lbvi_flag and bvi_flag and ubvi_flag:
 
 
 
+# TIMES AND KERNELS TOGETHER ###################
+#plt.rcParams.update({'font.size': 12})
+if lbvi_flag and bvi_flag and ubvi_flag:
+    plt.clf()
+    fig, (ax1, ax2) = plt.subplots(2)
+
+    # plot all reps and tols; for the first plot, add labels
+    counter = 1
+    for r in np.arange(1,reps+1):
+        for tol in tols:
+            lbvi_times = np.load(inpath + 'lbvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            lbvi_kernels = np.load(inpath + 'lbvi/kernels_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            lbvi_obj = np.load(inpath + 'lbvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            if counter == 1:
+                ax1.scatter(lbvi_times, np.log(lbvi_obj), c = lbvi_color, label = 'LBVI', s = msize, alpha = pltalpha)
+            else:
+                ax1.scatter(lbvi_times, np.log(lbvi_obj), c = lbvi_color, s = msize, alpha = pltalpha)
+            ax2.scatter(lbvi_kernels, np.log(lbvi_obj), c = lbvi_color, s = msize, alpha = pltalpha)
+
+            ubvi_times = np.load(inpath + 'ubvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            ubvi_kernels = np.load(inpath + 'ubvi/kernels_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            ubvi_obj = np.load(inpath + 'ubvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            if counter == 1:
+                ax1.scatter(ubvi_times, np.log(ubvi_obj), c = ubvi_color, label = 'UBVI', s = msize, alpha = pltalpha)
+            else:
+                ax1.scatter(ubvi_times, np.log(ubvi_obj), c = ubvi_color, s = msize, alpha = pltalpha)
+            ax2.scatter(ubvi_kernels, np.log(ubvi_obj), c = ubvi_color, s = msize, alpha = pltalpha)
+
+            bvi_times = np.load(inpath + 'bvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            bvi_kernels = np.load(inpath + 'bvi/kernels_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            bvi_obj = np.load(inpath + 'bvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
+            if counter == 1:
+                ax1.scatter(bvi_times, np.log(bvi_obj), c = bvi_color, label = 'BVI', s = msize, alpha = pltalpha)
+            else:
+                ax1.scatter(bvi_times, np.log(bvi_obj), c = bvi_color, s = msize, alpha = pltalpha)
+            ax2.scatter(bvi_kernels, np.log(bvi_obj), c = bvi_color, s = msize, alpha = pltalpha)
+
+            counter += 1
+
+
+    # add labels and save
+    ax1.set_xlabel('CPU time (s)')
+    ax1.set_ylabel('log KSD')
+    ax1.legend(fontsize = legend_fontsize, loc = 'lower right')
+    ax2.set_xlabel('Number of non-zero kernels')
+    ax2.set_ylabel('log KSD')
+    plt.tight_layout()
+    plt.savefig(path + 'times_kernels.' + extension, dpi=900, bbox_inches='tight')
+###################
+
+
+
 print('done plotting!')
