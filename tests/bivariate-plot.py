@@ -297,51 +297,51 @@ for r in np.arange(reps):
         plt.clf()
         ##########################
 
-        ## LOG DENSITY PLOT v1
-        #for i in [0,1]:
-        #    # initialize plot with target log density
-        #    if i == 0: t = np.linspace(xlim[0], xlim[1], nn)
-        #    if i == 1: t = np.linspace(ylim[0], ylim[1], nn)
-        #    plt.plot(t, ubvi.logsumexp(lp, axis = 1-i), linestyle = 'solid', color = 'black', label = 'log p(x)', lw = normal_linewidth)
+        # LOG DENSITY PLOT separate
+        for i in [0,1]:
+            # initialize plot with target log density
+            if i == 0: t = np.linspace(xlim[0], xlim[1], nn)
+            if i == 1: t = np.linspace(ylim[0], ylim[1], nn)
+            plt.plot(t, ubvi.logsumexp(lp, axis = 1-i), linestyle = 'solid', color = 'black', label = 'log p(x)', lw = normal_linewidth)
 
-        #    if lbvi_flag:
-        #        # add lbvi log density based on kde
-        #        #lbvi_kde = stats.gaussian_kde(np.squeeze(lbvi_sample[:,i]), bw_method = 0.25).evaluate(t)
-        #        plt.plot(t, ubvi.logsumexp(np.log(lbvi_kde), axis = 1-i), linestyle = 'dashed', color = lbvi_color, label = 'LBVI', lw = normal_linewidth)
+            if lbvi_flag:
+                # add lbvi log density based on kde
+                #lbvi_kde = stats.gaussian_kde(np.squeeze(lbvi_sample[:,i]), bw_method = 0.25).evaluate(t)
+                plt.plot(t, ubvi.logsumexp(np.log(lbvi_kde), axis = 1-i), linestyle = 'dashed', color = lbvi_color, label = 'LBVI', lw = normal_linewidth)
 
-        #    if ubvi_flag:
-        #        # add ubvi log density
-        #        plt.plot(t, ubvi.logsumexp(lq_ubvi, axis=1-i), linestyle = 'dashed', color = ubvi_color, label='UBVI', lw = normal_linewidth)
+            if ubvi_flag:
+                # add ubvi log density
+                plt.plot(t, ubvi.logsumexp(lq_ubvi, axis=1-i), linestyle = 'dashed', color = ubvi_color, label='UBVI', lw = normal_linewidth)
 
-        #    if bvi_flag:
-        #        # add bvi log density
-        #        plt.plot(t, ubvi.logsumexp(lq_bvi, axis=1-i), linestyle = 'dashed', color = bvi_color, label='BBBVI', lw = normal_linewidth)
+            if bvi_flag:
+                # add bvi log density
+                plt.plot(t, ubvi.logsumexp(lq_bvi, axis=1-i), linestyle = 'dashed', color = bvi_color, label='BBBVI', lw = normal_linewidth)
 
-        #    if gvi_flag:
-        #        # add gvi log density
-        #        plt.plot(t, ubvi.logsumexp(lq_gvi, axis=1-i), linestyle = 'dashed', color = gvi_color, label='GVI', alpha = muted_alpha, lw = muted_linewidth)
+            if gvi_flag:
+                # add gvi log density
+                plt.plot(t, ubvi.logsumexp(lq_gvi, axis=1-i), linestyle = 'dashed', color = gvi_color, label='GVI', alpha = muted_alpha, lw = muted_linewidth)
 
-        #    if hmc_flag:
-        #        # add rwmh log density based on kde
-        #        #hmc_kde = stats.gaussian_kde(np.squeeze(hmc[:,i]), bw_method = 1).evaluate(t)
-        #        plt.plot(t, ubvi.logsumexp(np.log(hmc_kde), axis = 1-i), linestyle = 'dashdot', color = hmc_color, label = 'HMC', alpha = muted_alpha, lw = #muted_linewidth)
+            if hmc_flag:
+                # add rwmh log density based on kde
+                #hmc_kde = stats.gaussian_kde(np.squeeze(hmc[:,i]), bw_method = 1).evaluate(t)
+                plt.plot(t, ubvi.logsumexp(np.log(hmc_kde), axis = 1-i), linestyle = 'dashdot', color = hmc_color, label = 'HMC', alpha = muted_alpha, lw = muted_linewidth)
 
-        #    if rwmh_flag:
-        #        # add rwmh log density based on kde
-        #        #rwmh_kde = stats.gaussian_kde(np.squeeze(rwmh[:,i]), bw_method = 0.15).evaluate(t)
-        #        plt.plot(t, ubvi.logsumexp(np.log(rwmh_kde), axis = 1-i), linestyle = 'dotted', color = rwmh_color, label = 'RWMH', alpha = muted_alpha, lw = #muted_linewidth)
+            if rwmh_flag:
+                # add rwmh log density based on kde
+                #rwmh_kde = stats.gaussian_kde(np.squeeze(rwmh[:,i]), bw_method = 0.15).evaluate(t)
+                plt.plot(t, ubvi.logsumexp(np.log(rwmh_kde), axis = 1-i), linestyle = 'dotted', color = rwmh_color, label = 'RWMH', alpha = muted_alpha, lw = muted_linewidth)
 
-        #    # add labels and save plot
-        #    if i == 0:
-        #        title = 'logdensities/log-density_comparison_xaxis'
-        #        plt.xlim(xlim)
-        #    if i == 1:
-        #        title = 'logdensities/log-density_comparison_yaxis'
-        #        plt.xlim(ylim)
-        #    plt.legend(fontsize = legend_fontsize)
-        #    plt.savefig(path + title + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
-        #    plt.clf()
-        ############################
+            # add labels and save plot
+            if i == 0:
+                title = 'logdensities/log-density_comparison_xaxis'
+                plt.xlim(xlim)
+            if i == 1:
+                title = 'logdensities/log-density_comparison_yaxis'
+                plt.xlim(ylim)
+            plt.legend(fontsize = legend_fontsize)
+            plt.savefig(path + title + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
+            plt.clf()
+        ###########################
 
         # LOG DENSITY PLOT v2 (together)
         # initialize plot with target log density
