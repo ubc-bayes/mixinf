@@ -125,10 +125,10 @@ ubvi_gamma = lambda itr : 1./np.sqrt(1+itr)
 
 # CREATE BVI SCHEDULES
 # schedule tuning
-b1 = 0.001
+b1 = 0.01
 gamma_alpha = lambda k : b1 / np.sqrt(k+1)
 
-b2 = 0.001
+b2 = 0.01
 gamma_init = lambda k : b2 / np.sqrt(k+1)
 
 # regularization
