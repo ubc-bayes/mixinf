@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(description="run lbvi other vi and mcmc methods
 
 parser.add_argument('-d', '--dim', type = int,
 help = 'dimension on which to run both optimizations')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana', 'banana-gaussian', 'four-banana'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana', 'banana-gaussian', 'four-banana', 'double-banana-gaussian'],
 help = 'target distribution to use')
 parser.add_argument('-B', type = int, default = 500,
 help = 'MC sample size for gradient estimation in SGD')
@@ -223,6 +223,11 @@ if target == 'banana-gaussian':
 if target == 'four-banana':
     from targets.four_banana import *
     plt_lims = np.array([-3, 3, -3, 3])
+
+if target == 'double-banana-gaussian':
+    from targets.doublebanana_gaussian import *
+    plt_lims = np.array([-25, 25, -30, 30])
+
 
 
 # import kernel for mixture
