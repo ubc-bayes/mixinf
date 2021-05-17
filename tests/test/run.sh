@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # run simuluation
-python3 -W ignore ../tests.py -d 1 --target '4-mixture' -B 1000 --reps 1 --tol 0.0 --lbvi -N 10 --kernel 'gaussian' --rkhs 'rbf' --maxiter 20 -t 25 -T 25 --weight_max 20 --cleanup --verbose
+python3 -W ignore ../tests.py -d 1 --target '4-mixture' -B 100000 --reps 1 --tol 0.0 --lbvi -N 5 --kernel 'gaussian' --rkhs 'rbf' --maxiter 10 -t 5 -T 5 --weight_max 20 --cleanup --verbose
 #--ubvi --ubvi_kernels 20 --ubvi_init 5000 --ubvi_inflation 1 --ubvi_logfg 5000 --ubvi_adamiter 5000 --bvi --bvi_kernels 20 --bvi_diagonal --gvi --hmc --hmc_T 5000 --hmc_L 100 --hmc_eps 0.1 --rwmh --rwmh_T 5000 --cleanup --verbose
 
 

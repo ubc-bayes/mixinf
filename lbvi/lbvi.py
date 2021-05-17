@@ -357,6 +357,7 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, tol = 0.0
     y = y[active,:]
     T = T[active]
     w = w[active]
+    w[w == 0] = 0.1
     #w = np.ones(w.shape[0]) / w.shape[0]
     w = w / w.sum()
     n = active.shape[0]
@@ -376,20 +377,27 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, tol = 0.0
         w_step = - (b/np.sqrt(k+1)) * Dw # step size without momentum
         w += w_step # update weight
         w = simplex_project(w) # project to simplex
+        #if verbose:
+        #    print('Dw: ' + str(Dw))
+        #    print('step: ' + str(w_step))
+        #    print('w: ' + str(w))
+        #    print()
         if np.linalg.norm(Dw) < tol: convergence = True # update convergence
 
-        if trace: obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, B = 10000))
+        #if trace:
+        #    if verbose: print('estimating ksd')
+        #    obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, B = 10000))
 
 
     # end for
 
-    if trace:
-        plt.clf()
-        plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
-        plt.xlabel('iteration')
-        plt.ylabel('kernelized stein discrepancy')
-        plt.title('trace plot of ksd in weight optimization')
-        plt.savefig(tracepath + str(np.sum(T) / t_increment) + '.jpg', dpi = 300)
+    #if trace:
+    #    plt.clf()
+    #    plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
+    #    plt.xlabel('iteration')
+    #    plt.ylabel('kernelized stein discrepancy')
+    #    plt.title('trace plot of ksd in weight optimization')
+    #    plt.savefig(tracepath + str(np.sum(T) / t_increment) + '.jpg', dpi = 300)
 
     if verbose:
         print('weights optimized in ' + str(k+1) + ' iterations')

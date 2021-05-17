@@ -4,7 +4,7 @@ import numpy as np
 # Gaussian proposals
 sd = 1
 #sd = 0.25
-def logr(x, y): return -0.5 * x.shape[1] * np.sum((x - y)**2, axis = -1) / sd**2 - 0.5*x.shape[1]*np.log(2*np.pi) - x.shape[1]*np.log(sd) # gaussian log density
+def logr(x, y): return -0.5*np.sum((x - y)**2, axis = -1)/sd**2 - 0.5*x.shape[1]*np.log(2*np.pi) - 0.5*np.log(sd) # gaussian log density
 def r_sampler(T, y): return sd * np.random.randn(T, y.shape[1]) + y # gaussian sampler
 
 # mcmc kernel sampler

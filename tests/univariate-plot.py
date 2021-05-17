@@ -302,23 +302,23 @@ if lbvi_flag and bvi_flag and ubvi_flag:
             lbvi_times = np.load(inpath + 'lbvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
             lbvi_obj = np.load(inpath + 'lbvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
             if counter == 1:
-                plt.scatter(lbvi_times, np.log(lbvi_obj), c = lbvi_color, label = 'LBVI', s = msize, alpha = pltalpha)
+                plt.scatter(lbvi_times, np.log10(lbvi_obj), c = lbvi_color, label = 'LBVI', s = msize, alpha = pltalpha)
             else:
-                plt.scatter(lbvi_times, np.log(lbvi_obj), c = lbvi_color, s = msize, alpha = pltalpha)
+                plt.scatter(lbvi_times, np.log10(lbvi_obj), c = lbvi_color, s = msize, alpha = pltalpha)
 
             ubvi_times = np.load(inpath + 'ubvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
             ubvi_obj = np.load(inpath + 'ubvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
             if counter == 1:
-                plt.scatter(ubvi_times, np.log(ubvi_obj), c = ubvi_color, label = 'UBVI', s = msize, alpha = pltalpha)
+                plt.scatter(ubvi_times, np.log10(ubvi_obj), c = ubvi_color, label = 'UBVI', s = msize, alpha = pltalpha)
             else:
-                plt.scatter(ubvi_times, np.log(ubvi_obj), c = ubvi_color, s = msize, alpha = pltalpha)
+                plt.scatter(ubvi_times, np.log10(ubvi_obj), c = ubvi_color, s = msize, alpha = pltalpha)
 
             bvi_times = np.load(inpath + 'bvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
             bvi_obj = np.load(inpath + 'bvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
             if counter == 1:
-                plt.scatter(bvi_times, np.log(bvi_obj), c = bvi_color, label = 'BVI', s = msize, alpha = pltalpha)
+                plt.scatter(bvi_times, np.log10(bvi_obj), c = bvi_color, label = 'BVI', s = msize, alpha = pltalpha)
             else:
-                plt.scatter(bvi_times, np.log(bvi_obj), c = bvi_color, s = msize, alpha = pltalpha)
+                plt.scatter(bvi_times, np.log10(bvi_obj), c = bvi_color, s = msize, alpha = pltalpha)
 
             counter += 1
 
@@ -327,6 +327,7 @@ if lbvi_flag and bvi_flag and ubvi_flag:
     plt.xlabel('CPU time (s)')
     plt.ylabel('log KSD')
     #plt.ylim(0, np.log(0.1))
+    plt.xlim(0,1000)
     plt.title('')
     plt.suptitle('')
     plt.legend(fontsize = legend_fontsize, loc = 'lower right')
@@ -374,6 +375,7 @@ if lbvi_flag and bvi_flag and ubvi_flag:
     plt.xlabel('Number of non-zero kernels')
     plt.ylabel('log KSD')
     #plt.ylim(0, np.log(0.1))
+    plt.xlim(0,20)
     plt.title('')
     plt.suptitle('')
     plt.legend(fontsize = legend_fontsize, loc = 'lower right')
