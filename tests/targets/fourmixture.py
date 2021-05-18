@@ -58,10 +58,15 @@ def sample(size, K):
     return mixture_rvs(size, weights, np.repeat(mu,K).reshape(mu.shape[0],K), sd * np.ones(weights.shape[0]))
 
 
+def p_sample(size, K):
+    #return np.array([-2.5, 2.5]).reshape(2,1)
+    return mixture_rvs(size, weights, np.repeat(mu,K).reshape(mu.shape[0],K), sd * np.ones(weights.shape[0]))
+
+
 def w_maxiters(k, long_opt = False):
-    if k == 0: return 50
-    if long_opt: return 50
-    return 50
+    if k == 0: return 5
+    if long_opt: return 5
+    return 5
 
 def w_schedule(k):
     #if k == 0: return 1.

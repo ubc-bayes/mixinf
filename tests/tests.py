@@ -70,8 +70,14 @@ parser.add_argument('--bvi_diagonal', action = "store_true",
 help = 'should bbbvi be run with a diagonal covariane matrix?')
 parser.add_argument('--bvi_kernels', type = int, default = 20,
 help = 'number of kernels to add in the bvi mixture')
+parser.add_argument('--bvi_init', type = int, default = 1000,
+help = 'number of iterations to find the new mixture')
+parser.add_argument('--bvi_alpha', type = int, default = 1000,
+help = 'number of iterations to optimize the weights')
 parser.add_argument('--gvi', action = "store_true",
 help = 'run standard gaussian vi?')
+parser.add_argument('--gvi_iter', type = int, default = 5000,
+help = 'number of iterations to find GVI approximation')
 parser.add_argument('--hmc', action = "store_true",
 help = 'run hamiltonian monte carlo?')
 parser.add_argument('--hmc_T', type = int, default = 1000,
@@ -187,6 +193,10 @@ ubvi_logfg = args.ubvi_logfg
 ubvi_adamiter = args.ubvi_adamiter
 # bvi
 bvi_kernels = args.bvi_kernels
+bvi_init = args.bvi_init
+bvi_alpha = args.bvi_alpha
+# gvi
+gvi_iter = args.gvi_iter
 # hmc
 hmc_T = args.hmc_T
 hmc_L = args.hmc_L
@@ -379,14 +389,14 @@ for r in reps:
 
 
             # generate sample
-            if verbose: print('generating sample')
+            if verbose: print('generating sample')0
             y = sample(N, K)
 
             # run algorithm
             if verbose:
                 print('starting lbvi optimization')
                 print()
-            w, T, obj, cput, act_k = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, verbose = verbose, plot = True, gif = True, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True)
+            w, T, obj, cput, act_k = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, verbose = verbose, plot = True, gif = False, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True)
             #lbvi_time = np.array([lbvi_end - lbvi_start])
             #np.save(path + 'times/lbvi_time' + str(r) + '_' + str(tol) + '_' + str(seed) + '.npy', lbvi_time)
             if verbose: print()
@@ -458,16 +468,6 @@ for r in reps:
             if verbose: print('saving ubvi results')
             no_ubvi_kernels = len(ubvi_results)
 
-            # extract ksd and trim according to tolerance
-            # first init values then iterate until getting the one with ksd < tol
-            #tmp_ksd = np.inf
-            #ubvi_ksd[r,i] = ubvi_results[no_ubvi_kernels-1]['ksd'][-1]
-            #jstar = len(ubvi_results[no_ubvi_kernels-1]['ksd']) - 1
-            #for j in range(1, len(ubvi_results[no_ubvi_kernels-1]['ksd'])):
-            #    if ubvi_results[no_ubvi_kernels-1]['ksd'][j] < tol:
-            #        ubvi_ksd[r,i] = ubvi_results[no_ubvi_kernels-1]['ksd'][j]
-            #        jstar = j # useful to trim means, sigs, and weights, but it might not be the best idea
-            #        break
 
             # extract results
             mus = ubvi_results[no_ubvi_kernels-1]['mus']#[:jstar,:]
@@ -489,20 +489,6 @@ for r in reps:
             ubvi_times[r_counter-1,i] = cput[-1]
             ubvi_ksd[r_counter-1,i] = obj[-1]
             ubvi_kernel[r_counter-1,i] = act_k[-1]
-
-
-            #if os.path.exists(tmp_path + 'results.pk'):
-            #    f = open(tmp_path + 'results.pk', 'rb')
-            #    res = pk.load(f)
-            #    f.close()
-            #    res[0].append(ubvi_results)
-            #    f = open(tmp_path + 'results.pk', 'wb')
-            #    pk.dump(res, f)
-            #    f.close()
-            #else:
-            #    f = open(tmp_path + 'results.pk', 'wb')
-            #    pk.dump(([ubvi_results]), f)
-            #    f.close()
 
 
             # plot trace
@@ -536,13 +522,9 @@ for r in reps:
             if verbose: print()
             # split by whether covariance matrix is full or diagonal
             if bvi_diagonal:
-                mus, Sigmas, alphas, objs, cput, act_k = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, tol, verbose = verbose, traceplot = True, plotpath = path + 'bvi/plots/', stop_up = stop_up)
-                # convert Sigmas into stack of arrays
-                #Sigmas = Sigmas[:,np.newaxis]*np.eye(K)
+                mus, Sigmas, alphas, objs, cput, act_k = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up)
             else:
-                mus, Sigmas, alphas, objs, cput, act_k = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, B, tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up)
-            #bvi_time = np.array([bvi_end - bvi_start])
-            #np.save(path + 'times/bvi_time' + str(r) + '_' + str(tol) + '_' + str(seed) + '.npy', bvi_time)
+                mus, Sigmas, alphas, objs, cput, act_k = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up)
             if verbose: print()
 
             # save results
@@ -580,7 +562,7 @@ for r in reps:
             if verbose: print('start gaussian vi optimization')
             if verbose: print()
             y = sample(100, K)
-            mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = gvi(logp, K, mu0 = np.mean(y, axis=0), var0 = np.amax(np.var(y, axis=0)), gamma_init = gamma_init, B = B, maxiter = 5000, tol = tol, verbose = False, traceplot = True, plotpath = path + 'gvi/', iteration = 1)
+            mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = gvi(logp, K, mu0 = np.mean(y, axis=0), var0 = np.amax(np.var(y, axis=0)), gamma_init = gamma_init, B = B, maxiter = gvi_iter, tol = tol, verbose = False, traceplot = True, plotpath = path + 'gvi/', iteration = 1)
 
             # save results
             if verbose: print('saving gvi results')

@@ -318,7 +318,7 @@ def new_gaussian(logp, K, diagonal = False, mu0 = None, var0 = None, gamma_init 
 
 
 
-def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, B = 1000, tol = 0.0001, verbose = True, traceplot = True, plotpath = 'plots/', stop_up = None):
+def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, maxiter_alpha = 1000, maxiter_init = 1000, B = 1000, tol = 0.0001, verbose = True, traceplot = True, plotpath = 'plots/', stop_up = None):
 
     if verbose:
         print('running boosting black-box variational inference')
@@ -332,7 +332,7 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
     # initialize
     convergence = False
     if verbose: print('getting initial approximation')
-    mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, diagonal = False, gamma_init = gamma_init, B = B, maxiter = 1000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
+    mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, diagonal = False, gamma_init = gamma_init, B = B, maxiter = maxiter_init, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
     if verbose:
         print('initial mean: ' + str(mu))
         print('initial variance: ' + str(Sigma))
@@ -383,7 +383,7 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
         if verbose: print('obtaining new component')
         logresidual = lambda x : (logp(x) - logq(x)) / regularization(iter_no)
         try:
-            mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logresidual, K,  diagonal = False, mu0 = mu_guess, var0 = Sigma_guess, gamma_init = gamma_init, B = B, maxiter = 1000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath, iteration = iter_no+1)
+            mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logresidual, K,  diagonal = False, mu0 = mu_guess, var0 = Sigma_guess, gamma_init = gamma_init, B = B, maxiter = maxiter_init, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath, iteration = iter_no+1)
         except:
             if verbose: print('new component optimization failed, setting to previous component')
 
@@ -403,7 +403,7 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
         # optimize weights
         if verbose: print('optimizing weights')
         try:
-            alpha = update_alpha(logq, sample_q, logh, sample_h, logp, K, gamma_alpha = gamma_alpha, B = B, verbose = verbose, traceplot = traceplot, plotpath = plotpath, maxiter = 1000, tol = 1e-10, iteration = iter_no+1)
+            alpha = update_alpha(logq, sample_q, logh, sample_h, logp, K, gamma_alpha = gamma_alpha, B = B, verbose = verbose, traceplot = traceplot, plotpath = plotpath, maxiter = maxiter_alpha, tol = 1e-10, iteration = iter_no+1)
             if np.isnan(alpha):
                 print('weight is NaN; setting new weight to 0')
                 alpha = 0
@@ -457,7 +457,7 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
     return mus[0:iter_no,:], Sigmas[0:iter_no,:,:], alphas[0:iter_no], objs, cpu_time, active_kernels
 
 
-def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, B = 1000, tol = 0.0001, verbose = True, traceplot = True, plotpath = 'plots/', stop_up = None):
+def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, maxiter_alpha = 1000, maxiter_init = 1000, B = 1000, tol = 0.0001, verbose = True, traceplot = True, plotpath = 'plots/', stop_up = None):
 
     if verbose:
         print('running boosting black-box variational inference with diagonal covariance matrix')
@@ -471,7 +471,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
     # initialize
     convergence = False
     if verbose: print('getting initial approximation')
-    mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, diagonal = True, gamma_init = gamma_init, B = B, maxiter = 1000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
+    mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, diagonal = True, gamma_init = gamma_init, B = B, maxiter = maxiter_init, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
     if verbose:
         print('initial mean: ' + str(mu))
         print('initial variance: ' + str(Sigma))
@@ -527,7 +527,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         #print('logp(1) = ' + str(logp(np.ones((1,K)))))
         #print('logresidual(1) = ' + str(logresidual(np.ones((1,K)))))
         try:
-            mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logresidual, K,  diagonal = True, mu0 = mu_guess, var0 = Sigma_guess, gamma_init = gamma_init, B = B, maxiter = 1000, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath, iteration = iter_no+1)
+            mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logresidual, K,  diagonal = True, mu0 = mu_guess, var0 = Sigma_guess, gamma_init = gamma_init, B = B, maxiter = maxiter_init, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath, iteration = iter_no+1)
             if np.isnan(mu).any() or np.isnan(Sigma).any():
                 print('nans in estimates, setting to previous component')
                 mu = mus[iter_no-1,:]
@@ -555,7 +555,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         # optimize weights
         if verbose: print('optimizing weights')
         try:
-            alpha = update_alpha(logq, sample_q, logh, sample_h, logp, K, gamma_alpha = gamma_alpha, B = B, verbose = verbose, traceplot = traceplot, plotpath = plotpath, maxiter = 1000, tol = 1e-10, iteration = iter_no+1)
+            alpha = update_alpha(logq, sample_q, logh, sample_h, logp, K, gamma_alpha = gamma_alpha, B = B, verbose = verbose, traceplot = traceplot, plotpath = plotpath, maxiter = maxiter_alpha, tol = 1e-10, iteration = iter_no+1)
             if np.isnan(alpha):
                 print('weight is NaN; setting new weight to 0')
                 alpha = 0
