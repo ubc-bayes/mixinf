@@ -28,30 +28,29 @@ def logp_mixture_aux(x, K):
 
 
 def logp_banana1(x, K = 2):
-    y = -x
-    y[...,1] = y[...,1] + 15
-    return -0.5*y[..., 0]**2 / 50 - 0.5*(y[..., 1] + 0.1*y[..., 0]**2 - 100*0.1)**2
+    return -0.5*x[..., 0]**2 / 50 - 0.5*(-x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2
 
 def logp_banana2(x, K = 2):
-    y = np.copy(x)
-    y[...,1] = y[...,1] + 15
-    return -0.5*y[..., 0]**2 / 50 - 0.5*(y[..., 1] + 0.1*y[..., 0]**2 - 100*0.1)**2
+    return -0.5*x[..., 0]**2 / 50 - 0.5*(x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2
 
 alpha_b = 0.5 # each banana has the same weight
-def logp_banana_aux(x): return np.log(alpha_b*np.exp(logp_banana1(x,2)) + (1-alpha_b)*np.exp(logp_banana2(x,2)))
+def logp_banana_aux(x):
+    max_value = np.maximum(np.log(alpha_b)+logp_banana1(x), np.log(1-alpha_b)+logp_banana2(x))
+    return max_value + np.log(np.exp(np.log(alpha_b)+logp_banana1(x)-max_value)+np.exp(np.log(1-alpha_b)+logp_banana2(x)-max_value))
+    #return np.log(alpha_b*np.exp(logp_banana1(x,2)) + (1-alpha_b)*np.exp(logp_banana2(x,2)))
 
 alpha = 0.05 # double banana has small weight because it's very picky
 def logp_aux(x, K = 2):
-    return np.log(alpha*np.exp(logp_banana_aux(x)) + (1-alpha)*np.exp(logp_mixture_aux(x, K)))
-def logp(x): return logp_aux(x, 2)
+    max_value = np.maximum(np.log(alpha)+logp_banana_aux(x), np.log(1-alpha)+logp_mixture_aux(x, K))
+    return max_value + np.log(np.exp(np.log(alpha)+logp_banana_aux(x)-max_value)+np.exp(np.log(1-alpha)+logp_mixture_aux(x, K)-max_value))
+    #return np.log(alpha*np.exp(logp_banana_aux(x)) + (1-alpha)*np.exp(logp_mixture_aux(x, K)))
+
+#def logp(x): return logp_aux(x, 2)
 
 # define ubvi logpdf
 def logp_ubvi(x): return logp_aux(x,K=2)
 
-def sample(size, K = 2):
-    mu = np.zeros(K)
-    sd = 10
-    return sd * np.random.randn(size, K) + mu
+
 
 
 # CREATE EXACT SAMPLER FOR AGNOSTIC KSD ###
@@ -105,6 +104,18 @@ def p_sample(size, K=2):
     out[inds == 1,:] = mixture_rvs(n_gauss, weights, means, sd) # sample from gaussian mixture
     return out
 
+#def sample(size, K = 2):
+#    mu = np.zeros(K)
+#    sd = 10
+#    return sd * np.random.randn(size, K) + mu
+def sample(size,K=2):
+    out = np.zeros((size,2)) # init
+    inds = np.random.choice([0,1], size = size, p = [0.5, 0.5], replace = True) # select indices from banana/gaussian mixture
+    n_banana = inds[inds == 0].shape[0]
+    n_gauss = size - n_banana
+    out[inds == 0,:] = double_banana_sample(n_banana)           # sample from banana
+    out[inds == 1,:] = mixture_rvs(n_gauss, weights, means, sd) # sample from gaussian mixture
+    return out
 
 # CREATE WEIGHT OPT SCHEDULE AND MAXITER
 def w_maxiters(k, long_opt = False):
@@ -112,13 +123,11 @@ def w_maxiters(k, long_opt = False):
     if long_opt: return 100
     return 100
 
-def w_schedule(k):
-    if k == 0: return 1.
-    return 0.1
+def w_schedule(k): return 1.
 
 
 # CREATE UBVI SCHEDULES
-adam_learning_rate= lambda itr : 0.5/np.sqrt(itr+1)
+adam_learning_rate= lambda itr : 1./np.sqrt(itr+1)
 ubvi_gamma = lambda itr : 1./np.sqrt(1+itr)
 
 
@@ -127,7 +136,7 @@ ubvi_gamma = lambda itr : 1./np.sqrt(1+itr)
 b1 = 0.001
 gamma_alpha = lambda k : b1 / np.sqrt(k+1)
 
-b2 = 0.001
+b2 = 0.1
 gamma_init = lambda k : b2 / np.sqrt(k+1)
 
 # regularization
