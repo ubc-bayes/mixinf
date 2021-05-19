@@ -465,7 +465,8 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B, kernel_sampl
     for n in range(N):
 
         # settings:
-        tmp_active = np.setdiff1d(active, np.array([n])) # if chain is active, remove. else, do nothing
+        #tmp_active = np.setdiff1d(active, np.array([n])) # if chain is active, remove. else, do nothing
+        tmp_active = np.copy(active)
 
         # calculate exactly if this is the only active chain
         if tmp_active.size == 0:
@@ -477,9 +478,9 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B, kernel_sampl
         #print('active locations: ' + str(y[tmp_active]))
 
         tmp_w = np.copy(w)
-        tmp_w[n] = 0                   # the chain to be run is removed from mixture
-        tmp_w = tmp_w[tmp_active]          # only active weights
-        tmp_w = simplex_project(tmp_w) # and weights normalized
+        #tmp_w[n] = 0                   # the chain to be run is removed from mixture
+        tmp_w = tmp_w[tmp_active]       # only active weights
+        tmp_w = simplex_project(tmp_w)  # and weights normalized
         #print('active weights: ' + str(tmp_w))
 
         tmp_T = np.copy(T)
@@ -491,8 +492,9 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, w, B, kernel_sampl
             #tmp_T = tmp_T[tmp_active]
             #print('active steps: ' + str(tmp_T[tmp_active]))
             # generate samples
-            X_mix = mix_sample(size = 4*B, y = y[tmp_active], T = tmp_T, w = tmp_w, logp = logp, kernel_sampler = kernel_sampler)
-            X_kernel = kernel_sampler(y = np.array([y[n]]), T = np.array([tmp_T[n]]), S = 2*B, logp = logp)[:,0,:]
+            #X_mix = mix_sample(size = 4*B, y = y[tmp_active], T = tmp_T, w = tmp_w, logp = logp, kernel_sampler = kernel_sampler)
+            X_mix = mix_sample(size = 4*B, y = y[active,:], T = T, w = w[active], logp = logp, kernel_sampler = kernel_sampler)
+            X_kernel = kernel_sampler(y = np.array([y[n,:]]), T = np.array([tmp_T[n]]), S = 2*B, logp = logp)[:,0,:]
 
             # estimate gradient
             grads[n] = up(X_mix[:B,:], X_kernel[:B,:]).mean() + up(X_kernel[B:2*B,:], X_mix[B:2*B,:]).mean() - 2*up(X_mix[2*B:3*B,:], X_mix[3*B:4*B,:]).mean()
@@ -647,7 +649,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
         # estimate objective
         if verbose: print('estimating objective function')
-        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, B = 100))
+        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, B = 10000))
 
         # update convergence
         if verbose: print('updating convergence')

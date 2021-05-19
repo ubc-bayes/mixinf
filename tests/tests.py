@@ -389,7 +389,7 @@ for r in reps:
 
 
             # generate sample
-            if verbose: print('generating sample')0
+            if verbose: print('generating sample')
             y = sample(N, K)
 
             # run algorithm

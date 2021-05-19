@@ -47,7 +47,7 @@ def nu_int(x, alph, gam, lamb):
 ## transforms
 ################
 ################
-   
+
 def constrain_hyper(ualph, ugam, ulamb):
     # get alpha
     lmax = max(0, -ualph)
@@ -104,11 +104,11 @@ def unconstrain_rates(Th):
     uTh[:-1] = np.log(Th[:-1]) + np.log1p(-Th[-1]/Th[:-1]) - np.log1p(-Th[:-1])
     return uTh
 
-############################## 
-############################## 
-############################## 
-############################## 
-    
+##############################
+##############################
+##############################
+##############################
+
 def log_jac(ualph, ugam, ulamb, uTh):
     # alpha vs ualph jac
     lmax = max(0, -ualph)
@@ -116,17 +116,17 @@ def log_jac(ualph, ugam, ulamb, uTh):
 
     # gam vs ugam jac
     logjac_gam = ugam
-   
+
     # lamb vs ulamb jac
     logjac_lamb = ulamb
-    
+
     # Th[-1] vs uTh[-1] jac
     lmax = max(0, -uTh[-1])
     logjac_thK = -uTh[-1]  -2*(lmax + np.log(np.exp(0-lmax) + np.exp(-uTh[-1]-lmax)))
 
     # this just makes it e^{-tK}/()^1 instead of ()^2
     logjac_thk = logjac_thK + (lmax + np.log(np.exp(0-lmax) + np.exp(-uTh[-1]-lmax)))
-    
+
     # Th[1...K-1] vs t[1...K-1] jac
     tmp = np.zeros((2, uTh.shape[0]-1))
     tmp[1, :] = -uTh[:-1]
@@ -141,7 +141,7 @@ def log_jac_alph(ualph, ugam, ulamb, uTh):
     # alpha vs ualph jac
     lmax = max(0, -ualph)
     logjac_alph = -ualph  -2*(lmax + np.log(np.exp(0-lmax) + np.exp(-ualph-lmax)))
-    return logjac_alph 
+    return logjac_alph
 
 def log_jac_lamb(ualph, ugam, ulamb, uTh):
     # lamb vs ulamb jac
@@ -156,7 +156,7 @@ def log_jac_thk(k, ualph, ugam, ulamb, uTh):
 
     # this just makes it e^{-tK}/()^1 instead of ()^2
     logjac_thk = logjac_thK + (lmax + np.log(np.exp(0-lmax) + np.exp(-uThK-lmax)))
-    
+
     # Th[1...K-1] vs t[1...K-1] jac
     uThk = uTh[k]
     lmax = max(0, -uThk)
@@ -170,7 +170,7 @@ def log_jac_thK(ualph, ugam, ulamb, uTh):
 
     # this just makes it e^{-tK}/()^1 instead of ()^2
     logjac_thk = logjac_thK + (lmax + np.log(np.exp(0-lmax) + np.exp(-uTh[-1]-lmax)))
-    
+
     # Th[1...K-1] vs t[1...K-1] jac
     tmp = np.zeros((2, uTh.shape[0]-1))
     tmp[1, :] = -uTh[:-1]
@@ -180,17 +180,17 @@ def log_jac_thK(ualph, ugam, ulamb, uTh):
     # the jacobian matrix is lower triangular, so can just add these up and return
     return logjac_thK + logjac_thk.sum()
 
-############################## 
-############################## 
-############################## 
-############################## 
+##############################
+##############################
+##############################
+##############################
 
 ################
 ################
 ## priors
 ################
 ################
- 
+
 
 def log_prior_alph(alph, a, b):
     return (a-1.)*np.log(alph) + (b-1.)*np.log1p(-alph) - (gammaln(a)+gammaln(b)-gammaln(a+b))
@@ -203,7 +203,7 @@ def log_prior_lamb(lamb, a, b):
 
 def log_prior_th(alph, gam, lamb, Th):
     # the log beta process density
-    lp = (-1.-alph)*np.log(Th) + (lamb+alph-1.)*np.log1p(-Th) 
+    lp = (-1.-alph)*np.log(Th) + (lamb+alph-1.)*np.log1p(-Th)
     # normalizing constant
     lp += np.log(gam) + gammaln(lamb+1) - gammaln(lamb+alph) - gammaln(1-alph)
     # subtract nu_int at the end
@@ -211,9 +211,9 @@ def log_prior_th(alph, gam, lamb, Th):
 
 def log_prior_thk(k, alph, gam, lamb, Th):
     # the log beta process density
-    lp = (-1.-alph)*np.log(Th[k]) + (lamb+alph-1.)*np.log1p(-Th[k]) 
+    lp = (-1.-alph)*np.log(Th[k]) + (lamb+alph-1.)*np.log1p(-Th[k])
     # subtract nu_int at the end
-    return lp 
+    return lp
 
 ################
 ################
@@ -221,7 +221,7 @@ def log_prior_thk(k, alph, gam, lamb, Th):
 ################
 ################
 
-def approx_log_like(Edges, Th, N): 
+def approx_log_like(Edges, Th, N):
     ## add up everything
     #lp = (X*np.log(Th) + np.log(Th)[:,np.newaxis]*X + (N-X)*np.log1p(-Th[:,np.newaxis]*Th)).sum()
 
@@ -239,7 +239,7 @@ def approx_log_like(Edges, Th, N):
 
 
 
-def log_like(Edges, Th, N): 
+def log_like(Edges, Th, N):
     ## add up everything
     #lp = (X*np.log(Th) + np.log(Th)[:,np.newaxis]*X + (N-X)*np.log1p(-Th[:,np.newaxis]*Th)).sum()
 
@@ -254,7 +254,7 @@ def log_like(Edges, Th, N):
 
     return lp
 
-def log_like_thk(k, Edges, Th, N): 
+def log_like_thk(k, Edges, Th, N):
     lp = 2*N*np.log1p(-Th[k]*Th).sum() - 2*N*np.log1p(-Th[k]**2)
     idcs = (Edges[0,:] == k) | (Edges[1,:] == k)
     lp += (Edges[2,idcs]*np.log(Th[Edges[0,idcs]]*Th[Edges[1,idcs]]) -Edges[2,idcs]*np.log1p(-Th[Edges[0,idcs]]*Th[Edges[1,idcs]])).sum()
@@ -340,7 +340,7 @@ def log_prob_thK(ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, g
 ## sequential rep
 ################
 ################
- 
+
 
 def rej_beta(K, alph, gam, lamb, start=None):
     """
@@ -383,7 +383,7 @@ def rej_beta_multiple(K, alphs, gams, lambs, _Ths):
         gs += np.random.exponential(1., size=(alphs.shape[0], _K)).cumsum(axis=1)
 
         lastgs = gs[:, -1].copy()
-        
+
         gs[zidcs, :] = -gs[zidcs, :] / g1s[zidcs][:,np.newaxis]
         gs[nzidcs,:] = (-1./alphs[nzidcs])[:,np.newaxis]*np.log(1.+ (alphs[nzidcs]/g1s[nzidcs])[:,np.newaxis]*gs[nzidcs,:])
         gs = np.exp(gs)
@@ -402,7 +402,7 @@ def rej_beta_multiple(K, alphs, gams, lambs, _Ths):
 ## sampling moves
 ################
 ################
- 
+
 
 def gibbs_gamma(K, alph, gam, lamb, Th, gamma_a, gamma_b):
     ap = gamma_a + K
@@ -462,7 +462,7 @@ def adaptive_truncation_sampler(T, Edges, N, K, alph = 0.1, gam = 1., lamb = 2.,
     """
     T     : number of samples to generate
     Edges   : nonzero connections of a undirected network
-            1st row of Edges is the row index of connections 
+            1st row of Edges is the row index of connections
             2nd row of Edges is correspondingly the column index of connections
             3rd row of Edges is correspondingly the number of connection
             (row index is always larger than column index, as this is undirected network without self-connection)
@@ -481,7 +481,7 @@ def adaptive_truncation_sampler(T, Edges, N, K, alph = 0.1, gam = 1., lamb = 2.,
 
     # make sure the edges array only contains pairs of indices with edge count > 0
     Edges = Edges[:, Edges[2,:]>0]
-  
+
     # extract the set of nonempty vertices
     idx1 = np.unique(Edges[:-1, :]).astype(int)
 
@@ -511,7 +511,7 @@ def adaptive_truncation_sampler(T, Edges, N, K, alph = 0.1, gam = 1., lamb = 2.,
     lambs = np.zeros(T-burn)
     gams = np.zeros(T-burn)
     Ths = np.zeros((T-burn, K))
-    
+
     alph_accept = 1
     lamb_accept = 1
     th0_accept = 1
@@ -520,26 +520,26 @@ def adaptive_truncation_sampler(T, Edges, N, K, alph = 0.1, gam = 1., lamb = 2.,
     for i in np.arange(T):
         if i%50==0:
             lp = log_prob(ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-            print("i: {0:<5}".format(i), 
-                  "alph: {0:<5}".format(np.round(alph, 3)), 
-                  "alph_accept: {0:<5}".format(np.round(alph_accept/(i+1), 3)), 
-                  "gam: {0:<5}".format(np.round(gam, 3)), 
-                  "lamb: {0:<5}".format(np.round(lamb, 3)), 
-                  "lamb_accept: {0:<5}".format(np.round(lamb_accept/(i+1), 3)), 
-                  "log10Th_K: {0:<10}".format(np.log10(Th[-1]).round(3)), 
-                  "th0_accept: {0:<5}".format(np.round(th0_accept/(i+1), 3)), 
-                  "th1_accept: {0:<5}".format(np.round(th1_accept/(i+1), 3)), 
-                  "thK_accept: {0:<5}".format(np.round(thK_accept/(i+1), 3)), 
+            print("i: {0:<5}".format(i),
+                  "alph: {0:<5}".format(np.round(alph, 3)),
+                  "alph_accept: {0:<5}".format(np.round(alph_accept/(i+1), 3)),
+                  "gam: {0:<5}".format(np.round(gam, 3)),
+                  "lamb: {0:<5}".format(np.round(lamb, 3)),
+                  "lamb_accept: {0:<5}".format(np.round(lamb_accept/(i+1), 3)),
+                  "log10Th_K: {0:<10}".format(np.log10(Th[-1]).round(3)),
+                  "th0_accept: {0:<5}".format(np.round(th0_accept/(i+1), 3)),
+                  "th1_accept: {0:<5}".format(np.round(th1_accept/(i+1), 3)),
+                  "thK_accept: {0:<5}".format(np.round(thK_accept/(i+1), 3)),
                   "lp: {0:<10}".format(lp.round(3)))
 
         # Basic MH for alpha, lambda, gibbs for gamma
         gam = gibbs_gamma(K, alph, gam, lamb, Th, gamma_a, gamma_b)
         ualph, ugam, ulamb = unconstrain_hyper(alph, gam, lamb)
-    
+
         _lamb_accept, ulamb = mh_lambda(lambda_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
         lamb_accept += _lamb_accept
         alph, gam, lamb = constrain_hyper(ualph, ugam, ulamb)
- 
+
         _alph_accept, ualph = mh_alpha(alpha_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
         alph_accept += _alph_accept
         alph, gam, lamb = constrain_hyper(ualph, ugam, ulamb)
@@ -569,4 +569,3 @@ def adaptive_truncation_sampler(T, Edges, N, K, alph = 0.1, gam = 1., lamb = 2.,
             Ths[i-burn,:] = Th
 
     return alphs, gams, lambs, Ths
-

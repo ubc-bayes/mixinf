@@ -83,9 +83,9 @@ if not os.path.exists('simu_fb.pk'):
     T = 2000
     K = 2010
     Alphs, Gams, Lambs, Ths = adaptive_truncation_sampler(T, Obs, N, K,
-    								alph=0.01, lamb=20., gam=2.,
+    								alph=0.5, lamb=20., gam=2.,
     								alpha_step = 0.04, lambda_step = 0.1,
-                                                                    Th0_step = 0.03, Th1_step = 0.1, ThK_step = 0.1)
+                                    Th0_step = 0.03, Th1_step = 0.1, ThK_step = 0.1)
     simu_fb = {'Alph': Alphs, 'Gam': Gams, 'Lamb': Lambs, 'Th': Ths}
     f = open('simu_fb.pk', 'wb')
     pk.dump(simu_fb, f)
