@@ -514,17 +514,17 @@ def mh_alpha(alpha_step, ualph, ualph_lower, ualph_upper, ugam, ulamb, uTh, Edge
     #print('lp1: ' + str(lp1))
     if np.log(np.random.rand()) <= lp1 - lp0:
         #print('accepted')
-        return ualphp
+        return 1, ualphp
     #print()
-    return ualph
+    return 0, ualph
 
 def mh_lambda(lambda_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b):
     ulambp = ulamb + lambda_step*np.random.randn()
     lp0 = log_prob_lambda(ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
     lp1 = log_prob_lambda(ualph, ugam, ulambp, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
     if np.log(np.random.rand()) <= lp1 - lp0:
-        return ulambp
-    return ulamb
+        return 1, ulambp
+    return 0, ulamb
 
 def mh_uThmk(k, Th_step, ualph, ugam, ulamb, uTh, Th, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b):
     uTh_old = uTh[k]
@@ -539,8 +539,8 @@ def mh_uThmk(k, Th_step, ualph, ugam, ulamb, uTh, Th, Edges, N, alpha_a, alpha_b
         uTh[k] += Th_step*np.random.randn()
         lp1 = log_prob_thK(ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
     if np.log(np.random.rand()) <= lp1 - lp0:
-        return uTh[k], Th[k]
-    return uTh_old, Th_old
+        return 1, uTh[k], Th[k]
+    return 0, uTh_old, Th_old
 
 def mh_uTh0(idx0, Th_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b):
     uTh_old = uTh[idx0]
@@ -548,9 +548,9 @@ def mh_uTh0(idx0, Th_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, 
     uTh[idx0] += Th_step*np.random.randn(len(idx0))
     lp1 = log_prob(ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
     if np.log(np.random.rand()) <= lp1 - lp0:
-        return uTh
+        return 1, uTh
     uTh[idx0] = uTh_old
-    return uTh
+    return 0, uTh
 
 
 
@@ -630,126 +630,7 @@ Obs[2,:] = X[idcs[0], idcs[1]]
 #################
 #################
 
-def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None):
-    """
-    T : number of steps to run the chain for
-    S : number of samples to generate
-    alph, gam, lamb, Th: initial values of alpha, gamma, lambda, Thetas
-        Th is shape(1,K)
-
-    returns a shape(S,1,K+3) array
-    """
-    global Obs
-
-    # sampler settings (these don't change)
-    Edges = np.copy(Obs)
-    K = 2010
-    #gam = 2.
-    #lamb = 20.
-    # prior distribution params
-    alpha_a = 0.5
-    alpha_b = 1.5
-    gamma_a = 1.
-    gamma_b = 1.
-    lambda_a = 1.
-    lambda_b = 1.
-    # steps
-    lambda_step = 0.1
-    alpha_step = alpha_stepsize(alph)
-    Th0_step = 0.03
-    Th1_step = 0.1
-    ThK_step = 0.1
-    #Th0 = None
-
-    #np.seterr(all='raise')
-
-    # make sure the edges array only contains pairs of indices with edge count > 0
-    Edges = Edges[:, Edges[2,:]>0]
-
-    # extract the set of nonempty vertices
-    idx1 = np.unique(Edges[:-1, :]).astype(int)
-
-    # extraact empty verts
-    idx0 = []
-    for k in range(K):
-        if k not in idx1:
-            idx0.append(k)
-    idx0 = np.array(idx0)
-
-    # initialize the rates from the prior if not specified
-    if Th is None: Th = rej_beta(K, alph, gam, lamb)
-
-    # compute alpha limits
-    ualph_lower, ualph_upper = alpha_lims(alph)
-
-    # compute the unconstrained versions of them
-    ualph, ugam, ulamb = unconstrain_hyper(alph, gam, lamb)
-    uTh = unconstrain_rates(Th)
-
-    # storage for samples
-    alphs = None
-    lambs = None
-    gams = None
-    Ths = None
-    # start sampling
-    print("Sampling start; K = " + str(K))
-    alphs = alph*np.ones(1)
-    lambs = lamb*np.ones(1)
-    gams = gam*np.ones(1)
-    Ths = Th.reshape(1,K)
-
-    #alph_accept = 1
-    #lamb_accept = 1
-    #th0_accept = 1
-    #th1_accept = 1
-    #thK_accept = 1
-    for i in np.arange(T):
-        if i%50==0:
-            lp = log_prob(ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-            print("i: {0:<5}".format(i),
-                  "alph: {0:<5}".format(np.round(alph, 3)),
-                  #"alph_accept: {0:<5}".format(np.round(alph_accept/(i+1), 3)),
-                  "gam: {0:<5}".format(np.round(gam, 3)),
-                  "lamb: {0:<5}".format(np.round(lamb, 3)),
-                  #"lamb_accept: {0:<5}".format(np.round(lamb_accept/(i+1), 3)),
-                  "log10Th_K: {0:<10}".format(np.log10(Th[-1]).round(3)),
-                  #"th0_accept: {0:<5}".format(np.round(th0_accept/(i+1), 3)),
-                  #"th1_accept: {0:<5}".format(np.round(th1_accept/(i+1), 3)),
-                  #"thK_accept: {0:<5}".format(np.round(thK_accept/(i+1), 3)),
-                  "lp: {0:<10}".format(lp.round(3)))
-
-        # Basic MH for alpha, lambda, gibbs for gamma
-        gam = gibbs_gamma(K, alph, gam, lamb, Th, gamma_a, gamma_b)
-        ualph, ugam, ulamb = unconstrain_hyper(alph, gam, lamb)
-
-        ulamb = mh_lambda(lambda_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-        alph, gam, lamb = constrain_hyper(ualph, ugam, ulamb)
-
-        ualph = mh_alpha(alpha_step, ualph, ualph_lower, ualph_upper, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-        alph, gam, lamb = constrain_hyper(ualph, ugam, ulamb)
-
-        # individual MH steps for idx1 entries
-        for k in idx1: uTh[k], Th[k] = mh_uThmk(k, Th1_step, ualph, ugam, ulamb, uTh, Th, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-
-        # joint move for idx0 entries
-        uTh = mh_uTh0(idx0, Th0_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-        Th = constrain_rates(uTh)
-
-        # individual MH step for K entry
-        uTh[-1], Th[-1] = mh_uThmk(uTh.shape[0]-1, ThK_step, ualph, ugam, ulamb, uTh, Th, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-        Th = constrain_rates(uTh)
-
-        #store the results
-        alphs[0] = alph
-        gams[0] = gam
-        lambs[0] = lamb
-        Ths[0,:] = Th
-
-    return alphs, gams, lambs, Ths
-
-
-
-def adaptive_truncation_sampler(T, alph = 0.5, gam = 2., lamb = 20., Th = None):
+def adaptive_sampler(T, alph = 0.5, gam = 2., lamb = 20., Th = None):
     """
     T     : number of samples to generate
     alph, gam, lamb, Th: initial values of alpha, gamma, lambda, Thetas
