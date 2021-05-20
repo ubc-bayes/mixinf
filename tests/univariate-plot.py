@@ -43,6 +43,8 @@ parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaus
 help = 'kernel to use in mixtures')
 parser.add_argument('--rkhs', type = str, default = 'rbf', choices=['rbf'],
 help = 'RKHS kernel to use')
+parser.add_argument('-t', '--t_inc', type = int, default = 25,
+help = 'step size increment for chain running in lbvi')
 parser.add_argument('--ubvi', action = "store_true",
 help = 'plot ubvi?')
 parser.add_argument('--bvi', action = "store_true",
@@ -106,6 +108,7 @@ rkhs = args.rkhs
 if rkhs == 'rbf':
     from RKHSkernels.rbf import *
 
+t_increment = args.t_inc
 
 # define densities and up
 def logp(x): return logp_aux(x, 1)
@@ -145,7 +148,7 @@ if dens_plots:
                 y = np.load(tmp_path + 'y_' + str(r+1) + '_' + str(tol) + '.npy')
                 w = np.load(tmp_path + 'w_' + str(r+1) + '_' + str(tol) + '.npy')
                 T = np.load(tmp_path + 'T_' + str(r+1) + '_' + str(tol) + '.npy')
-                lbvi_sample = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
+                lbvi_sample = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment)
 
             if ubvi_flag:
                 # retrieve ubvi results
