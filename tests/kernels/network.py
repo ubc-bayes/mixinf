@@ -736,16 +736,18 @@ Obs[2,:] = X[idcs[0], idcs[1]]
 
 #################
 #################
-## main sampler
+## main samplers
 #################
 #################
 
-def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None):
+# this is the actual sampler
+def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None, verbose = False):
     """
     T : number of steps to run the chain for
     S : number of samples to generate
     alph, gam, lamb, Th: initial values of alpha, gamma, lambda, Thetas
         alph, gam, lamb are 1d arrays and Th is shape(1,K)
+    verbose : boolean indicating whether to print messages
 
     returns three shape(S,1) arrays with samples of alpha, gamma, and lambda (resp)
     and a shape(S,K) array with samples of Th
@@ -793,7 +795,7 @@ def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None):
     gams = None
     Ths = None
     # start sampling
-    print("Sampling start; K = " + str(K))
+    if verbose: print("Sampling start; K = " + str(K))
     alph = alph*np.ones(S)
     lamb = lamb*np.ones(S)
     gam = gam*np.ones(S)
@@ -819,19 +821,8 @@ def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None):
     #th1_accept = 1
     #thK_accept = 1
     for i in np.arange(T):
-        if i%50==0:
-            lp = log_prob(ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-            print("i: {0:<5}".format(i))#,
-                  #"alph: {0:<5}".format(np.round(alph, 3)),
-                  #"alph_accept: {0:<5}".format(np.round(alph_accept/(i+1), 3)),
-                  #"gam: {0:<5}".format(np.round(gam, 3)),
-                  #"lamb: {0:<5}".format(np.round(lamb, 3)),
-                  #"lamb_accept: {0:<5}".format(np.round(lamb_accept/(i+1), 3)),
-                  #"log10Th_K: {0:<10}".format(np.log10(Th[-1]).round(3)),
-                  #"th0_accept: {0:<5}".format(np.round(th0_accept/(i+1), 3)),
-                  #"th1_accept: {0:<5}".format(np.round(th1_accept/(i+1), 3)),
-                  #"thK_accept: {0:<5}".format(np.round(thK_accept/(i+1), 3)),
-                  #"lp: {0:<10}".format(lp.round(3)))
+        if i%50==0 and verbose:
+            print('iter: ' + str(i))
             print('alphas: ' + str(alph))
             print('gammas: ' + str(gam))
             print('lambdas: ' + str(lamb))
@@ -867,125 +858,86 @@ def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None):
 
 
 
-def adaptive_truncation_sampler(T, alph = 0.5, gam = 2., lamb = 20., Th = None):
-    """
-    T     : number of samples to generate
-    alph, gam, lamb, Th: initial values of alpha, gamma, lambda, Thetas
-    """
-    global Obs
 
-    # sampler settings (these don't change)
-    Edges = np.copy(Obs)
-    K = 2010
-    #gam = 2.
-    #lamb = 20.
-    # prior distribution params
-    alpha_a = 0.5
-    alpha_b = 1.5
-    gamma_a = 1.
-    gamma_b = 1.
-    lambda_a = 1.
-    lambda_b = 1.
-    # steps
-    lambda_step = 0.1
-    alpha_step = alpha_stepsize(alph)
-    Th0_step = 0.03
-    Th1_step = 0.1
-    ThK_step = 0.1
-    #Th0 = None
 
-    #np.seterr(all='raise')
+def sampler_wrapper(y, T, S, logp):
+    # this function simulates NxS for from the adaptive sampler chains T steps
+    #
+    # y    : shape(N,K) array of params
+    #        y[:,0] alphas, y[:,1] gammas, y[:,2] lambdas, y[:,3:] thetas
+    # T    : shape(N,) array with no. steps per location
+    # S    : sample size
+    # logp : target logdensity (ignored but required by lbvi routines)
+    #
+    # out : array of shape(S, N, K)
 
-    # make sure the edges array only contains pairs of indices with edge count > 0
-    Edges = Edges[:, Edges[2,:]>0]
+    N = y.shape[0] # should be 7, i.e. the number of bins in alpha
+    K = y.shape[1] # should be 2013, i.e. 3 main params + 2010 thetas
+    out = np.zeros(S,N,K)
 
-    # extract the set of nonempty vertices
-    idx1 = np.unique(Edges[:-1, :]).astype(int)
+    for n in range(N):
+        # obtain samples
+        Alphs, Gams, Lambs, Ths = adaptive_sampler(T = T, S = S, alph = y[n,0], gam = y[n,1], lamb = y[n,2], Th = y[n,3:])
+        # save in array
+        out[:,n,0] = Alphs
+        out[:,n,1] = Gams
+        out[:,n,2] = Lambs
+        out[:,n,3:] = Ths
+    # end for
 
-    # extraact empty verts
-    idx0 = []
-    for k in range(K):
-        if k not in idx1:
-            idx0.append(k)
-    idx0 = np.array(idx0)
+    return out
 
-    # initialize the rates from the prior if not specified
-    if Th is None: Th = rej_beta(K, alph, gam, lamb)
 
-    # compute alpha limits
-    ualph_lower, ualph_upper = alpha_lims(alph)
 
-    # compute the unconstrained versions of them
-    ualph, ugam, ulamb = unconstrain_hyper(alph, gam, lamb)
-    uTh = unconstrain_rates(Th)
+def kernel_sampler(y, T, S, logp, t_increment, chains = None, update = False):
+    # this function determines the incremental runs needed and calls the above gaussian sampler
+    #
+    # shape(N,K) array of locations y
+    # shape(N,) array with no. steps per location T
+    # sample size S
+    # target logdensity logp
+    # t_increment is the incremental steps taken at each iteration per kernel
+    # chains is a list of N shape(T_n,K) arrays with the current chains
+    #   it is used for cacheing. If None, then the whole chain is generated from scratch
+    # update is boolean. If True and chains is not None, a new chains list will be created with the generated samples appended
+    #
+    # out: array of shape(S, N, K)
 
-    # storage for samples
-    alphs = None
-    lambs = None
-    gams = None
-    Ths = None
-    # start sampling
-    print("Sampling start; K = " + str(K))
-    burn = int(T/2)
-    alphs = np.zeros(T-burn)
-    lambs = np.zeros(T-burn)
-    gams = np.zeros(T-burn)
-    Ths = np.zeros((T-burn, K))
+    # if chain has to be run from scratch, call gaussian sampler with full T
+    if chains is None:
+        return sampler_wrapper(y, T, S, logp)
+    else:
+        # determine the current T in the chains
+        N = y.shape[0]
+        K = y.shape[1]
+        Tnew = np.zeros(N)
+        ynew = np.zeros((N,K))
+        #print('chains: ' + str(chains))
+        for n in range(N):
+            # determine incremental T's
+            Tcurr = t_increment*(chains[n].shape[0] - 1) # -1 to account for initial sample
+            Tnew[n] = T[n] - Tcurr # chains[n] is shape(T_n,K)
+            if Tnew[n] < 0:
+                print('error! negative incremental steps')
+                print('n = ' + str(n))
+                print('current length: ' + str(Tcurr))
+                print('needed length: ' + str(T[n]))
+                print('incremental steps: ' + str(Tnew[n]))
 
-    alph_accept = 1
-    lamb_accept = 1
-    th0_accept = 1
-    th1_accept = 1
-    thK_accept = 1
-    for i in np.arange(T):
-        if i%50==0:
-            lp = log_prob(ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-            print("i: {0:<5}".format(i),
-                  "alph: {0:<5}".format(np.round(alph, 3)),
-                  "alph_accept: {0:<5}".format(np.round(alph_accept/(i+1), 3)),
-                  "gam: {0:<5}".format(np.round(gam, 3)),
-                  "lamb: {0:<5}".format(np.round(lamb, 3)),
-                  "lamb_accept: {0:<5}".format(np.round(lamb_accept/(i+1), 3)),
-                  "log10Th_K: {0:<10}".format(np.log10(Th[-1]).round(3)),
-                  "th0_accept: {0:<5}".format(np.round(th0_accept/(i+1), 3)),
-                  "th1_accept: {0:<5}".format(np.round(th1_accept/(i+1), 3)),
-                  "thK_accept: {0:<5}".format(np.round(thK_accept/(i+1), 3)),
-                  "lp: {0:<10}".format(lp.round(3)))
+            # update starting points to the previous iter (to account for +1)
+            ynew[n,:] = chains[n][chains[n].shape[0]-1,:]
+        # end for
 
-        # Basic MH for alpha, lambda, gibbs for gamma
-        gam = gibbs_gamma(K, alph, gam, lamb, Th, gamma_a, gamma_b)
-        ualph, ugam, ulamb = unconstrain_hyper(alph, gam, lamb)
+        # now call gaussian sampler with the incremental samples only
+        #print('sampling ' + str(Tnew) + ' instead of ' + str(T))
+        samples = sampler_wrapper(ynew, Tnew+1, S, logp) #(S,N,K)
 
-        _lamb_accept, ulamb = mh_lambda(lambda_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-        lamb_accept += _lamb_accept
-        alph, gam, lamb = constrain_hyper(ualph, ugam, ulamb)
+        if update:
+            # append first sample to each chain
+            for n in range(N):
+                if Tnew[n] > 0: chains[n] = np.vstack((chains[n], samples[0,n,:].reshape(1,K)))
+            # end for
 
-        _alph_accept, ualph = mh_alpha(alpha_step, ualph, ualph_lower, ualph_upper, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-        alph_accept += _alph_accept
-        alph, gam, lamb = constrain_hyper(ualph, ugam, ulamb)
-
-        # individual MH steps for idx1 entries
-        _th1_accept = 0
-        for k in idx1:
-            __th1_accept, uTh[k], Th[k] = mh_uThmk(k, Th1_step, ualph, ugam, ulamb, uTh, Th, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-            _th1_accept += __th1_accept
-        th1_accept += _th1_accept/len(idx1)
-
-        # joint move for idx0 entries
-        _th0_accept, uTh = mh_uTh0(idx0, Th0_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-        th0_accept += _th0_accept
-        Th = constrain_rates(uTh)
-
-        # individual MH step for K entry
-        _thK_accept, uTh[-1], Th[-1] = mh_uThmk(uTh.shape[0]-1, ThK_step, ualph, ugam, ulamb, uTh, Th, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-        thK_accept += _thK_accept
-        Th = constrain_rates(uTh)
-
-        #store the results
-        if i >= burn:
-            alphs[i-burn] = alph
-            gams[i-burn] = gam
-            lambs[i-burn] = lamb
-            Ths[i-burn,:] = Th
-
-    return alphs, gams, lambs, Ths
+            return samples, chains
+        else:
+            return samples
