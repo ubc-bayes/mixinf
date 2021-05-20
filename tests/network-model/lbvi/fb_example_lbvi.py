@@ -77,7 +77,7 @@ if not os.path.exists('simu_fb_lbvi.pk'):
     np.random.seed(3)
     T = 500
     #K = 2010
-    Alphs, Gams, Lambs, Ths = adaptive_sampler(T, alph = 0.01, gam = 2., lamb = 20., Th = None)
+    Alphs, Gams, Lambs, Ths = adaptive_sampler(T, S = 2, alph = 0.01, gam = 2., lamb = 20., Th = None)
     simu_fb = {'Alph': Alphs, 'Gam': Gams, 'Lamb': Lambs, 'Th': Ths}
     f = open('simu_fb.pk', 'wb')
     pk.dump(simu_fb, f)
