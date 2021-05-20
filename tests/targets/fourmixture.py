@@ -64,9 +64,9 @@ def p_sample(size, K):
 
 
 def w_maxiters(k, long_opt = False):
-    if k == 0: return 100
-    if long_opt: return 50
-    return 10
+    if k == 0: return 500
+    if long_opt: return 250
+    return 100
 
 def w_schedule(k):
     #if k == 0: return 1.

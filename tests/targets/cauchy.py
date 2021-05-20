@@ -35,6 +35,7 @@ def w_maxiters(k, long_opt = False):
     if long_opt: return 50
     return 20
 
+
 def w_schedule(k):
     #if k == 0: return 0.1
     return 1.
