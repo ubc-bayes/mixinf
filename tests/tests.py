@@ -275,7 +275,7 @@ if hmc_flag: import hmc
 # if running rwmh, import gaussian rwmh kernel
 if rwmh_flag:
     from kernels.gaussian import r_sampler as rwmh_initial_sampler
-    from kernels.gaussian import kernel_sampler as rwmh_sampler
+    from kernels.gaussian import gaussian_sampler as rwmh_sampler
 
 
 # import RKHS kernel
