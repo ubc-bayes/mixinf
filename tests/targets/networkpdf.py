@@ -1,5 +1,9 @@
-import numpy as np
-from scipy.special import gammaln, digamma, polygamma, betaln, betainc, erf, erfinv
+import autograd.numpy as np
+#from autograd.scipy.special import gammaln, digamma, polygamma, betaln, betainc, erf, erfinv
+from autograd.scipy.special import gammaln, digamma, polygamma, betaln, erf, erfinv
+from autograd_gamma import betainc
+#import numpy as np
+#from scipy.special import gammaln, digamma, polygamma, betaln, betainc, erf, erfinv
 import scipy.integrate as integrate
 from scipy.linalg import sqrtm
 import cProfile, pstats, io
@@ -68,17 +72,26 @@ def constrain_rates(uTh):
 
     # get Theta[K]
     lmax = np.maximum(0, -uTh[:,-1])
-    Th[:,-1] = np.exp(-lmax - np.log(np.exp(0-lmax) + np.exp(-uTh[:,-1] - lmax)))
+    term2 = np.exp(-lmax - np.log(np.exp(0-lmax) + np.exp(-uTh[:,-1] - lmax)))
+    #Th[:,-1] = np.exp(-lmax - np.log(np.exp(0-lmax) + np.exp(-uTh[:,-1] - lmax)))
 
     # get Th[1...K-1]
-    tmp = np.zeros((3, uTh.shape[0], uTh.shape[1]-1))
-    tmp[1, :,:] = -uTh[:,:-1]
-    tmp[2, :,:] = -uTh[:,-1][:,np.newaxis]
+    # AUTOGRAD FIX
+    #tmp = np.zeros((3, uTh.shape[0], uTh.shape[1]-1))
+    #tmp[1, :,:] = -uTh[:,:-1]
+    #tmp[2, :,:] = -uTh[:,-1][:,np.newaxis]
+    tmp_term1 = -uTh[:,:-1][np.newaxis,:,:]
+    tmp_term2 = -uTh[:,-1][np.newaxis,:,np.newaxis]*np.ones(uTh.shape[1]-1)
+    tmp =  np.concatenate((np.zeros((1,uTh.shape[0], uTh.shape[1]-1)), tmp_term1, tmp_term2), axis=0)
+
     lmax = tmp.max(axis=0)
     lnum = lmax + np.log( np.exp(tmp - lmax).sum(axis=0) )
     lmax = tmp[:2,:,:].max(axis=0)
     ldenom = lmax + np.log( np.exp(tmp[:2,:,:] - lmax).sum(axis=0) )
-    Th[:,:-1] = np.exp( lnum - ldenom + np.log(Th[:,-1][:,np.newaxis]) )
+    term1 = np.exp( lnum - ldenom + np.log(Th[:,-1][:,np.newaxis]) )
+    # AUTOGRAD FIX
+    #Th[:,:-1] = np.exp( lnum - ldenom + np.log(Th[:,-1][:,np.newaxis]) )
+    Th = np.hstack((term1, term2.reshape(uTh.shape[0],1)))
     return Th
 
 def constrain_rate_k(k, uTh):
@@ -103,9 +116,15 @@ def unconstrain_hyper(alph, gam, lamb):
     return ualph, ugam, ulamb
 
 def unconstrain_rates(Th):
-    uTh = np.zeros((Th.shape[0],Th.shape[1]))
-    uTh[:,-1] = np.log(Th[:,-1]) - np.log1p(-Th[:,-1])
-    uTh[:,:-1] = np.log(Th[:,:-1]) + np.log1p(-(Th[:,-1])[:,np.newaxis]/Th[:,:-1]) - np.log1p(-Th[:,:-1])
+    # AUTOGRAD FIX
+    #uTh = np.zeros((Th.shape[0],Th.shape[1]))
+    #uTh[:,-1] = np.log(Th[:,-1]) - np.log1p(-Th[:,-1])
+    #uTh[:,:-1] = np.log(Th[:,:-1]) + np.log1p(-(Th[:,-1])[:,np.newaxis]/Th[:,:-1]) - np.log1p(-Th[:,:-1])
+
+    # the above (original) doesn't play well with autograd; the code below does the same but works with autograd
+    tmp1 = np.log(Th[:,:-1]) + np.log1p(-(Th[:,-1])[:,np.newaxis]/Th[:,:-1]) - np.log1p(-Th[:,:-1])
+    tmp2 = np.log(Th[:,-1]) - np.log1p(-Th[:,-1])
+    uTh = np.hstack((tmp1, tmp2.reshape(Th.shape[0],1)))
     return uTh
 
 
@@ -134,8 +153,11 @@ def log_jac(ualph, ugam, ulamb, uTh):
     logjac_thk = logjac_thK + (lmax + np.log(np.exp(0-lmax) + np.exp(-uTh[:,-1]-lmax)))
 
     # Th[1...K-1] vs t[1...K-1] jac
-    tmp = np.zeros((2, uTh.shape[0], uTh.shape[1]-1))
-    tmp[1, :,:] = -uTh[:,:-1]
+    # AUTOGRAD FIX
+    #tmp = np.zeros((2, uTh.shape[0], uTh.shape[1]-1))
+    #tmp[1, :,:] = -uTh[:,:-1]
+    tmp_term1 = -uTh[:,:-1][np.newaxis,:,:]
+    tmp = np.vstack((np.zeros((1, uTh.shape[0], uTh.shape[1]-1)), tmp_term1))
     lmax = tmp.max(axis=0)
     logjac_thk = logjac_thk[:,np.newaxis] -uTh[:,:-1] - 2*(lmax + np.log(np.exp(tmp-lmax[np.newaxis,:,:]).sum(axis=0)) )
 
@@ -349,7 +371,7 @@ def log_prob_thK(ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, g
 #################
 
 # load the network
-df = pd.read_csv('../fb2.txt', delim_whitespace=True, )
+df = pd.read_csv('../network-model/fb2.txt', delim_whitespace=True, )
 
 # convert the datetime to integers
 df['rnd'] = pd.to_datetime(df['date']).astype(int)/(1800*10**9) # this converts to 1/2 hour intervals
@@ -459,9 +481,9 @@ def sample(size, K):
 # CREATE WEIGHT OPT SCHEDULE AND MAXITER
 def w_maxiters(k, long_opt = False):
     if k > 10: return 10
-    if k == 0: return 100
-    if long_opt: return 50
-    return 20
+    if k == 0: return 10
+    if long_opt: return 10
+    return 10
 
 
 def w_schedule(k):

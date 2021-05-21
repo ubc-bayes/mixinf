@@ -1,5 +1,7 @@
-import numpy as np
-from scipy.special import gammaln, digamma, polygamma, betaln, betainc, erf, erfinv
+import autograd.numpy as np
+from autograd.scipy.special import gammaln, digamma, polygamma, betaln, betainc, erf, erfinv
+#import numpy as np
+#from scipy.special import gammaln, digamma, polygamma, betaln, betainc, erf, erfinv
 import scipy.integrate as integrate
 from scipy.linalg import sqrtm
 import cProfile, pstats, io
@@ -671,7 +673,7 @@ def mh_uTh0(S, idx0, Th_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_
 #################
 
 # load the network
-df = pd.read_csv('../fb2.txt', delim_whitespace=True, )
+df = pd.read_csv('../network-model/fb2.txt', delim_whitespace=True, )
 
 # convert the datetime to integers
 df['rnd'] = pd.to_datetime(df['date']).astype(int)/(1800*10**9) # this converts to 1/2 hour intervals
@@ -873,11 +875,11 @@ def sampler_wrapper(y, T, S, logp):
 
     N = y.shape[0] # should be 7, i.e. the number of bins in alpha
     K = y.shape[1] # should be 2013, i.e. 3 main params + 2010 thetas
-    out = np.zeros(S,N,K)
+    out = np.zeros((S,N,K))
 
     for n in range(N):
         # obtain samples
-        Alphs, Gams, Lambs, Ths = adaptive_sampler(T = T, S = S, alph = y[n,0], gam = y[n,1], lamb = y[n,2], Th = y[n,3:])
+        Alphs, Gams, Lambs, Ths = adaptive_sampler(T = T[n], S = S, alph = y[n,0], gam = y[n,1], lamb = y[n,2], Th = y[n,3:])
         # save in array
         out[:,n,0] = Alphs
         out[:,n,1] = Gams
@@ -905,6 +907,10 @@ def kernel_sampler(y, T, S, logp, t_increment, chains = None, update = False):
 
     # if chain has to be run from scratch, call gaussian sampler with full T
     if chains is None:
+        #print('sampling from chains')
+        #print('sample: ' + str(y))
+        #print('steps: ' + str(T))
+        #print('sample size: ' + str(S))
         return sampler_wrapper(y, T, S, logp)
     else:
         # determine the current T in the chains
@@ -930,6 +936,10 @@ def kernel_sampler(y, T, S, logp, t_increment, chains = None, update = False):
 
         # now call gaussian sampler with the incremental samples only
         #print('sampling ' + str(Tnew) + ' instead of ' + str(T))
+        #print('sampling from chains')
+        #print('sample: ' + str(ynew))
+        #print('steps: ' + str(Tnew+1))
+        #print('sample size: ' + str(S))
         samples = sampler_wrapper(ynew, Tnew+1, S, logp) #(S,N,K)
 
         if update:

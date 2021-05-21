@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(description="run lbvi other vi and mcmc methods
 
 parser.add_argument('-d', '--dim', type = int,
 help = 'dimension on which to run both optimizations')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana', 'banana-gaussian', 'four-banana', 'double-banana-gaussian'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana', 'banana-gaussian', 'four-banana', 'double-banana-gaussian', 'network'],
 help = 'target distribution to use')
 parser.add_argument('-B', type = int, default = 500,
 help = 'MC sample size for gradient estimation in SGD')
@@ -40,7 +40,7 @@ parser.add_argument('--lbvi', action = "store_true",
 help = 'run lbvi?')
 parser.add_argument('-N', type = int,
 help = 'sample size on which to run lbvi optimization')
-parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
+parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian', 'network'],
 help = 'kernel to use in lbvi mixtures')
 parser.add_argument('--rkhs', type = str, default = 'rbf', choices=['rbf'],
 help = 'RKHS kernel to use for lbvi')
@@ -238,12 +238,18 @@ if target == 'double-banana-gaussian':
     from targets.doublebanana_gaussian import *
     plt_lims = np.array([-25, 25, -30, 30])
 
+if target == 'network':
+    from targets.networkpdf import logp_aux, sample, w_maxiters, w_schedule
+    plt_lims = None
+
 
 
 # import kernel for mixture
 sample_kernel = args.kernel
 if sample_kernel == 'gaussian':
     from kernels.gaussian import *
+if sample_kernel == 'network':
+    from kernels.network import kernel_sampler
 
 # if running lbvi, init auxiliary arrays
 if lbvi_flag:
@@ -396,7 +402,7 @@ for r in reps:
             if verbose:
                 print('starting lbvi optimization')
                 print()
-            w, T, obj, cput, act_k = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, verbose = verbose, plot = True, gif = False, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True)
+            w, T, obj, cput, act_k = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, verbose = verbose, plot = False, gif = False, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True)
             #lbvi_time = np.array([lbvi_end - lbvi_start])
             #np.save(path + 'times/lbvi_time' + str(r) + '_' + str(tol) + '_' + str(seed) + '.npy', lbvi_time)
             if verbose: print()

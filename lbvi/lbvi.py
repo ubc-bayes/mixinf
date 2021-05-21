@@ -539,7 +539,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
 ###################################
 def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = True):
     """
-    locally-adapted boosting variational inference main routine
+    locally-adaptive boosting variational inference main routine
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
 
     inputs:
@@ -568,7 +568,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - obj is an array with the value of the objective function at each iteration
     """
     if verbose:
-        print('running locally-adapted boosting variational inference')
+        print('running locally-adaptive boosting variational inference')
         print()
 
     t0 = time.perf_counter()
@@ -615,6 +615,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     if verbose: print('choosing first kernel')
     tmp_ksd = np.zeros(N)
     for n in range(N):
+        if verbose: print(str(n+1) + '/' + str(N), end = '\r')
         tmp_ksd[n] = ksd(logp = logp, y = y[n,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = None, B = B)
         # end for
 
@@ -631,7 +632,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     #if verbose: print('current chains: ' + str(chains))
 
     # estimate objective function
-    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 10000)]) # update objective
+    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B)]) # update objective
     if verbose: print('ksd: ' + str(obj[-1]))
 
 
@@ -696,7 +697,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
         # estimate objective
         if verbose: print('estimating objective function')
-        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 10000))
+        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B))
 
         # update convergence
         if verbose: print('updating convergence')
