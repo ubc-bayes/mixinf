@@ -52,6 +52,8 @@ parser.add_argument('-T', '--t_max', type = int, default = 1000,
 help = 'maximum number of step sizes allowed per chain in lbvi')
 parser.add_argument('--weight_max', type = int, default = 20,
 help = 'number of steps before optimizing weights again in lbvi')
+parser.add_argument('--no_cache', action = "store_true",
+help = 'if specified, lbvi will not cache the mcmc samples')
 parser.add_argument('--ubvi', action = "store_true",
 help = 'run ubvi?')
 parser.add_argument('--ubvi_kernels', type = int, default = 20,
@@ -185,6 +187,7 @@ no_tols = tols.shape[0]
 maxiter = args.maxiter
 t_increment = args.t_inc
 t_max = args.t_max
+cacheing = not args.no_cache
 # ubvi
 ubvi_kernels = args.ubvi_kernels
 ubvi_init = args.ubvi_init
@@ -402,7 +405,7 @@ for r in reps:
             if verbose:
                 print('starting lbvi optimization')
                 print()
-            w, T, obj, cput, act_k = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, verbose = verbose, plot = False, gif = False, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True)
+            w, T, obj, cput, act_k = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, cacheing = cacheing, verbose = verbose, plot = False, gif = False, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True)
             #lbvi_time = np.array([lbvi_end - lbvi_start])
             #np.save(path + 'times/lbvi_time' + str(r) + '_' + str(tol) + '_' + str(seed) + '.npy', lbvi_time)
             if verbose: print()

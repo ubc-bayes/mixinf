@@ -411,7 +411,10 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
 
 
     # subset active locations and chains
-    active_chains = [chains[n] for n in active]
+    if chains is not None:
+        active_chains = [chains[n] for n in active]
+    else:
+        active_chains = None
 
     y = y[active,:]
     T = T[active]
@@ -537,7 +540,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
 
 
 ###################################
-def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = True):
+def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, cacheing = True, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = True):
     """
     locally-adaptive boosting variational inference main routine
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
@@ -556,6 +559,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - tol is a float with the tolerance below which the algorithm breaks the loop and stops
         - stop_up indicates the stopping criterion. If None, the ksd provided will be used. Else, provide an auxiliary up function, which will be used to build a surrogate ksd to determine convergence
         - weight_max is an integer indicating max number of iterations without weight optimization (if no new kernels are added to mixture)
+        - cacheing : boolean indicating whether mc samples should be cached
         - verbose is boolean indicating whether to print messages
         - plot is boolean indicating whether to generate plots of the approximation at each iteration (only supported for uni and bivariate data)
         - plt_lims is an array with the plotting limits (xinf, xsup, yinf, ysup)
@@ -569,6 +573,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     """
     if verbose:
         print('running locally-adaptive boosting variational inference')
+        print('alphas: ' + str(np.squeeze(y[:,0])))
         print()
 
     t0 = time.perf_counter()
@@ -576,7 +581,10 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     K = y.shape[1]
 
     # init array with chain arrays
-    chains = [y[n,:].reshape(1,K) for n in range(N)]
+    if cacheing:
+        chains = [y[n,:].reshape(1,K) for n in range(N)]
+    else:
+        chains = None
     # chains[n] is a shape(T_n,K) np array with the chain of kernel n at time T - used for cacheing
 
     if stop_up is None:
@@ -627,9 +635,10 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     #if verbose: print('number of steps: ' + str(T))
 
     # now update chains with the new increment
-    if verbose: print('updating chains')
-    _, chains = kernel_sampler(y, T, 1, logp, t_increment = t_increment, chains = chains, update = True)
-    #if verbose: print('current chains: ' + str(chains))
+    if cacheing:
+        if verbose: print('updating chains')
+        _, chains = kernel_sampler(y, T, 1, logp, t_increment = t_increment, chains = chains, update = True)
+        #if verbose: print('current chains: ' + str(chains))
 
     # estimate objective function
     obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B)]) # update objective
@@ -666,9 +675,10 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         #if verbose: print('number of steps: ' + str(T))
 
         # update chains
-        if verbose: print('updating chains')
-        _, chains = kernel_sampler(y, T, 1, logp, t_increment, chains = chains, update = True)
-        #if verbose: print('new chains: ' + str(chains))
+        if cacheing:
+            if verbose: print('updating chains')
+            _, chains = kernel_sampler(y, T, 1, logp, t_increment, chains = chains, update = True)
+            #if verbose: print('new chains: ' + str(chains))
 
 
         # update active set and determine weight length
