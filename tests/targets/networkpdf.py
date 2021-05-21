@@ -231,7 +231,8 @@ def log_prior_lamb(lamb, a, b):
 
 def log_prior_th(alph, gam, lamb, Th):
     # the log beta process density
-    lp = (-1.-alph[:,np.newaxis])*np.log(Th) + (lamb[:,np.newaxis]+alph[:,np.newaxis]-1.)*np.log1p(-Th)
+    # GC hack: add  for stability
+    lp = (-1.-alph[:,np.newaxis])*np.log(Th+1e-50) + (lamb[:,np.newaxis]+alph[:,np.newaxis]-1.)*np.log1p(-Th)
     # normalizing constant
     lp += np.log(gam[:,np.newaxis]) + gammaln(lamb[:,np.newaxis]+1) - gammaln(lamb[:,np.newaxis]+alph[:,np.newaxis]) - gammaln(1-alph[:,np.newaxis])
     # subtract nu_int at the end
@@ -261,7 +262,8 @@ def approx_log_like(Edges, Th, N):
     lp = -N*Th.sum()**2 + (Th**2).sum(axis=-1)
 
     #lp = N*np.log1p(-Th[:,np.newaxis]*Th).sum() - N*np.log1p(-Th**2).sum()
-    lp += (Edges[2,:]*np.log(Th[:,Edges[0,:]]*Th[:,Edges[1,:]]) -Edges[2,:]*np.log1p(-Th[:,Edges[0,:]]*Th[:,Edges[1,:]])).sum(axis=-1)
+    # GC hack: add +1e-10 for stability
+    lp += (Edges[2,:]*np.log(Th[:,Edges[0,:]]*Th[:,Edges[1,:]]+1e-50) -Edges[2,:]*np.log1p(-Th[:,Edges[0,:]]*Th[:,Edges[1,:]])).sum(axis=-1)
 
     return lp
 

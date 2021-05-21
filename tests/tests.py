@@ -372,6 +372,7 @@ for r in reps:
 
         # score and up function for ksd estimation
         sp = egrad(logp) # returns (N,K)
+        #sp = lambda x : (logp(x+0.01) - logp(x))/0.01
         up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
         stop_up = None
 

@@ -40,6 +40,7 @@ def mix_sample(size, y, T, w, logp, kernel_sampler, t_increment, chains = None, 
     N = y.shape[0]
     K = y.shape[1]
     y = y.reshape(N,K)
+    #print('mixture w: ' + str(w))
     inds = np.random.choice(N, size = size, p = w, replace = True) # indices to sample from
     values, counts = np.unique(inds, return_counts = True) # sampled values with counts
 
@@ -54,6 +55,7 @@ def mix_sample(size, y, T, w, logp, kernel_sampler, t_increment, chains = None, 
     #    print()
 
     out = np.empty((1, K)) # init
+    out = np.zeros((1,K))
     for i in range(values.shape[0]):
 
         # for each value, generate a sample of size counts[i]
@@ -75,7 +77,7 @@ def mix_sample(size, y, T, w, logp, kernel_sampler, t_increment, chains = None, 
     #if verbose:
     #    print()
     #    print('sample mean: ' + str(out.mean()))
-    return out
+    return out[1:,:]
 ###################################
 
 
@@ -119,6 +121,10 @@ def up_gen(kernel, sp, dk_x, dk_y, dk_xy):
         #print('term 2: ' + str(term2))
         #print('term 3: ' + str(term3))
         #print('term 4: ' + str(term4))
+        #print('x: ' + str(x))
+        #print('sp(x): ' + str(sp(x)))
+        #print('y: ' + str(y))
+        #print('sp(y): ' + str(sp(y)))
 
         return term1 + term2 + term3 + term4
 
@@ -173,12 +179,20 @@ def simplex_project(x):
     code adapted from Duchi et al. (2008)
     """
 
+    initx = np.copy(x)
     N = x.shape[0]
     mu = -np.sort(-x) # sort x in descending order
     rho_aux = mu - (1 / np.arange(1, N+1)) * (np.cumsum(mu) - 1) # build array to get rho
     rho = bisect.bisect_left(-rho_aux, 0) # first element greater than 0
     theta = (np.sum(mu[:rho]) - 1) / rho #
     x = np.maximum(x - theta, 0)
+    if np.any(np.isinf(x)):
+        # if overflow, do norm1 projection of absolute value with logsumexp-ish trick
+        x = initx
+        x = np.abs(x)
+        x[x == 0] = 1e-50 # stability
+        xmax = np.max(x)
+        x = (x/xmax)/np.exp(np.log(x) - np.log(xmax)).sum() # divide by max
 
     return x
 ###################################
@@ -345,12 +359,15 @@ def w_grad(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None):
     mix_X = mix_sample(2*B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, verbose = True)
     mix_X = mix_X[~np.isnan(mix_X).any(axis=-1)] # remove nans
     mix_X = mix_X[~np.isinf(mix_X).any(axis=-1)] # remove infs
+    #print('sample: ' + str(mix_X))
+    #print()
     # sample from kernels
     #print('sample from kernels')
     X = kernel_sampler(y = y, T = T, S = 2*B, logp = logp, t_increment = t_increment, chains = chains)
     X = np.where(~np.isnan(X), X, 0) # remove nans
     X = np.where(~np.isinf(X), X, 0) # remove infs
-    #print(X)
+    #print('sample: ' + str(X))
+    #print()
 
     # get new size
     if mix_X.shape[0] % 2 == 1:

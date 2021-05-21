@@ -823,6 +823,7 @@ def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None, verb
     #th1_accept = 1
     #thK_accept = 1
     for i in np.arange(T):
+        #print('\nadaptive sampler iter ' + str(i+1) + '/' + str(T), end='\r')
         if i%50==0 and verbose:
             print('iter: ' + str(i))
             print('alphas: ' + str(alph))
@@ -878,6 +879,7 @@ def sampler_wrapper(y, T, S, logp):
     out = np.zeros((S,N,K))
 
     for n in range(N):
+        #print('\nsampler wrapper kernel ' + str(n+1) + '/' + str(N), end='\r')
         # obtain samples
         Alphs, Gams, Lambs, Ths = adaptive_sampler(T = T[n], S = S, alph = y[n,0], gam = y[n,1], lamb = y[n,2], Th = y[n,3:])
         # save in array
