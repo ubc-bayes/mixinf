@@ -756,8 +756,8 @@ def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None, verb
     """
     global Obs
 
-    #K = 2010
-    K = 200
+    K = 2010
+    #K = 1000
     # sampler settings (these don't change)
     Edges = np.copy(Obs)
     # GC hack to truncate Edges

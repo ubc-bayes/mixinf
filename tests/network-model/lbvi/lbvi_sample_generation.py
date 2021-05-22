@@ -89,7 +89,7 @@ Obs[2,:] = X[idcs[0], idcs[1]]
 # init
 np.random.seed(3)
 T = 2000
-K = 200
+K = 2010
 out = np.zeros((7,K+3))
 
 # sample

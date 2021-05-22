@@ -493,4 +493,4 @@ def w_maxiters(k, long_opt = False):
 
 def w_schedule(k):
     #if k == 0: return 0.1
-    return 1e-19
+    return 1e-35

@@ -464,20 +464,20 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
             print()
         if np.linalg.norm(Dw) < tol: convergence = True # update convergence
 
-        if trace:
-            obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B))
-            if verbose: print('ksd: ' + str(obj[-1]))
+        #if trace:
+        #    obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B))
+        #    if verbose: print('ksd: ' + str(obj[-1]))
 
 
     # end for
 
-    if trace:
-        plt.clf()
-        plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
-        plt.xlabel('iteration')
-        plt.ylabel('kernelized stein discrepancy')
-        plt.title('trace plot of ksd in weight optimization')
-        plt.savefig(tracepath + str(np.sum(T) / t_increment) + '.jpg', dpi = 300)
+    #if trace:
+    #    plt.clf()
+    #    plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
+    #    plt.xlabel('iteration')
+    #    plt.ylabel('kernelized stein discrepancy')
+    #    plt.title('trace plot of ksd in weight optimization')
+    #    plt.savefig(tracepath + str(np.sum(T) / t_increment) + '.jpg', dpi = 300)
 
     if verbose:
         print('weights optimized in ' + str(k+1) + ' iterations')
@@ -520,8 +520,8 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
 
         # calculate exactly if this is the only active chain
         if tmp_active.size == 0:
-            d0 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n]]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 10000)
-            d1 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n] + t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 10000)
+            d0 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n]]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B)
+            d1 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n] + t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B)
             grads[n] = d0 - d1 # exact decrease
             break
         #print('active chains: ' + str(tmp_active))
