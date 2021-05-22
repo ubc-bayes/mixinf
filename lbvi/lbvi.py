@@ -457,16 +457,16 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
         w_step = - (b/np.sqrt(k+1)) * Dw # step size without momentum
         w += w_step # update weight
         w = simplex_project(w) # project to simplex
-        #if verbose:
-        #    print('Dw: ' + str(Dw))
-        #    print('step: ' + str(w_step))
-        #    print('w: ' + str(w))
-        #    print()
+        if verbose:
+            print('Dw: ' + str(Dw))
+            print('step: ' + str(w_step))
+            print('w: ' + str(w))
+            print()
         if np.linalg.norm(Dw) < tol: convergence = True # update convergence
 
-        #if trace:
-        #    obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 10000))
-        #    if verbose: print('ksd: ' + str(obj[-1]))
+        if trace:
+            obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B))
+            if verbose: print('ksd: ' + str(obj[-1]))
 
 
     # end for
@@ -487,7 +487,7 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
 
 
 ###################################
-def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kernel_sampler):
+def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kernel_sampler, verbose = False):
     """
     choose kernel to add to the mixture
 
@@ -512,6 +512,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
     grads = np.zeros(N)
 
     for n in range(N):
+        if verbose: print(str(n+1) + '/' + str(N), end = '\r')
 
         # settings:
         #tmp_active = np.setdiff1d(active, np.array([n])) # if chain is active, remove. else, do nothing
@@ -557,14 +558,14 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
 
 
 ###################################
-def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, cacheing = True, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = True):
+def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, cacheing = True, result_cacheing = False, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = True):
     """
     locally-adaptive boosting variational inference main routine
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
 
     inputs:
         - y shape(N,K) array of kernel locations (sample)
-        - logp is a function, the target log densityreturn 10
+        - logp is a function,if verbose: print(str(n+1) + '/' + str(N), end = '\r') the target log densityreturn 10
         - t_increment integer with number of steps to increase chain by
         - t_max integer with max number of steps allowed per chaikernel_samplern
         - up function to calculate expected value of when estimating ksd
@@ -590,6 +591,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     """
     if verbose:
         print('running locally-adaptive boosting variational inference')
+        print()
         print('alphas: ' + str(np.squeeze(y[:,0])))
         print()
 
@@ -645,7 +647,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         # end for
 
     argmin = np.argmin(tmp_ksd) # ksd minimizer
-    if verbose: print('first sample point chosen: ' + str(y[argmin]))
+    if verbose: print('first sample point chosen: ' + str(y[argmin, 0:min(K,3)]))
     w[argmin] = 1 # update weight
     T[argmin] = t_increment # update steps
     active = np.array([argmin]) # update active locations, kernel_sampler
@@ -656,6 +658,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         if verbose: print('updating chains')
         _, chains = kernel_sampler(y, T, 1, logp, t_increment = t_increment, chains = chains, update = True)
         #if verbose: print('current chains: ' + str(chains))
+
 
     # estimate objective function
     obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B)]) # update objective
@@ -669,6 +672,15 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
     active_kernels = np.array([1.])
     cpu_time = np.array([time.perf_counter() - t0])
+
+    # save results
+    if result_cacheing:
+        if not os.path.exists(plot_path + 'tmp/'): os.makedirs(plot_path + 'tmp/')
+        np.save(plot_path + 'tmp/tmp_T.npy', T)
+        np.save(plot_path + 'tmp/tmp_w.npy', w)
+        np.save(plot_path + 'tmp/tmp_obj.npy', obj)
+        np.save(plot_path + 'tmp/tmp_kernels.npy', active_kernels)
+        np.save(plot_path + 'tmp/tmp_cput.npy', cpu_time)
 
     if verbose:
         print('cpu time: ' + str(cpu_time[-1]))
@@ -684,8 +696,8 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
 
         if verbose: print('choosing next kernel')
-        argmin = choose_kernel(up, logp, y, active, T, t_increment, t_max, chains = chains, w = w, B = B, kernel_sampler = kernel_sampler)
-        if verbose: print('chosen sample point: ' + str(y[argmin]))
+        argmin = choose_kernel(up, logp, y, active, T, t_increment, t_max, chains = chains, w = w, B = B, kernel_sampler = kernel_sampler, verbose = verbose)
+        if verbose: print('chosen sample point: ' + str(y[argmin, 0:min(K,3)]))
 
         # update steps
         T[argmin] = T[argmin] + t_increment
@@ -742,10 +754,18 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         cpu_time = np.append(cpu_time, time.perf_counter() - t0)
         active_kernels = np.append(active_kernels, active.shape[0])
 
+        # save results
+        if result_cacheing:
+            np.save(plot_path + 'tmp/tmp_T.npy', T)
+            np.save(plot_path + 'tmp/tmp_w.npy', w)
+            np.save(plot_path + 'tmp/tmp_obj.npy', obj)
+            np.save(plot_path + 'tmp/tmp_kernels.npy', active_kernels)
+            np.save(plot_path + 'tmp/tmp_cput.npy', cpu_time)
+
 
         if verbose:
             print('number of active kernels: ' + str(active_kernels[-1]))
-            print('active sample: ' + str(np.squeeze(y[active,:])))
+            print('active sample: ' + str(np.squeeze(y[active, 0:min(K,3)])))
             print('active steps: ' + str(T[active]))
             print('active weights: ' + str(w[active]))
             print('ksd: ' + str(obj[-1]))

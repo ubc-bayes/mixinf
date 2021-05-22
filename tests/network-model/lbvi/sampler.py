@@ -673,7 +673,7 @@ def mh_uTh0(S, idx0, Th_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_
 #################
 
 # load the network
-df = pd.read_csv('../network-model/fb2.txt', delim_whitespace=True, )
+df = pd.read_csv('../fb2.txt', delim_whitespace=True, )
 
 # convert the datetime to integers
 df['rnd'] = pd.to_datetime(df['date']).astype(int)/(1800*10**9) # this converts to 1/2 hour intervals
@@ -743,8 +743,9 @@ Obs[2,:] = X[idcs[0], idcs[1]]
 #################
 
 # this is the actual sampler
-def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None, verbose = False):
+def adaptive_sampler(K, T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None, verbose = False):
     """
+    K : truncation size
     T : number of steps to run the chain for
     S : number of samples to generate
     alph, gam, lamb, Th: initial values of alpha, gamma, lambda, Thetas
@@ -756,8 +757,6 @@ def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None, verb
     """
     global Obs
 
-    #K = 2010
-    K = 200
     # sampler settings (these don't change)
     Edges = np.copy(Obs)
     # GC hack to truncate Edges
@@ -786,6 +785,8 @@ def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None, verb
 
     # extract the set of nonempty vertices
     idx1 = np.unique(Edges[:-1, :]).astype(int)
+    # GC hack to create only vertices with k < K
+    idx1 = idx1[idx1 <= K]
 
     # extract empty verts
     idx0 = []
@@ -833,6 +834,7 @@ def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None, verb
             print('alphas: ' + str(alph))
             print('gammas: ' + str(gam))
             print('lambdas: ' + str(lamb))
+            print()
 
         # Basic MH for alpha, lambda, gibbs for gamma
         gam = gibbs_gamma(S, K, alph, gam, lamb, Th, gamma_a, gamma_b)

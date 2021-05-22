@@ -359,7 +359,7 @@ def log_prob_thK(ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, g
 
     lth = log_prior_th(alph, gam, lamb, Th)
 
-    ll = log_like_thk(uTh.shape[0]-1, Edges, Th, N)
+    ll = log_like_thk(uTh.shape[1]-1, Edges, Th, N)
 
     ljac = log_jac_thK(ualph, ugam, ulamb, uTh)
 
@@ -452,6 +452,9 @@ def logp_aux(x, K = 2013):
     # load data
     global Obs
     Edges = np.copy(Obs)
+    # GC hack to truncate Edges
+    idx = np.logical_and(Edges[0,:] < K-3, Edges[1,:] < K-3)
+    Edges = Edges[:,idx]
 
     # retrieve param values
     alph = x[:,0]
@@ -476,18 +479,18 @@ def logp_aux(x, K = 2013):
 
 def sample(size, K):
     # instead of generating a sample, we load the one we generated before
-    # size and K are ignored; the sample was already generated with desired size,K values anyway
-    return np.load('../network-model/initial_sample.npy')
+    # size is ignored; the sample was already generated with desired values anyway
+    return np.load('../network-model/initial_sample.npy')[:,:K]
 
 
 # CREATE WEIGHT OPT SCHEDULE AND MAXITER
 def w_maxiters(k, long_opt = False):
-    if k > 10: return 10
-    if k == 0: return 10
-    if long_opt: return 10
-    return 10
+    #if k > 10: return 10
+    #if k == 0: return 100
+    #if long_opt: return 10
+    return 100
 
 
 def w_schedule(k):
     #if k == 0: return 0.1
-    return 1.
+    return 1e-19

@@ -9,7 +9,7 @@ import os
 
 
 # load the network
-df = pd.read_csv('fb2.txt', delim_whitespace=True, )
+df = pd.read_csv('../fb2.txt', delim_whitespace=True, )
 
 # convert the datetime to integers
 df['rnd'] = pd.to_datetime(df['date']).astype(int)/(1800*10**9) # this converts to 1/2 hour intervals

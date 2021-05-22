@@ -405,7 +405,7 @@ for r in reps:
             if verbose:
                 print('starting lbvi optimization')
                 print()
-            w, T, obj, cput, act_k = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, cacheing = cacheing, verbose = verbose, plot = False, gif = False, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True)
+            w, T, obj, cput, act_k = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, cacheing = cacheing, result_cacheing = True, verbose = verbose, plot = False, gif = False, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True)
             #lbvi_time = np.array([lbvi_end - lbvi_start])
             #np.save(path + 'times/lbvi_time' + str(r) + '_' + str(tol) + '_' + str(seed) + '.npy', lbvi_time)
             if verbose: print()

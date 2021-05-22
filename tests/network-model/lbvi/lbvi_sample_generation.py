@@ -4,9 +4,9 @@ import pandas as pd
 #from kernel import *
 import sys
 import os
+from sampler import adaptive_sampler
 
 sys.path.insert(1, os.path.join(sys.path[0], '../../kernels/'))
-import network
 
 #################
 #################
@@ -88,11 +88,12 @@ Obs[2,:] = X[idcs[0], idcs[1]]
 
 # init
 np.random.seed(3)
-T = 1000
-out = np.zeros((7,2013))
+T = 2000
+K = 200
+out = np.zeros((7,K+3))
 
 # sample
-Alphs, Gams, Lambs, Ths = network.adaptive_sampler(T, S = 7, alph = np.array([0.01, 0.05, 0.15, 0.3, 0.5, 0.7, 0.9]), gam = 2., lamb = 20., Th = None, verbose = True)
+Alphs, Gams, Lambs, Ths = adaptive_sampler(K, T, S = 7, alph = np.array([0.01, 0.05, 0.15, 0.3, 0.5, 0.7, 0.9]), gam = 2., lamb = 20., Th = None, verbose = True)
 
 # save in array
 out[:,0] = Alphs

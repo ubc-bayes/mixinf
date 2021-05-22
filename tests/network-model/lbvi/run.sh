@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#python3 fb_example_lbvi.py
-python3 lbvi_sample.py
+#ython3 fb_example.py
+python3 lbvi_sample_generation.py
 
 $SHELL
