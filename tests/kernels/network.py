@@ -856,10 +856,12 @@ def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None, verb
         uTh = mh_uTh0(S, idx0, Th0_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
         Th = constrain_rates(uTh)
 
+
         #print('Kth')
         # individual MH step for K entry
         uTh[:,-1], Th[:,-1] = mh_uThmk(S, uTh.shape[1]-1, ThK_step, ualph, ugam, ulamb, uTh, Th, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
         Th = constrain_rates(uTh)
+
 
         #store the results
         alphs = alph
