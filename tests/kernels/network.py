@@ -835,22 +835,28 @@ def adaptive_sampler(T, S = 1, alph = 0.5, gam = 2., lamb = 20., Th = None, verb
             print('lambdas: ' + str(lamb))
 
         # Basic MH for alpha, lambda, gibbs for gamma
+        #print('gamma')
         gam = gibbs_gamma(S, K, alph, gam, lamb, Th, gamma_a, gamma_b)
         ualph, ugam, ulamb = unconstrain_hyper(alph, gam, lamb)
 
+        #print('lambda')
         ulamb = mh_lambda(S, lambda_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
         alph, gam, lamb = constrain_hyper(ualph, ugam, ulamb)
 
+        #print('alpha')
         ualph = mh_alpha(S, alpha_step, ualph, ualph_lower, ualph_upper, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
         alph, gam, lamb = constrain_hyper(ualph, ugam, ulamb)
 
+        #print('idx1')
         # individual MH steps for idx1 entries
         for k in idx1: uTh[:,k], Th[:,k] = mh_uThmk(S, k, Th1_step, ualph, ugam, ulamb, uTh, Th, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
 
+        #print('idx0')
         # joint move for idx0 entries
         uTh = mh_uTh0(S, idx0, Th0_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
         Th = constrain_rates(uTh)
 
+        #print('Kth')
         # individual MH step for K entry
         uTh[:,-1], Th[:,-1] = mh_uThmk(S, uTh.shape[1]-1, ThK_step, ualph, ugam, ulamb, uTh, Th, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
         Th = constrain_rates(uTh)

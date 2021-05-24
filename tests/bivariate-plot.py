@@ -667,6 +667,7 @@ if lbvi_flag and bvi_flag and ubvi_flag:
     # end for
 
 
+
     # create error bars for all plots via masked arrays (to get rid of placeholder 0's where there were no iterations)
     # LBVI
     lbvi_times_masked = npc.ma.masked_where(lbvi_times == 0, lbvi_times) # mask 0's

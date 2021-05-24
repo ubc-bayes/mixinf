@@ -592,8 +592,8 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     if verbose:
         print('running locally-adaptive boosting variational inference')
         print()
-        print('alphas: ' + str(np.squeeze(y[:,0])))
-        print()
+        #print('alphas: ' + str(np.squeeze(y[:,0])))
+        #print()
 
     t0 = time.perf_counter()
     N = y.shape[0]
@@ -661,7 +661,9 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
 
     # estimate objective function
-    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B)]) # update objective
+    obj_timer0 = time.perf_counter() # to not time obj estimation
+    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 10000)]) # update objective
+    obj_timer = time.perf_counter() - obj_timer0
     if verbose: print('ksd: ' + str(obj[-1]))
 
 
@@ -671,7 +673,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         plotting(y, T, w, logp, plot_path, iter_no = 0, t_increment = t_increment, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
 
     active_kernels = np.array([1.])
-    cpu_time = np.array([time.perf_counter() - t0])
+    cpu_time = np.array([time.perf_counter() - t0 - obj_timer])
 
     # save results
     if result_cacheing:
@@ -736,7 +738,9 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
         # estimate objective
         if verbose: print('estimating objective function')
-        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B))
+        obj_timer0 = time.perf_counter() # to not time obj estimation
+        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 10000))
+        obj_timer = time.perf_counter() - obj_timer0
 
         # update convergence
         if verbose: print('updating convergence')
@@ -751,7 +755,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
                 if verbose: print('plotting failed')
 
         # calculate cumulative computing time and active kernels
-        cpu_time = np.append(cpu_time, time.perf_counter() - t0)
+        cpu_time = np.append(cpu_time, time.perf_counter() - obj_timer - t0)
         active_kernels = np.append(active_kernels, active.shape[0])
 
         # save results
