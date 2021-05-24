@@ -72,14 +72,18 @@ up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
 
 # import lbvi data
 load_path = inpath
-if tmp: load_path += 'tmp_'
+if tmp:
+    load_path += 'tmp_'
+    extra = ''
+else:
+    extra = '_1_0.0'
 y = np.load('initial_sample.npy')
-T = np.load(load_path + 'T.npy')
-w = np.load(load_path + 'w.npy')
+T = np.load(load_path + 'T' + extra + '.npy')
+w = np.load(load_path + 'w' + extra + '.npy')
 w = np.array([0.9, 0, 0, 0, 0, 0.1, 0])
-obj = np.load(load_path + 'obj.npy')
-cput = np.load(load_path + 'cput.npy')
-kernels = np.load(load_path + 'kernels.npy')
+obj = np.load(load_path + 'obj' + extra + '.npy')
+cput = np.load(load_path + 'cput' + extra + '.npy')
+kernels = np.load(load_path + 'kernels' + extra + '.npy')
 
 # import mcmc data
 mcmc_sample = np.load('mcmc_sample.npy')
