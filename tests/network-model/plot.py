@@ -83,7 +83,7 @@ else:
 y = np.load('initial_sample.npy')
 T = np.load(load_path + 'T' + extra + '.npy')
 w = np.load(load_path + 'w' + extra + '.npy')
-w = np.array([0.9, 0, 0, 0, 0, 0.1, 0])
+#w = np.array([0.9, 0, 0, 0, 0, 0.1, 0])
 obj = np.load(load_path + 'obj' + extra + '.npy')
 cput = np.load(load_path + 'cput' + extra + '.npy')
 kernels = np.load(load_path + 'kernels' + extra + '.npy')
@@ -152,8 +152,8 @@ plt.clf()
 ####################################
 ####################################
 
-plt.hist(lbvi_sample[:,1], bins = 50, density = True, alpha = plt_alpha, facecolor = lbvi_color, edgecolor='black')
-plt.hist(mcmc_sample[:,1], bins = 20, density = True, alpha = plt_alpha, facecolor = mcmc_color, edgecolor='black')
+plt.hist(lbvi_sample[:,1], bins = 30, density = True, alpha = plt_alpha, facecolor = lbvi_color, edgecolor='black')
+plt.hist(mcmc_sample[:,1], bins = 30, density = True, alpha = plt_alpha, facecolor = mcmc_color, edgecolor='black')
 
 # add axes labels etc
 plt.xlabel('γ')
