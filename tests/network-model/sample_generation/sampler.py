@@ -547,7 +547,7 @@ def mh_uTh0(idx0, Th_step, ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, 
 #################
 #################
 
-def adaptive_truncation_sampler(T, Edges, N, K, alph = 0.1, gam = 1., lamb = 2., alpha_a=0.5, alpha_b=1.5, gamma_a=1., gamma_b=1., lambda_a=1., lambda_b=1., lambda_step = 0.1, alpha_step = 0.1, Th0_step = 0.1, Th1_step = 0.1, ThK_step = 0.1, Th0=None):
+def adaptive_truncation_sampler(T, Edges, N, K, alph = 0.1, gam = 1., lamb = 2., alpha_a=0.5, alpha_b=1.5, gamma_a=1., gamma_b=1., lambda_a=1., lambda_b=1., lambda_step = 0.1, alpha_step = 0.1, Th0_step = 0.1, Th1_step = 0.1, ThK_step = 0.1, Th0=None, verbose = True):
     """
     T     : number of samples to generate
     Edges   : nonzero connections of a undirected network
@@ -594,7 +594,7 @@ def adaptive_truncation_sampler(T, Edges, N, K, alph = 0.1, gam = 1., lamb = 2.,
     gams = None
     Ths = None
     # start sampling
-    print("Sampling start; K = " + str(K))
+    if verbose: print("Sampling start; K = " + str(K))
     burn = int(T/2)
     burn = 0
     alphs = np.zeros(T-burn)
@@ -615,7 +615,8 @@ def adaptive_truncation_sampler(T, Edges, N, K, alph = 0.1, gam = 1., lamb = 2.,
         #if i%50==0:
         if True:
             #lp = log_prob(ualph, ugam, ulamb, uTh, Edges, N, alpha_a, alpha_b, gamma_a, gamma_b, lambda_a, lambda_b)
-            print("i: {0:<5}".format(i),
+            if verbose:
+                print("i: {0:<5}".format(i),
                   "alph: {0:<10}".format(np.round(alph, 5)),
                   "alph_accept: {0:<5}".format(np.round(alph_accept/(i+1), 3)),
                   "gam: {0:<5}".format(np.round(gam, 3)),

@@ -15,6 +15,7 @@ plt.rcParams.update({'font.size': 16})
 import argparse
 import sys, os
 import imageio
+from sample_generation.sampler import adaptive_truncation_sampler
 
 # import the suite of functions from parent directory
 sys.path.insert(1, os.path.join(sys.path[0], '../../lbvi/'))
@@ -39,130 +40,6 @@ parser.add_argument('-v', '--verbose', action = "store_true",
 help = 'if specified, messages will br printed throughout plotting')
 
 args = parser.parse_args()
-
-
-
-# FOLDER SETTINGS
-path = args.outpath
-# check if necessary folder structure exists, and create it if it doesn't
-if not os.path.exists(path): os.makedirs(path)
-
-
-# other arg parse variables
-inpath = args.inpath
-extension = args.extension
-calculate_kl = args.kl
-tmp = args.tmp
-verbose = args.verbose
-
-if verbose:
-    print('network model plotting')
-    print()
-
-
-# import density, sampler, and rbf kernel
-from kernels.network import kernel_sampler
-from targets.networkpdf import logp_aux
-from RKHSkernels.rbf import *
-kernel, dk_x, dk_y, dk_xy = get_kernel(700)
-
-
-# define densities and up
-def logp(x): return logp_aux(x, 1)
-def p(x): return np.exp(logp(x))
-sp = egrad(logp)
-up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
-
-
-# import lbvi data
-load_path = inpath
-if tmp:
-    load_path += 'tmp_'
-    extra = ''
-else:
-    extra = '_1_0.0'
-y = np.load('initial_sample.npy')
-T = np.load(load_path + 'T' + extra + '.npy')
-w = np.load(load_path + 'w' + extra + '.npy')
-#w = np.array([0.9, 0, 0, 0, 0, 0.1, 0])
-obj = np.load(load_path + 'obj' + extra + '.npy')
-cput = np.load(load_path + 'cput' + extra + '.npy')
-kernels = np.load(load_path + 'kernels' + extra + '.npy')
-
-# import mcmc data
-mcmc_sample = np.load('mcmc_sample.npy')
-
-# print details
-if verbose:
-    print('initial alphas: ' + str(y[:,0]))
-    print('initial gammas: ' + str(y[:,1]))
-    print('initial lambdas: ' + str(y[:,2]))
-    print()
-    print('weights: ' + str(w))
-    print('number of steps: ' + str(T))
-    print('ksd trace: ' + str(obj))
-    print()
-
-
-# define colors and settings
-lbvi_color = '#39558CFF'
-lbvi_color2 = '#56C667FF'
-mcmc_color = '#F79044FF'
-normal_linewidth = 4
-plt_alpha = 0.5
-legend_fontsize = 'medium'
-
-# generate lbvi sample or load it if it has been generated before (to speed plot tweaking)
-if os.path.exists(path + 'lbvi_sample.npy'):
-    lbvi_sample = np.load(path + 'lbvi_sample.npy')
-    if verbose:
-        print('loading existing lbvi sample')
-        print()
-        print('begin plotting!')
-else:
-    if verbose: print('generating lbvi sample; this might take a while')
-    lbvi_sample = lbvi.mix_sample(1000, y = y, T = T+1, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = 1)
-    np.save(path + 'lbvi_sample.npy', lbvi_sample)
-    if verbose:
-        print('lbvi sample generated')
-        print()
-        print('begin plotting!')
-
-
-
-####################################
-####################################
-# alpha vs gamma scatter plot ######
-####################################
-####################################
-
-plt.scatter(lbvi_sample[:,0],lbvi_sample[:,2], label = 'LBVI', c = lbvi_color, alpha = plt_alpha)
-plt.scatter(mcmc_sample[:,0],mcmc_sample[:,2], label = 'MCMC', c = mcmc_color, alpha = plt_alpha)
-
-# add axes labels etc
-plt.xlabel('α')
-#plt.xlim(0,1)
-plt.ylabel('λ')
-plt.legend(fontsize = legend_fontsize)
-plt.savefig(path + 'network_alpha_lambda_scatter.' + extension, dpi=900, bbox_inches='tight')
-plt.clf()
-
-
-####################################
-####################################
-# lambda histogram            ######
-####################################
-####################################
-
-plt.hist(lbvi_sample[:,1], bins = 30, density = True, alpha = plt_alpha, facecolor = lbvi_color, edgecolor='black')
-plt.hist(mcmc_sample[:,1], bins = 30, density = True, alpha = plt_alpha, facecolor = mcmc_color, edgecolor='black')
-
-# add axes labels etc
-plt.xlabel('γ')
-plt.savefig(path + 'network_gamma_hist.' + extension, dpi=900, bbox_inches='tight')
-plt.clf()
-
-
 
 
 ####################################
@@ -289,6 +166,164 @@ def predict(alphs, gams, lambs, Ths, N, T):
     return nEVs, HEs
 
 
+# FOLDER SETTINGS
+path = args.outpath
+# check if necessary folder structure exists, and create it if it doesn't
+if not os.path.exists(path): os.makedirs(path)
+
+
+# other arg parse variables
+inpath = args.inpath
+extension = args.extension
+calculate_kl = args.kl
+tmp = args.tmp
+verbose = args.verbose
+
+if verbose:
+    print('network model plotting')
+    print()
+
+
+# import density, sampler, and rbf kernel
+from kernels.network import kernel_sampler
+from targets.networkpdf import logp_aux
+from RKHSkernels.rbf import *
+kernel, dk_x, dk_y, dk_xy = get_kernel(700)
+
+
+# define densities and up
+def logp(x): return logp_aux(x, 1)
+def p(x): return np.exp(logp(x))
+sp = egrad(logp)
+up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
+
+
+# import lbvi data
+load_path = inpath
+if tmp:
+    load_path += 'tmp_'
+    extra = ''
+else:
+    extra = '_1_0.0'
+y = np.load('initial_sample.npy')
+T = np.load(load_path + 'T' + extra + '.npy')
+w = np.load(load_path + 'w' + extra + '.npy')
+obj = np.load(load_path + 'obj' + extra + '.npy')
+cput = np.load(load_path + 'cput' + extra + '.npy')
+kernels = np.load(load_path + 'kernels' + extra + '.npy')
+
+# import mcmc data
+mcmc_sample = np.load('mcmc_sample.npy')
+
+# print details
+if verbose:
+    print('initial alphas: ' + str(y[:,0]))
+    print('initial gammas: ' + str(y[:,1]))
+    print('initial lambdas: ' + str(y[:,2]))
+    print()
+    print('weights: ' + str(w))
+    print('number of steps: ' + str(T))
+    print('ksd trace: ' + str(obj))
+    print()
+
+
+# define colors and settings
+lbvi_color = '#39558CFF'
+lbvi_color2 = '#56C667FF'
+mcmc_color = '#F79044FF'
+normal_linewidth = 4
+plt_alpha = 0.5
+legend_fontsize = 'medium'
+
+# generate lbvi sample or load it if it has been generated before (to speed plot tweaking)
+if os.path.exists(path + 'lbvi_sample.npy'):
+    lbvi_sample = np.load(path + 'lbvi_sample.npy')
+    if verbose:
+        print('loading existing lbvi sample')
+        print()
+        print('begin plotting!')
+else:
+    if verbose: print('generating lbvi sample; this might take a while')
+
+    np.random.seed(123)
+    size = 1000
+    sizes = np.floor(size*w).astype(int)
+    sizes[0] += size-sizes.sum()
+    K = 2010
+    lbvi_sample = np.zeros((1,K+3))
+    alpha_init = y[:,0]
+    gam_init = y[:,1]
+    lamb_init = y[:,2]
+    Th_init = y[:,3:]
+
+
+    # sample
+    for i in range(alpha_init.shape[0]):
+        if verbose: print(str(i+1) + '/7')
+        if w[i] == 0: continue
+        tmp = np.zeros((sizes[i],K+3))
+
+        if verbose: print('sampling from posterior')
+        for s in range(sizes[i]):
+            if verbose: print(str(s+1) + '/' + str(sizes[i]), end = '\r')
+            Alphs, Gams, Lambs, Ths = adaptive_truncation_sampler(T[i], Obs, NN, K,
+                                            alph=alpha_init[i], lamb=lamb_init[i], gam=gam_init[i], Th0 = Th_init[i,:],
+                                            alpha_step = 0.04, lambda_step = 0.1,
+                                            Th0_step = 0.03, Th1_step = 0.1, ThK_step = 0.1, verbose = False)
+            # save in array
+            tmp[s,0] = Alphs[-1]
+            tmp[s,1] = Gams[-1]
+            tmp[s,2] = Lambs[-1]
+            tmp[s,3:] = Ths[-1,:]
+        # end for
+
+        lbvi_sample = np.concatenate((lbvi_sample, tmp))
+    # end for
+
+    lbvi_sample = lbvi_sample[1:,:] # rm row with zeros
+
+    #lbvi_sample = lbvi.mix_sample(1000, y = y, T = T+1, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = 1)
+    np.save(path + 'lbvi_sample.npy', lbvi_sample)
+    if verbose:
+        print('lbvi sample generated')
+        print()
+        print('begin plotting!')
+
+print('lbvi sample: ' + str(lbvi_sample))
+####################################
+####################################
+# alpha vs gamma scatter plot ######
+####################################
+####################################
+
+plt.scatter(lbvi_sample[:,0],lbvi_sample[:,2], label = 'LBVI', c = lbvi_color, alpha = plt_alpha)
+plt.scatter(mcmc_sample[:,0],mcmc_sample[:,2], label = 'MCMC', c = mcmc_color, alpha = plt_alpha)
+
+# add axes labels etc
+plt.xlabel('α')
+#plt.xlim(0,1)
+plt.ylabel('λ')
+plt.legend(fontsize = legend_fontsize)
+plt.savefig(path + 'network_alpha_lambda_scatter.' + extension, dpi=900, bbox_inches='tight')
+plt.clf()
+
+
+####################################
+####################################
+# lambda histogram            ######
+####################################
+####################################
+
+plt.hist(lbvi_sample[:,1], bins = 30, density = True, alpha = plt_alpha, facecolor = lbvi_color, edgecolor='black')
+plt.hist(mcmc_sample[:,1], bins = 30, density = True, alpha = plt_alpha, facecolor = mcmc_color, edgecolor='black')
+
+# add axes labels etc
+plt.xlabel('γ')
+plt.xlim(1.8,3.2)
+plt.savefig(path + 'network_gamma_hist.' + extension, dpi=900, bbox_inches='tight')
+plt.clf()
+
+
 
 ####################################
 ####################################
@@ -349,6 +384,7 @@ for t in range(T):
 
 # add axes labels etc
 plt.xlabel('Degree')
+plt.xlim(0,500)
 plt.ylabel('log Density')
 plt.legend(fontsize = legend_fontsize)
 plt.savefig(path + 'degree_logd.' + extension, dpi=900, bbox_inches='tight')

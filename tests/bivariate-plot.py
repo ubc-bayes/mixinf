@@ -781,7 +781,7 @@ if lbvi_flag and bvi_flag and ubvi_flag:
     ax3.set_yscale('log')
 
     plt.tight_layout()
-    plt.savefig(path + 'times_kernels_newv2.' + extension, dpi=900, bbox_inches='tight')
+    plt.savefig(path + 'times_kernels.' + extension, dpi=900, bbox_inches='tight')
 ###################
 
 
