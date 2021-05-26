@@ -1,5 +1,5 @@
 #!/bin/bash
 
-python3 -W ignore ../univariate-plot.py --inpath 'results/' --outpath 'results/plots/' --target 'cauchy' --reps 20 --tol 0.1 0.05 0.01 0.005 0.001 --no_dens --lbvi --kernel 'gaussian' --rkhs 'rbf' --ubvi --bvi --gvi --hmc --rwmh
+python3 -W ignore ../univariate-plot.py --inpath 'results/' --outpath 'results/plots/' --target 'cauchy' --reps 30 --tol 0.0 --lbvi --kernel 'gaussian' --rkhs 'rbf' --gamma 0.5 --ubvi --bvi --gvi --hmc --rwmh
 
 $SHELL

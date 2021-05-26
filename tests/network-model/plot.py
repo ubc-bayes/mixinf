@@ -170,7 +170,59 @@ plt.clf()
 ####################################
 ####################################
 
+def predict(alphs, gams, lambs, Ths, N, T):
+    K = Ths.shape[1]
+    nEVs = []
+    HEs = []
+    for t in range(T):
+        if t%5==0: print(t)
+        m = np.random.randint(0, Ths.shape[0], 1)
 
+        ######################
+        # simulate from hypers
+        #alph = alphs[m]
+        #gam = gams[m]
+        #lamb = lambs[m]
+        #Ths[m] = rej_beta(Ths.shape[1], alph, gam, lamb)
+        # to simulate from Ths instead, comment the above block out
+        ######################
+
+        # generate N rounds of bernoulli at each pair of vertices using a binomial
+        W = np.outer(Ths[m], Ths[m])
+        W[np.arange(K), np.arange(K)] = 0
+        X = np.random.binomial(N, W, size=W.shape)
+
+        # collect nonzero edge vertex pairs
+        V1, V2 = np.where(X>0)
+
+        # create binary sequence of edges for each nonzero pair
+        nzEs = np.zeros((V1.shape[0], N))
+        for i in range(V1.shape[0]):
+            N_pair = X[V1[i], V2[i]]
+            idcs = np.random.choice(np.arange(N), size=N_pair, replace=False)
+            nzEs[i, idcs] = 1
+        # compute number of edges in each round, then cumsum
+        nE = np.cumsum(nzEs.sum(axis=0))
+        # compute number of unique vertices using a set
+        nV = np.zeros(N)
+        V = set()
+        for n in range(N):
+            idcs = np.where(nzEs[:, n]>0)[0]
+            for i in idcs:
+                V.add(V1[i])
+                V.add(V2[i])
+            nV[n] = len(V)
+        nEVs.append(np.vstack((np.log10(nE), np.log10(nV))))
+
+        # compute the degrees of the final network
+        degrees = (X+X.T).sum(axis=0)
+        #degrees = np.sort(degrees)
+        hist, edges = np.histogram(degrees, density=True, bins=50)
+        #hist = hist/hist.sum()
+        edges = edges[1:]
+        HEs.append([edges, np.log10(hist)])
+
+    return nEVs, HEs
 
 
 if verbose:
