@@ -111,12 +111,13 @@ Obs[0,:] = idcs[0]
 Obs[1,:] = idcs[1]
 Obs[2,:] = X[idcs[0], idcs[1]]
 
-def predict(alphs, gams, lambs, Ths, N, T):
+def predict(alphs, gams, lambs, Ths, N, T, verbose = True):
     K = Ths.shape[1]
     nEVs = []
     HEs = []
     for t in range(T):
-        if t%5==0: print('obs ' + str(t))
+        #if t%5==0: print('obs ' + str(t))
+        if verbose: print(str(t+1) + '/' + str(T))
         m = np.random.randint(0, Ths.shape[0], 1)
 
         ######################
