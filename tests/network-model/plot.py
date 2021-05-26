@@ -64,6 +64,7 @@ if verbose:
 from kernels.network import kernel_sampler
 from targets.networkpdf import logp_aux
 from RKHSkernels.rbf import *
+kernel, dk_x, dk_y, dk_xy = get_kernel(700)
 
 
 # define densities and up
@@ -159,6 +160,17 @@ plt.hist(mcmc_sample[:,1], bins = 30, density = True, alpha = plt_alpha, facecol
 plt.xlabel('γ')
 plt.savefig(path + 'network_gamma_hist.' + extension, dpi=900, bbox_inches='tight')
 plt.clf()
+
+
+
+
+####################################
+####################################
+# posterior predictive        ######
+####################################
+####################################
+
+
 
 
 if verbose:

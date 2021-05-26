@@ -5,7 +5,7 @@ import pandas as pd
 import sys
 import os
 #from sampler import adaptive_sampler, sampler_wrapper
-from samplerv2 import adaptive_truncation_sampler
+from sampler import adaptive_truncation_sampler
 
 sys.path.insert(1, os.path.join(sys.path[0], '../../kernels/'))
 
