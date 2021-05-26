@@ -4,7 +4,7 @@ This repository contains a Python package that can be used to do Bayesian infere
 
 <p float="left">
   <img src="fourmixture.gif" width="400" />
-  <img src="four-banana.gif" width="400" />
+  <img src="two-banana.gif" width="400" />
 </p>
 
 ## Repository Status
