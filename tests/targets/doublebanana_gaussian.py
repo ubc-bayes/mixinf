@@ -119,11 +119,12 @@ def sample(size,K=2):
 
 # CREATE WEIGHT OPT SCHEDULE AND MAXITER
 def w_maxiters(k, long_opt = False):
-    if k == 0: return 100
-    if long_opt: return 100
+    #if k == 0: return 100
+    #if long_opt: return 100
+    #return 100
     return 100
 
-def w_schedule(k): return 1.
+def w_schedule(k): return 0.01
 
 
 # CREATE UBVI SCHEDULES

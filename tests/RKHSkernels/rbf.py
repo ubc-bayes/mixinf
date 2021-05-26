@@ -3,8 +3,8 @@ from autograd import elementwise_grad as egrad
 from autograd import grad
 
 # banwidth of kernel
-k_gamma = 0.5
-#k_gamma = 700
+#k_gamma = 0.5
+k_gamma = 700
 # define rbf kernel
 def kernel(x, y):
     return np.exp(-0.5 * np.sum((x - y)**2, axis = -1) / k_gamma) # returns (N,1)

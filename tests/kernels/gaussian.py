@@ -64,7 +64,8 @@ def kernel_sampler(y, T, S, logp, t_increment, chains = None, update = False):
     # update is boolean. If True and chains is not None, a new chains list will be created with the generated samples appended
     #
     # out: array of shape(S, N, K)
-
+    #print('kernel sampler y: ' + str(y))
+    #print('kernel sampler T: ' + str(T))
     # if chain has to be run from scratch, call gaussian sampler with full T
     if chains is None:
         return gaussian_sampler(y, T, S, logp)
@@ -82,6 +83,10 @@ def kernel_sampler(y, T, S, logp, t_increment, chains = None, update = False):
             if Tnew[n] < 0:
                 print('error! negative incremental steps')
                 print('n = ' + str(n))
+                print('kernel sampler y: ' + str(y))
+                print('y = ' + str(y[n,:]))
+                print('kernel sampler T: ' + str(T))
+                print('kernel sampler chains: ' + str(chains))
                 print('current length: ' + str(Tcurr))
                 print('needed length: ' + str(T[n]))
                 print('incremental steps: ' + str(Tnew[n]))

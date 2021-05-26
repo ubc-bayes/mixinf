@@ -30,15 +30,15 @@ def p_sample(size, K): return np.random.standard_cauchy((size,K))
 
 # CREATE WEIGHT OPT SCHEDULE AND MAXITER
 def w_maxiters(k, long_opt = False):
-    if k > 10: return 10
-    if k == 0: return 100
-    if long_opt: return 50
-    return 20
+    #if k > 10: return 10
+    #if k == 0: return 100
+    #if long_opt: return 50
+    return 500
 
 
 def w_schedule(k):
     #if k == 0: return 0.1
-    return 1.
+    return 0.5
 
 
 # CREATE UBVI SCHEDULES

@@ -33,64 +33,65 @@ def mix_sample(size, y, T, w, logp, kernel_sampler, t_increment, chains = None, 
     """
 
     #if verbose:
-    #    print('mixture sample')
-    #    print('steps: ' + str(T))
-    #    print('chains: ' + str(chains))
+    #print('mixture sample')
+    #print('size: ' + str(size))
+    #print('y: ' + str(y))
+    #print('w: ' + str(w))
+    #print('T: ' + str(T))
+    #print('chains: ' + str(chains))
+    #print()
 
-    N = y.shape[0]
-    K = y.shape[1]
-    y = y.reshape(N,K)
-    #print('mixture w: ' + str(w))
-    inds = np.random.choice(N, size = size, p = w, replace = True) # indices to sample from
-    values, counts = np.unique(inds, return_counts = True) # sampled values with counts
+    active = w>0
+    tmp_y = y[active,:]
+    tmp_w = w[active]
+    tmp_T = T[active]
+    #print('arange active: ' + str(np.arange(y.shape[0])[active]))
+    if chains is not None:
+        tmp_chains = [chains[n] for n in np.arange(y.shape[0])[active]]
+    else:
+        tmp_chains = chains
 
-    #if verbose:
-    #    print()
-    #    print('values: ' + str(values))
-    #    print('counts: ' + str(counts))
-    #    print('sample: ' + str(np.squeeze(y)))
-    #    print('weights: ' + str(w))
-    #    print('sample via values: ' + str(np.squeeze(y[values,:])))
-    #    print('empirical weights: ' + str(counts / counts.sum()))
-    #    print()
+    #print('tmp_y: ' + str(tmp_y))
+    #print('tmp_w: ' + str(tmp_w))
+    #print('tmp_T: ' + str(tmp_T))
+    #print('tmp_chains: ' + str(tmp_chains))
+    N = tmp_y.shape[0]
+    K = tmp_y.shape[1]
 
-    out = np.empty((1, K)) # init
+    #with np.random.choice = slow
+    #inds = np.random.choice(N, size = size, p = w, replace = True) # indices to sample from
+    #values, counts = np.unique(inds, return_counts = True) # sampled values with counts
+    #print('original values: ' + str(values))
+    #print('original counts: ' + str(counts))
+
+    values = np.arange(N)
+    counts = np.floor(size*tmp_w).astype(int)
+    counts[-1] += size - counts.sum()
+    #print('values: ' + str(values))
+    #print('counts: ' + str(counts))
+
     out = np.zeros((1,K))
-    for i in range(values.shape[0]):
-
+    #for i in range(values.shape[0]):
+    for idx in values:
         # for each value, generate a sample of size counts[i]
-        #if verbose: print('sampling from kernel centered at ' + str(np.squeeze(y[values[i],:])) + ' with steps ' + str(T[values[i]]))
-
         # now get the active chain to be used in sampling
+        #print('idx : ' + str(idx))
         if chains is not None:
-            active_chain = [chains[values[i]]]
+            active_chain = [tmp_chains[idx]]
         else:
-            active_chain = chains
+            active_chain = tmp_chains
 
-        #if verbose: print('empirical weight: ' + str(counts[i] / counts.sum()))
-        tmp_out = kernel_sampler(y = np.array(y[values[i], :]).reshape(1, K), T = np.array([T[values[i]]]), S = counts[i], logp = logp, t_increment = t_increment, chains = active_chain).reshape(counts[i], K)
-        #if verbose: print('mean from this sample: ' + str(tmp_out.mean()))
+        #print('y: ' + str(tmp_y[idx, :]))
+        #print('T: ' + str(tmp_T[idx]))
+        #print('chain: ' + str(active_chain))
+        #print()
+        tmp_out = kernel_sampler(y = np.array(tmp_y[idx, :]).reshape(1, K), T = np.array([tmp_T[idx]]), S = counts[idx], logp = logp, t_increment = t_increment, chains = active_chain).reshape(counts[idx], K)
 
         # add to sample
         out = np.concatenate((out, tmp_out))
     # end for
-    #if verbose:
-    #    print()
-    #    print('sample mean: ' + str(out.mean()))
     return out[1:,:]
 ###################################
-
-
-###################################
-def LogSumExp(x):
-    """
-    LogSumExp trick for an array x
-    """
-
-    maxx = np.max(x)
-    return maxx + np.log(np.sum(np.exp(x - maxx)))
-###################################
-
 
 
 ###################################
@@ -274,7 +275,7 @@ def plotting(y, T, w, logp, plot_path, iter_no, t_increment, kernel_sampler = No
             if lbvi_sample.size != 0:
                  # otherwise no plottting to do =(
                  lbvi_kde = stats.gaussian_kde(lbvi_sample.T, bw_method = 0.05).evaluate(tt.T).reshape(nn, nn).T
-                 cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = 4, colors = '#39558CFF')
+                 cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = 10, colors = '#39558CFF')
                  hcp_lbvi,_ = cp_lbvi.legend_elements()
                  hcps.append(hcp_lbvi[0])
                  legends.append('LBVI')
@@ -303,6 +304,7 @@ def gif_plot(plot_path):
     #jpg_dir = inpath #+ 'plots/'
     jpg_dir = os.listdir(plot_path)
     jpg_dir = np.setdiff1d(jpg_dir, 'weight_trace') # get rid of weight trace directory
+    jpg_dir = np.setdiff1d(jpg_dir, 'tmp') # get rid of weight trace directory
     number = np.zeros(len(jpg_dir))
     i = 0
     # fix names so they are in correct order
@@ -326,7 +328,7 @@ def gif_plot(plot_path):
 ###################################
 
 ###################################
-def w_grad(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None):
+def w_grad(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None, mix_X = None, X = None):
     """
     calculate gradient of the KSD wrt to the weights
 
@@ -340,34 +342,31 @@ def w_grad(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None):
         - kernel_sampler is a function that generates samples from the mixture kernels
         - t_increment is an integer with the incremental steps per iteration
         - chains is a list of N shape(T_n,K) arrays with current chains
+        - mix_X, X are either None or shape(2*B,K) arrays with samples to use for gradient calculation
+            if None, samples will be generated; else, provided samples will be used
     outputs:
         - shape(y.shape[0],) array, the gradient
     """
 
-    #print('gradient calculation')
-    #print('steps: ' + str(T))
-    #print('chains: ' + str(chains))
-    #print()
     N = y.shape[0]
     K = y.shape[1]
 
     # init
     grad_w = np.zeros(N)
 
-    # sample from the mixture
-    #print('sample from mixture')
-    mix_X = mix_sample(2*B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, verbose = True)
+    if mix_X is None:
+        # sample from the mixture
+        #print('sampling from mixture')
+        mix_X = mix_sample(2*B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains)
     mix_X = mix_X[~np.isnan(mix_X).any(axis=-1)] # remove nans
     mix_X = mix_X[~np.isinf(mix_X).any(axis=-1)] # remove infs
-    #print('sample: ' + str(mix_X))
-    #print()
-    # sample from kernels
-    #print('sample from kernels')
-    X = kernel_sampler(y = y, T = T, S = 2*B, logp = logp, t_increment = t_increment, chains = chains)
+
+    if X is None:
+        # sample from kernels
+        #print('w grad y: ' + str(y))
+        X = kernel_sampler(y = y, T = T, S = 2*B, logp = logp, t_increment = t_increment, chains = chains)
     X = np.where(~np.isnan(X), X, 0) # remove nans
     X = np.where(~np.isinf(X), X, 0) # remove infs
-    #print('sample: ' + str(X))
-    #print()
 
     # get new size
     if mix_X.shape[0] % 2 == 1:
@@ -398,7 +397,7 @@ def w_grad(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None):
 
 
 ###################################
-def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = None, tol = 0.001, b = 0.1, B = 1000, maxiter = 1000, verbose = False, trace = False, tracepath = ''):
+def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = None, tol = 0.001, b = 0.1, B = 1000, maxiter = 1000, sample_recycling = False, verbose = False, trace = False, tracepath = ''):
     """
     optimize weights via sgd
 
@@ -416,6 +415,7 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
         - b is the optimization schedule
         - B number of MC samples
         - maxiter bounds the number of algo iterations
+        - sample_recycling is boolean indicating whether to generate a single sample and recycle or to generate samples at each iteration
         - verbose is boolean indicating whether to print messages
         - trace is boolean indicating whether to print a trace plot of the objective function
         - tracepath is the path in which the trace plot is saved if generated
@@ -436,10 +436,24 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
     y = y[active,:]
     T = T[active]
     w = w[active]
-    #w[w == 0] = 0.1
-    w = np.ones(w.shape[0]) / w.shape[0]
+    w[w == 0] = 0.1
+    #w = np.ones(w.shape[0]) / w.shape[0]
     w = w / w.sum()
     n = active.shape[0]
+
+    #print('active chains: ' + str(active_chains))
+    #print('active sample: ' + str(y))
+    #print('active steps: ' + str(T))
+    #print('active weights: ' + str(w))
+
+    # generate recyclable samples
+    if sample_recycling:
+        if verbose: print('generating samples for recycling')
+        mix_X = mix_sample(2*B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = active_chains)
+        X = kernel_sampler(y = y, T = T, S = 2*B, logp = logp, t_increment = t_increment, chains = active_chains)
+    else:
+        mix_X = None
+        X = None
 
     # init algo
     convergence = False
@@ -449,35 +463,34 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
     # run optimization
     for k in range(maxiter):
         #print(w)
-        if verbose: print(str(k+1) + '/' + str(maxiter), end = '\r') # to visualize number of iterations
+        if verbose: print('weight opt iter: ' + str(k+1) + '/' + str(maxiter), end = '\r') # to visualize number of iterations
         if convergence: break # assess convergence
-        Dw = w_grad(up, logp, y, T, w, B, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = active_chains) # get gradient
+        Dw = w_grad(up, logp, y, T, w, B, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = active_chains, mix_X = mix_X, X = X) # get gradient
         #print(Dw)
         #w_step = 0.9*w_step - (b/np.sqrt(k+1)) * Dw # step size with momentum
         w_step = - (b/np.sqrt(k+1)) * Dw # step size without momentum
         w += w_step # update weight
         w = simplex_project(w) # project to simplex
-        if verbose:
-            print('Dw: ' + str(Dw))
-            print('step: ' + str(w_step))
-            print('w: ' + str(w))
-            print()
+        #if verbose:
+        #    print('Dw: ' + str(Dw))
+        #    print('step: ' + str(w_step))
+        #    print('w: ' + str(w))
+        #    print()
         if np.linalg.norm(Dw) < tol: convergence = True # update convergence
 
         #if trace:
         #    obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B))
-        #    if verbose: print('ksd: ' + str(obj[-1]))
+        #    #if verbose: print('ksd: ' + str(obj[-1]))
+        #    plt.clf()
+        #    plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
+        #    plt.xlabel('iteration')
+        #    plt.ylabel('kernelized stein discrepancy')
+        #    plt.title('trace plot of ksd in weight optimization')
+        #    plt.savefig(tracepath + str(np.sum(T) / t_increment) + '.jpg', dpi = 300)
 
 
     # end for
 
-    #if trace:
-    #    plt.clf()
-    #    plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
-    #    plt.xlabel('iteration')
-    #    plt.ylabel('kernelized stein discrepancy')
-    #    plt.title('trace plot of ksd in weight optimization')
-    #    plt.savefig(tracepath + str(np.sum(T) / t_increment) + '.jpg', dpi = 300)
 
     if verbose:
         print('weights optimized in ' + str(k+1) + ' iterations')
@@ -487,7 +500,7 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
 
 
 ###################################
-def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kernel_sampler, verbose = False):
+def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kernel_sampler, b, verbose = False):
     """
     choose kernel to add to the mixture
 
@@ -503,62 +516,61 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
         - w array with location weights
         - B number of MC samples
         - kernel_sampler is a function that generates samples from the mixture kernels
+        - b is the step size for one step of sgd
     outputs:
         - integer with location that minimizes linear approximation
     """
 
-
     N = y.shape[0]
-    grads = np.zeros(N)
+    new_objs = np.zeros(N)
 
     for n in range(N):
         if verbose: print(str(n+1) + '/' + str(N), end = '\r')
 
-        # settings:
-        #tmp_active = np.setdiff1d(active, np.array([n])) # if chain is active, remove. else, do nothing
-        tmp_active = np.copy(active)
-
-        # calculate exactly if this is the only active chain
-        if tmp_active.size == 0:
-            d0 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n]]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B)
-            d1 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n] + t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B)
-            grads[n] = d0 - d1 # exact decrease
-            break
-        #print('active chains: ' + str(tmp_active))
-        #print('active locations: ' + str(y[tmp_active]))
-
+        # define new mixture by increasing steps of chain n
         tmp_w = np.copy(w)
-        #tmp_w[n] = 0                   # the chain to be run is removed from mixture
-        tmp_w = tmp_w[tmp_active]       # only active weights
-        tmp_w = simplex_project(tmp_w)  # and weights normalized
-        #print('active weights: ' + str(tmp_w))
-
         tmp_T = np.copy(T)
-        tmp_T[n] = tmp_T[n] + t_increment # increase number of steps in kernel n
+        tmp_T[n] += t_increment
 
+        # limit number of steps
         if tmp_T[n] > t_max:
-            grads[n] = np.inf
-        else:
-            #tmp_T = tmp_T[tmp_active]
-            #print('active steps: ' + str(tmp_T[tmp_active]))
-            # generate samples
-            #X_mix = mix_sample(size = 4*B, y = y[tmp_active], T = tmp_T, w = tmp_w, logp = logp, kernel_sampler = kernel_sampler)
-            X_mix = mix_sample(size = 4*B, y = y[active,:], T = T, w = w[active], logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment)
-            X_kernel = kernel_sampler(y = np.array([y[n,:]]), T = np.array([tmp_T[n]]), S = 2*B, logp = logp, t_increment = t_increment)[:,0,:]
+            new_objs[n] = np.inf
+            continue
 
-            # estimate gradient
-            grads[n] = up(X_mix[:B,:], X_kernel[:B,:]).mean() + up(X_kernel[B:2*B,:], X_mix[B:2*B,:]).mean() - 2*up(X_mix[2*B:3*B,:], X_mix[3*B:4*B,:]).mean()
+        # increase weight if necessary
+        if tmp_w[n] == 0:
+            tmp_w[n] = 0.1/(1+tmp_T[n]/t_increment)
+            tmp_w = tmp_w / tmp_w.sum()
 
+        # update active chains
+        tmp_active = np.copy(active)
+        if n not in active: tmp_active = np.append(tmp_active,n)
+        tmp_active = np.sort(tmp_active)
+        tmp_chains = [chains[i] for i in tmp_active]
+
+        # update mixture with active chains
+        tmp_y = y[tmp_active,:]
+        tmp_w = tmp_w[tmp_active]
+        tmp_T = tmp_T[tmp_active]
+
+        # do one step of weight optimization
+        Dw = w_grad(up, logp, tmp_y, tmp_T, tmp_w, B, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = tmp_chains)
+        tmp_w -= (b/np.sqrt(2.))*Dw # np.sqrt(2) is the denominator of step size in first iter of sgd
+        tmp_w = simplex_project(tmp_w)
+
+        # calculate decrement
+        new_objs[n] = ksd(logp, tmp_y, tmp_T, tmp_w, up, kernel_sampler, t_increment, tmp_chains, B = B)
     # end for
+    
     #print('sample: ' + str(np.squeeze(y)))
-    #print('gradients: ' + str(grads))
-    return np.argmin(grads)
+    #print('ksds: ' + str(new_objs))
+    return np.argmin(new_objs)
 ###################################
 
 
 
 ###################################
-def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, cacheing = True, result_cacheing = False, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = True):
+def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, cacheing = True, result_cacheing = False, sample_recycling = False, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = True):
     """
     locally-adaptive boosting variational inference main routine
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
@@ -578,6 +590,8 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - stop_up indicates the stopping criterion. If None, the ksd provided will be used. Else, provide an auxiliary up function, which will be used to build a surrogate ksd to determine convergence
         - weight_max is an integer indicating max number of iterations without weight optimization (if no new kernels are added to mixture)
         - cacheing : boolean indicating whether mc samples should be cached
+        - result_cacheing : boolean indicating whether intermediate results should be stored (recommended for large jobs)
+        - sample_recycling is boolean indicating whether to generate a single sample and recycle or to generate samples at each iteration
         - verbose is boolean indicating whether to print messages
         - plot is boolean indicating whether to generate plots of the approximation at each iteration (only supported for uni and bivariate data)
         - plt_lims is an array with the plotting limits (xinf, xsup, yinf, ysup)
@@ -662,7 +676,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
     # estimate objective function
     obj_timer0 = time.perf_counter() # to not time obj estimation
-    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 10000)]) # update objective
+    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 100000)]) # update objective
     obj_timer = time.perf_counter() - obj_timer0
     if verbose: print('ksd: ' + str(obj[-1]))
 
@@ -698,7 +712,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
 
         if verbose: print('choosing next kernel')
-        argmin = choose_kernel(up, logp, y, active, T, t_increment, t_max, chains = chains, w = w, B = B, kernel_sampler = kernel_sampler, verbose = verbose)
+        argmin = choose_kernel(up, logp, y, active, T, t_increment, t_max, chains = chains, w = w, B = B, kernel_sampler = kernel_sampler, b = w_schedule(1), verbose = verbose)
         if verbose: print('chosen sample point: ' + str(y[argmin, 0:min(K,3)]))
 
         # update steps
@@ -731,7 +745,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         # update weights
         if update_weights:
             if verbose: print('updating weights')
-            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, tol = 0, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
+            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, tol = 0, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), sample_recycling = sample_recycling, verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
         else:
             if verbose: print('not updating weights')
 
@@ -739,7 +753,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         # estimate objective
         if verbose: print('estimating objective function')
         obj_timer0 = time.perf_counter() # to not time obj estimation
-        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 10000))
+        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 100000))
         obj_timer = time.perf_counter() - obj_timer0
 
         # update convergence
@@ -756,7 +770,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
         # calculate cumulative computing time and active kernels
         cpu_time = np.append(cpu_time, time.perf_counter() - obj_timer - t0)
-        active_kernels = np.append(active_kernels, active.shape[0])
+        active_kernels = np.append(active_kernels, w[w>0].shape[0])
 
         # save results
         if result_cacheing:
@@ -793,3 +807,81 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         print('ksd: ' + str(obj[-1]))
 
     return w, T, obj, cpu_time, active_kernels
+
+
+
+###################################
+def choose_kernel_old(up, logp, y, active, T, t_increment, t_max, chains, w, B, kernel_sampler, verbose = False):
+    """
+    DEPRECATED; SEE NEW VERSION
+    choose kernel to add to the mixture
+
+    inputs:
+        - up function to calculate expected value of
+        - logp target logdensity
+        - y kernel locations
+        - active is an array with active locations
+        - T array with number of steps per kernel location
+        - t_increment integer with number of steps to increase chain by
+        - t_max max number of steps allowed per chain
+        - chains is a list of N shape(T_n,K) arrays with current chains
+        - w array with location weights
+        - B number of MC samples
+        - kernel_sampler is a function that generates samples from the mixture kernels
+    outputs:
+        - integer with location that minimizes linear approximation
+    """
+
+
+    N = y.shape[0]
+    grads = np.zeros(N)
+
+    for n in range(N):
+        if verbose: print(str(n+1) + '/' + str(N), end = '\r')
+
+        # settings:
+        #tmp_active = np.setdiff1d(active, np.array([n])) # if chain is active, remove. else, do nothing
+        tmp_active = np.copy(active)
+
+        # calculate exactly if this is the only active chain
+        if tmp_active.size == 0:
+            d0 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n]]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B)
+            d1 = ksd(logp = logp, y = np.array([y[n]]), T = np.array([T[n] + t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B)
+            grads[n] = d0 - d1 # exact decrease
+            break
+        #print('active chains: ' + str(tmp_active))
+        #print('active locations: ' + str(y[tmp_active]))
+
+        tmp_w = np.copy(w)
+        #tmp_w[n] = 0                   # the chain to be run is removed from mixture
+        tmp_w = tmp_w[tmp_active]       # only active weights
+        tmp_w = simplex_project(tmp_w)  # and weights normalized
+        #print('active weights: ' + str(tmp_w))
+
+        tmp_T = np.copy(T)
+        tmp_T[n] = tmp_T[n] + t_increment # increase number of steps in kernel n
+
+        if tmp_T[n] > t_max:
+            grads[n] = np.inf
+        else:
+            #tmp_T = tmp_T[tmp_active]
+            #print('active steps: ' + str(tmp_T[tmp_active]))
+            # generate samples
+            X_mix = mix_sample(size = 4*B, y = y[active,:], T = T, w = w[active], logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment)
+            X_kernel = kernel_sampler(y = np.array([y[n,:]]), T = np.array([tmp_T[n]]), S = 2*B, logp = logp, t_increment = t_increment)[:,0,:]
+
+            Dw = w_grad(up, logp, y, T, w, B, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = active_chains, mix_X = mix_X, X = X) # get gradient
+            #print(Dw)
+            #w_step = 0.9*w_step - (b/np.sqrt(k+1)) * Dw # step size with momentum
+            w_step = - (b/np.sqrt(k+1)) * Dw # step size without momentum
+            w += w_step # update weight
+            w = simplex_project(w) # project to simplex
+
+            # estimate gradient
+            grads[n] = up(X_mix[:B,:], X_kernel[:B,:]).mean() + up(X_kernel[B:2*B,:], X_mix[B:2*B,:]).mean() - 2*up(X_mix[2*B:3*B,:], X_mix[3*B:4*B,:]).mean()
+
+    # end for
+    #print('sample: ' + str(np.squeeze(y)))
+    #print('gradients: ' + str(grads))
+    return np.argmin(grads)
+###################################
