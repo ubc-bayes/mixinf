@@ -268,6 +268,10 @@ if dens_plots:
                 # add bvi density
                 plt.plot(t, np.exp(bvi_logq(t[:,np.newaxis])), linestyle = 'dashed', color = bvi_color, label='BBBVI', lw = normal_linewidth)
 
+            if gvi_flag:
+                # add gvi density
+                plt.plot(t, np.exp(gvi_logq(t[:,np.newaxis])), linestyle = 'dashed', color = gvi_color, label='GVI', alpha = muted_alpha, lw = muted_linewidth)
+
             if rwmh_flag:
                 # add rwmh histogram
                 #plt.hist(rwmh, label = 'RWMH', density = True, bins = 50, alpha = 0.3, facecolor = rwmh_color, edgecolor='black')
@@ -280,9 +284,7 @@ if dens_plots:
                 hmc_kde = stats.gaussian_kde(hmc, bw_method = 0.05).evaluate(t)
                 plt.plot(t, hmc_kde, linestyle = 'dashdot', color = hmc_color, label = 'HMC', alpha = muted_alpha, lw = muted_linewidth)
 
-            if gvi_flag:
-                # add gvi density
-                plt.plot(t, np.exp(gvi_logq(t[:,np.newaxis])), linestyle = 'dashed', color = gvi_color, label='GVI', alpha = muted_alpha, lw = muted_linewidth)
+
 
 
             # add labels
@@ -290,7 +292,7 @@ if dens_plots:
             #plt.ylabel('Density')
             #plt.title('Density comparison')
             plt.xlim(xlim)
-            plt.legend(fontsize = legend_fontsize, frameon = False)
+            plt.legend(fontsize = legend_fontsize, frameon = False, loc = 'upper left')
 
             # save plot
             plt.savefig(path + 'densities/density_comparison'  + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
