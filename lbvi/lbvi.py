@@ -561,7 +561,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
         # calculate decrement
         new_objs[n] = ksd(logp, tmp_y, tmp_T, tmp_w, up, kernel_sampler, t_increment, tmp_chains, B = B)
     # end for
-    
+
     #print('sample: ' + str(np.squeeze(y)))
     #print('ksds: ' + str(new_objs))
     return np.argmin(new_objs)
@@ -675,6 +675,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
 
 
     # estimate objective function
+    if verbose: print('estimating objective function')
     obj_timer0 = time.perf_counter() # to not time obj estimation
     obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 100000)]) # update objective
     obj_timer = time.perf_counter() - obj_timer0
@@ -753,8 +754,9 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         # estimate objective
         if verbose: print('estimating objective function')
         obj_timer0 = time.perf_counter() # to not time obj estimation
-        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 100000))
+        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = None, B = 10000))
         obj_timer = time.perf_counter() - obj_timer0
+        if verbose: print('objective function estimated in ' + str(obj_timer) + ' seconds')
 
         # update convergence
         if verbose: print('updating convergence')

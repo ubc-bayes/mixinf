@@ -45,6 +45,8 @@ parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaus
 help = 'kernel to use in mixtures')
 parser.add_argument('--rkhs', type = str, default = 'rbf', choices=['rbf'],
 help = 'RKHS kernel to use')
+parser.add_argument('--gamma', type = float, default = 1.,
+help = 'if rbf kernel is used, the kernel bandwidth')
 parser.add_argument('--ubvi', action = "store_true",
 help = 'plot ubvi?')
 parser.add_argument('--bvi', action = "store_true",
@@ -133,9 +135,10 @@ if kernel == 'gaussian':
 
 # import RKHS kernel
 rkhs = args.rkhs
+lbvi_gamma = args.gamma
 if rkhs == 'rbf':
     from RKHSkernels.rbf import *
-
+kernel, dk_x, dk_y, dk_xy = get_kernel(lbvi_gamma)
 
 # define densities and up
 def logp(x): return logp_aux(x, 1)
@@ -249,7 +252,7 @@ if dens_plots:
                 # add lbvi samples
                 lbvi_kde = stats.gaussian_kde(lbvi_sample.T, bw_method = 0.05).evaluate(tt.T).reshape(nn, nn).T
                 #plt.scatter(kk[:,0], kk[:,1], marker='.', c='b', alpha = 0.4, label = 'LBVI')
-                cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = Levels, colors = lbvi_color, linewidths = normal_linewidth)
+                cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = 8, colors = lbvi_color, linewidths = normal_linewidth)
                 hcp_lbvi,_ = cp_lbvi.legend_elements()
                 hcps.append(hcp_lbvi[0])
                 legends.append('LBVI')

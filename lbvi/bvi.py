@@ -419,6 +419,7 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
         sample_q = lambda size : mixture_sample(size, mus, sqrtSigmas, alphas)
 
         # estimate divergence
+        obj_timer0 = time.perf_counter()
         if stop_up is None:
             if verbose: print('estimating new KL')
             objs = np.append(objs, KL(logq, sample_q, logp, 100000))
@@ -427,6 +428,7 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
             if verbose: print('estimating new KSD')
             objs = np.append(objs, ksd(logp, sample_q, stop_up, B = 100000))
             if verbose: print('KSD to target: ' + str(objs[iter_no]))
+        obj_timer = time.perf_counter() - obj_timer0
 
         # assess convergence
         if objs[-1] < tol: convergence = True
@@ -436,7 +438,8 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
             active_kernels = np.append(active_kernels, active_kernels[-1])
         else:
             active_kernels = np.append(active_kernels, active_kernels[-1] + 1)
-
+        cpu_time = np.append(cpu_time, time.perf_counter() - obj_timer - t0)
+        
         if verbose:
             print('number of active kernels: ' + str(active_kernels[-1]))
             print('cumulative cpu time: ' + str(cpu_time[-1]))
@@ -571,6 +574,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         sample_q = lambda size : mixture_sample(size, mus, sqrtSigmas, alphas)
 
         # estimate divergence
+        obj_timer0 = time.perf_counter()
         if stop_up is None:
             if verbose: print('estimating new KL')
             objs = np.append(objs, KL(logq, sample_q, logp, 100000))
@@ -579,6 +583,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
             if verbose: print('estimating new KSD')
             objs = np.append(objs, ksd(logp, sample_q, stop_up, B = 100000))
             if verbose: print('KSD to target: ' + str(objs[iter_no]))
+        obj_timer = time.perf_counter() - obj_timer0
 
         # assess convergence
         if objs[-1] < tol: convergence = True
@@ -588,7 +593,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
             active_kernels = np.append(active_kernels, active_kernels[-1])
         else:
             active_kernels = np.append(active_kernels, active_kernels[-1] + 1)
-        cpu_time = np.append(cpu_time, time.perf_counter() - t0)
+        cpu_time = np.append(cpu_time, time.perf_counter() - obj_timer - t0)
 
         if verbose:
             print('number of active kernels: ' + str(active_kernels[-1]))

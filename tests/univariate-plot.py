@@ -45,6 +45,8 @@ parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaus
 help = 'kernel to use in mixtures')
 parser.add_argument('--rkhs', type = str, default = 'rbf', choices=['rbf'],
 help = 'RKHS kernel to use')
+parser.add_argument('--gamma', type = float, default = 1.,
+help = 'if rbf kernel is used, the kernel bandwidth')
 parser.add_argument('--ubvi', action = "store_true",
 help = 'plot ubvi?')
 parser.add_argument('--bvi', action = "store_true",
@@ -105,9 +107,10 @@ if kernel == 'gaussian':
 
 # import RKHS kernel
 rkhs = args.rkhs
+lbvi_gamma = args.gamma
 if rkhs == 'rbf':
     from RKHSkernels.rbf import *
-
+kernel, dk_x, dk_y, dk_xy = get_kernel(lbvi_gamma)
 
 # define densities and up
 def logp(x): return logp_aux(x, 1)
@@ -538,7 +541,7 @@ if lbvi_flag and bvi_flag and ubvi_flag:
     for r in range(reps):
         for t in range(tols.shape[0]):
             cput = np.load(inpath + 'lbvi/cput_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
-            tmp_n = cput.shape[0]+1 # sometimes there will be fewer than niter iterations, so get how many there were and substitute
+            tmp_n = cput.shape[0]#+1 # sometimes there will be fewer than niter iterations, so get how many there were and substitute
             lbvi_times[counter,:tmp_n] = cput
             lbvi_kernels[counter,:tmp_n] = np.load(inpath + 'lbvi/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
             lbvi_ksd[counter,:tmp_n] = np.load(inpath + 'lbvi/obj_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
