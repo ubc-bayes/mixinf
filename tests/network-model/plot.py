@@ -106,6 +106,7 @@ if verbose:
 
 # define colors and settings
 lbvi_color = '#39558CFF'
+lbvi_color2 = '#56C667FF'
 mcmc_color = '#F79044FF'
 normal_linewidth = 4
 plt_alpha = 0.5
@@ -166,16 +167,79 @@ plt.clf()
 
 ####################################
 ####################################
-# posterior predictive        ######
+# auxiliary functions         ######
 ####################################
 ####################################
+
+# load the network
+df = pd.read_csv('fb2.txt', delim_whitespace=True, )
+
+# convert the datetime to integers
+df['rnd'] = pd.to_datetime(df['date']).astype(int)/(1800*10**9) # this converts to 1/2 hour intervals
+df['rnd'] = (df['rnd'] - df['rnd'][0]).astype(int) #this shifts the intervals by the first time
+
+# remove any self loop entries
+df = df[df.v1 != df.v2]
+
+# shift the indices down by 1 (start at 0)
+df.v1 -= 1
+df.v2 -= 1
+
+# convert the relevant columns to numpy arrays
+v1 = np.array(df.v1)
+v2 = np.array(df.v2)
+rnds = np.array(df.rnd)
+
+# threshold the rounds
+
+rnd_begin = 3950
+rnd_end = 10377
+
+v1 = v1[(rnds >= rnd_begin) & (rnds < rnd_end)]
+v2 = v2[(rnds >= rnd_begin) & (rnds < rnd_end)]
+rnds = rnds[(rnds >= rnd_begin) & (rnds < rnd_end)]
+
+
+# collect the number of edges and vertices binned into days
+# censor to the range when the first edge appears, and before a shift in rate happens
+nE = [0] # because we use nE[-1] below; we will remove this entry right after
+nV = []
+nN = []
+V = set()
+for n in range(rnd_begin, rnd_end):
+    idcs = np.where(rnds == n)[0]
+    nE.append(nE[-1] + idcs.shape[0])
+    for i in idcs:
+        V.add(v1[i])
+        V.add(v2[i])
+    nV.append(len(V))
+    nN.append(n+1)
+nE = np.array(nE)[1:] #remove the extra first entry we put before
+nV = np.array(nV)
+nN = np.array(nN)
+
+# collect the edges into a sparse representation
+NN = rnd_end - rnd_begin
+KK = max(v1.max(), v2.max())+1
+X = np.zeros((KK,KK))
+for i in range(v1.shape[0]):
+    X[v1[i], v2[i]] += 1
+degrees = (X+X.T).sum(axis=0)
+hist, edges = np.histogram(degrees, density=True, bins=50)
+edges = edges[1:]
+
+idcs = np.where(X>0)
+Obs = np.zeros((3, idcs[0].shape[0]), dtype=np.int64)
+Obs[0,:] = idcs[0]
+Obs[1,:] = idcs[1]
+Obs[2,:] = X[idcs[0], idcs[1]]
 
 def predict(alphs, gams, lambs, Ths, N, T):
     K = Ths.shape[1]
     nEVs = []
     HEs = []
     for t in range(T):
-        if t%5==0: print(t)
+        if t%5==0: print('obs ' + str(t))
         m = np.random.randint(0, Ths.shape[0], 1)
 
         ######################
@@ -225,9 +289,80 @@ def predict(alphs, gams, lambs, Ths, N, T):
     return nEVs, HEs
 
 
+
+####################################
+####################################
+# posterior predictive plots  ######
+####################################
+####################################
+if verbose: print('begin posterior predictive plots')
+
+# sample from posterior predictive
+T = 15
+pp_alpha = 0.3
+if verbose: print('sampling ' + str(T) + ' obs from the posterior predictive from MCMC')
+mcmc_lEVs, mcmc_HEs = predict(mcmc_sample[:,0], mcmc_sample[:,1], mcmc_sample[:,2], mcmc_sample[:,3:], NN, T)
+lbvi_dense = lbvi_sample[lbvi_sample[:,0]<0.1,:]
+if verbose: print('sampling ' + str(T) + ' obs from the posterior predictive from dense LBVI')
+lbvi_dense_lEVs, lbvi_dense_HEs = predict(lbvi_dense[:,0], lbvi_dense[:,1], lbvi_dense[:,2], lbvi_dense[:,3:], NN, T)
+lbvi_sparse = lbvi_sample[lbvi_sample[:,0]>=0.1,:]
+if verbose: print('sampling ' + str(T) + ' obs from the posterior predictive from sparse LBVI')
+lbvi_sparse_lEVs, lbvi_sparse_HEs = predict(lbvi_sparse[:,0], lbvi_sparse[:,1], lbvi_sparse[:,2], lbvi_sparse[:,3:], NN, T)
+
+# log edges ##################################
+plt.clf()
+plt.plot(np.log10(nE), np.log10(nV), lw=5, color='black', label='Observation')
+
+# plot first for labels
+t = 0
+plt.plot(lbvi_dense_lEVs[t][0], lbvi_dense_lEVs[t][1], lw=2, color=lbvi_color, alpha = pp_alpha, label='LBVI dense')
+plt.plot(lbvi_sparse_lEVs[t][0], lbvi_sparse_lEVs[t][1], lw=2, color=lbvi_color2, alpha = pp_alpha, label='LBVI sparse')
+plt.plot(mcmc_lEVs[t][0], mcmc_lEVs[t][1], lw=2, color=mcmc_color, alpha = pp_alpha, label='MCMC')
+
+# plot rest without labels
+for t in range(1,T):
+    plt.plot(lbvi_dense_lEVs[t][0], lbvi_dense_lEVs[t][1], lw=2, color=lbvi_color, alpha = pp_alpha)
+    plt.plot(lbvi_sparse_lEVs[t][0], lbvi_sparse_lEVs[t][1], lw=2, color=lbvi_color2, alpha = pp_alpha)
+    plt.plot(mcmc_lEVs[t][0], mcmc_lEVs[t][1], lw=2, color=mcmc_color, alpha = pp_alpha)
+
+# add axes labels etc
+plt.xlabel('Log10(E)')
+plt.ylabel('Log10(V)')
+plt.legend(fontsize = legend_fontsize)
+plt.savefig(path + 'loge_logv.' + extension, dpi=900, bbox_inches='tight')
+plt.clf()
+
+# log vertices ##################################
+plt.plot(edges, np.log10(hist), lw=5, color='black', label='Observation')
+
+# plot first for labels
+t = 0
+plt.plot(lbvi_dense_HEs[t][0], lbvi_dense_HEs[t][1], lw=2, color=lbvi_color, alpha = pp_alpha, label='LBVI dense')
+plt.plot(lbvi_sparse_HEs[t][0], lbvi_sparse_HEs[t][1], lw=2, color=lbvi_color2, alpha = pp_alpha, label='LBVI sparse')
+plt.plot(mcmc_HEs[t][0], mcmc_HEs[t][1], lw=2, color=mcmc_color, alpha = pp_alpha, label='MCMC')
+
+# plot rest without labels
+for t in range(T):
+    plt.plot(lbvi_dense_HEs[t][0], lbvi_dense_HEs[t][1], lw=2, color=lbvi_color, alpha = pp_alpha)
+    plt.plot(lbvi_sparse_HEs[t][0], lbvi_sparse_HEs[t][1], lw=2, color=lbvi_color2, alpha = pp_alpha)
+    plt.plot(mcmc_HEs[t][0], mcmc_HEs[t][1], lw=2, color=mcmc_color, alpha = pp_alpha)
+
+# add axes labels etc
+plt.xlabel('Degree')
+plt.ylabel('log Density')
+plt.legend(fontsize = legend_fontsize)
+plt.savefig(path + 'degree_logd.' + extension, dpi=900, bbox_inches='tight')
+plt.clf()
+
+
+
+
 if verbose:
     print('done plotting!')
     print()
+
+
+
 
 
 ####################################
