@@ -15,18 +15,14 @@ def get_kernel(x):
     # receives sample of size (N,K) and returns the kernel with banwidth = squared median, as well as derivatives and trace
     gamma = get_gamma(x)
 
+    # t1,t2 are always (N,K) arrays
+
     # define rbf kernel
-    def kernel(t1, t2): return np.exp(-0.5 * np.sum((t1 - t2)**2, axis = -1) / gamma) # returns (N,1)
+    def kernel(t1, t2): return np.exp(-0.5*np.sum((t1[np.newaxis,:,:] - t2[:,np.newaxis,:])**2, axis = -1)/k_gamma) # returns (N,N)
 
     # derivatives of the kernel
-    def dk_x(t1, t2): return egrad(lambda t : kernel(t, t2))(t1) # returns (N,K)
-    def dk_y(t1, t2): return egrad(lambda t : kernel(t1, t))(t2) # returns (N,K)
-    def dk_xy(t1, t2):
-        # returns (N,1)
-        g = 0
-        for d in range(t1.shape[1]):
-            g += egrad(lambda t : dk_x(t1,t)[:, d])(t2)[:, d]
-
-        return g
+    def dk_x(t1, t2): return -kernel(t1,t2)[:,:,np.newaxis] * (t1[np.newaxis,:,:] - t2[:,np.newaxis,:]) # returns (N,N,K)
+    def dk_y(t1, t2): return -kernel(t1,t2)[:,:,np.newaxis] * (t2[np.newaxis,:,:] - t1[:,np.newaxis,:]) # returns (N,N,K)
+    def dk_xy(t1, t2): return kernel(t1,t2) * (1 - np.sum((t1[np.newaxis,:,:] - t2[:,np.newaxis,:])**2, axis = -1)/k_gamma) / k_gamma # returns (N,N)
 
     return kernel, dk_x, dk_y, dk_xy
