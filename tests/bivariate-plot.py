@@ -675,6 +675,12 @@ if lbvi_flag and bvi_flag and ubvi_flag:
         # end for
     # end for
 
+    # make sure kl's are positive by shifting by the min
+    minkl = np.abs(np.amin(np.minimum(lbvi_kl, np.minimum(ubvi_kl, bvi_kl)))) + 1e-100
+    lbvi_kl += minkl
+    ubvi_kl += minkl
+    bvi_kl += minkl
+
 
     # create error bars for all plots via masked arrays (to get rid of placeholder 0's where there were no iterations)
     # LBVI
