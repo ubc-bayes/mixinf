@@ -196,14 +196,14 @@ def kl(logp, p_sample, y, T, w, up, kernel_sampler, t_increment, chains = None, 
         if p_sample is None: return np.inf
         ps = p_sample(B)
         qs = mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains) # sample from mixture
-        q = stats.gaussian_kde(np.squeeze(qs), bw_method = 4)
+        q = stats.gaussian_kde(np.squeeze(qs), bw_method = 0.25)
         #return max(0.,np.mean(logp(ps) - np.log(q.evaluate(np.squeeze(ps)))))
         return np.mean(logp(ps) - q.logpdf(np.squeeze(ps)))
     elif direction == 'reverse':
         qs = mix_sample(B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains) # sample from mixture
-        q = stats.gaussian_kde(np.squeeze(qs), bw_method = 0.25)
+        q = stats.gaussian_kde(qs.T, bw_method = 0.25)
         #return max(0.,np.mean(np.log(q.evaluate(np.squeeze(qs))) - logp(qs)))
-        return np.mean(q.logpdf(np.squeeze(qs)) - logp(qs))
+        return np.mean(q.logpdf(qs.T) - logp(qs))
 ###################################
 
 
@@ -716,10 +716,10 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     # estimate objective function
     if verbose: print('estimating objective function')
     obj_timer0 = time.perf_counter() # to not time obj estimation
-    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 100000)]) # update objective
+    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 10000)]) # update objective
     if verbose: print('ksd: ' + str(obj[-1]))
     if p_sample is not None:
-        kls = np.array([kl(logp, p_sample, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 10000, direction = 'reverse')])
+        kls = np.array([kl(logp, p_sample, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 1000, direction = 'reverse')])
         if verbose: print('KL: ' + str(kls[-1]))
     obj_timer = time.perf_counter() - obj_timer0
 
@@ -799,7 +799,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = None, B = 10000))
         if p_sample is not None:
             if verbose: print('estimating kl')
-            kls = np.append(kls, kl(logp, p_sample, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 10000, direction = 'reverse'))
+            kls = np.append(kls, kl(logp, p_sample, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 1000, direction = 'reverse'))
         obj_timer = time.perf_counter() - obj_timer0
         if verbose: print('objective function estimated in ' + str(obj_timer) + ' seconds')
 
