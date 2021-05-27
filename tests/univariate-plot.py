@@ -550,21 +550,27 @@ if lbvi_flag and bvi_flag and ubvi_flag:
             lbvi_times[counter,:tmp_n] = cput
             lbvi_kernels[counter,:tmp_n] = np.load(inpath + 'lbvi/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
             lbvi_ksd[counter,:tmp_n] = np.load(inpath + 'lbvi/obj_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
-            lbvi_kl[counter,:tmp_n] = np.load(inpath + 'lbvi/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
+            tmp_kl = np.load(inpath + 'lbvi/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
+            tmp_kl[tmp_kl == np.NINF] = 0. # no worries, further down the road we mask 0's anyway, so this get's masked
+            lbvi_kl[counter,:tmp_n] = tmp_kl
 
             cput = np.load(inpath + 'ubvi/cput_' + str(r+1) + '_' + str(tols[t]) + '.npy')
             tmp_n = cput.shape[0]
             ubvi_times[counter,:tmp_n] = cput
             ubvi_kernels[counter,:tmp_n] = np.load(inpath + 'ubvi/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')
             ubvi_ksd[counter,:tmp_n] = np.load(inpath + 'ubvi/obj_' + str(r+1) + '_' + str(tols[t]) + '.npy')
-            ubvi_kl[counter,:tmp_n] = np.load(inpath + 'ubvi/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')
+            tmp_kl = np.load(inpath + 'ubvi/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')
+            tmp_kl[tmp_kl == np.NINF] = 0. # no worries, further down the road we mask 0's anyway, so this get's masked
+            ubvi_kl[counter,:tmp_n] = tmp_kl
 
             cput = np.load(inpath + 'bvi/cput_' + str(r+1) + '_' + str(tols[t]) + '.npy')
             tmp_n = cput.shape[0]
             bvi_times[counter,:tmp_n] = cput
             bvi_kernels[counter,:tmp_n] = np.load(inpath + 'bvi/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')
             bvi_ksd[counter,:tmp_n] = np.load(inpath + 'bvi/obj_' + str(r+1) + '_' + str(tols[t]) + '.npy')
-            bvi_kl[counter,:tmp_n] = np.load(inpath + 'bvi/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')
+            tmp_kl = np.load(inpath + 'bvi/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')
+            tmp_kl[tmp_kl == np.NINF] = 0. # no worries, further down the road we mask 0's anyway, so this get's masked
+            bvi_kl[counter,:tmp_n] = tmp_kl
 
             counter += 1
         # end for
