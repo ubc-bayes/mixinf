@@ -437,7 +437,7 @@ for r in reps:
 
             # plot trace
             pltobj = obj
-            if klcalc: pltobj = obj
+            if klcalc: pltobj = kls
 
             if verbose: print('plotting lbvi objective trace')
             plt.clf()
@@ -502,6 +502,7 @@ for r in reps:
             cput = ubvi_results[no_ubvi_kernels-1]['cput'][1:]
             obj = ubvi_results[no_ubvi_kernels-1]['ksd'][1:]
             act_k = ubvi_results[no_ubvi_kernels-1]['active_kernels'][1:]
+            kls = ubvi_results[no_ubvi_kernels-1]['kl'][1:]
 
             # save them
             np.save(tmp_path + 'means_' + str(r) + '_' + str(tol) + '.npy', mus)
@@ -510,6 +511,7 @@ for r in reps:
             np.save(tmp_path + 'cput_' + str(r) + '_' + str(tol) + '.npy', cput)
             np.save(tmp_path + 'obj_' + str(r) + '_' + str(tol) + '.npy', obj)
             np.save(tmp_path + 'kernels_' + str(r) + '_' + str(tol) + '.npy', act_k)
+            np.save(tmp_path + 'kl_' + str(r) + '_' + str(tol) + '.npy', kls)
 
             ubvi_times[r_counter-1,i] = cput[-1]
             ubvi_ksd[r_counter-1,i] = obj[-1]
@@ -517,13 +519,17 @@ for r in reps:
 
 
             # plot trace
-            if verbose: print('plotting ubvi ksd trace')
+            # plot trace
+            pltobj = obj
+            if klcalc: pltobj = kls
+
+            if verbose: print('plotting lbvi objective trace')
             plt.clf()
-            objs = ubvi_results[no_ubvi_kernels-1]['ksd'][1:]
-            plt.plot(1 + np.arange(objs.shape[0]), objs, '-k')
+            plt.plot(1 + np.arange(pltobj.shape[0]), pltobj, '-k')
             plt.xlabel('iteration')
-            plt.ylabel('KSD divergence')
-            plt.title('trace plot of KSD')
+            plt.ylabel('kernelized stein discrepancy')
+            if klcalc: plt.ylabel('KL')
+            plt.title('objective trace plot')
             plt.savefig(tmp_path + 'ubvi_trace' + str(r) + '_' + str(tol) + '.png', dpi=900)
 
 
@@ -568,8 +574,8 @@ for r in reps:
 
 
             # plot trace
-            pltobj = obj
-            if klcalc: pltobj = obj
+            pltobj = objs
+            if klcalc: pltobj = kls
 
             if verbose: print('plotting lbvi objective trace')
             plt.clf()

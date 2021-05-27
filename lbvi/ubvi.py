@@ -48,7 +48,7 @@ def mixture_sample(mu, Sig, wt, n_samples):
         c += cts[k]
     return X
 
-def kl_estimate(mus, Sigs, wts, logp, p_samps, direction='forward'):
+def kl_estimate(mus, Sigs, wts, logp, p_samps, direction='reverse'):
     lp = logp(p_samps)
     if direction == 'forward':
         lq = mixture_logpdf(p_samps, mus, Sigs, wts)
@@ -262,6 +262,7 @@ class BoostingVI(object):
         self.cput = np.array([0.]) #total computation time so far
         self.error = np.inf #error for the current mixture
         self.ksd = np.array([np.inf]) #ksd array
+        self.kl = np.array([np.inf]) #kl array
         self.n_init = n_init #number of times to initialize each component
         self.init_inflation = init_inflation #number of times to initialize each component
         self.verbose = verbose
@@ -331,6 +332,9 @@ class BoostingVI(object):
             else:
                 self.ksd = np.append(self.ksd, self._ksd())
 
+            # GCD: estimate kl
+            self.kl = np.append(self.kl, self._kl())
+
             # GCD: get active kernels
             self.active_kernels = np.append(self.active_kernels, self.weights[self.weights > 0].shape[0])
 
@@ -345,6 +349,7 @@ class BoostingVI(object):
                 print('Number of active kernels: ' + str(self.active_kernels[-1]))
                 print('Params:' + str(self.component_dist.unflatten(self.params)))
                 print('Weights: ' + str(self.weights))
+                print('KL: ' + str(self.kl[-1]))
 
 
         #update self.N to the new # comps
@@ -358,6 +363,7 @@ class BoostingVI(object):
         output['ksd'] = self.ksd
         output['weights'] = self.weights
         output['active_kernels'] = self.active_kernels
+        output['kl'] = self.kl
         return output
 
 
@@ -396,6 +402,9 @@ class BoostingVI(object):
         raise NotImplementedError
 
     def _ksd(self):
+        raise NotImplementedError
+
+    def _kl(self):
         raise NotImplementedError
 ####################################
 
@@ -468,6 +477,10 @@ class UBVI(BoostingVI):
             x = samples[:self.n_samples,:]
             y = samples[-self.n_samples:,:]
             return np.abs(self.up(x, y).mean())
+
+    def _kl(self):
+        samples = self._sample_g(100000)
+        return np.mean(2*self._logg(samples) - self.logp(samples))
 
     def _objective(self, x, itr):
         allow_negative = False if itr < 0 else True
