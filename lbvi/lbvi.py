@@ -4,7 +4,6 @@
 import numpy as np
 import scipy.stats as stats
 import pandas as pd
-import cvxpy as cp
 import time, bisect
 import matplotlib.pyplot as plt
 plt.rcParams.update({'figure.max_open_warning': 0})
@@ -118,14 +117,6 @@ def up_gen(kernel, sp, dk_x, dk_y, dk_xy):
         term2 = np.squeeze(np.matmul(sp(x)[:,np.newaxis,:], dk_y(x, y)[:,:,np.newaxis]))
         term3 = np.squeeze(np.matmul(sp(y)[:,np.newaxis,:], dk_x(x, y)[:,:,np.newaxis]))
         term4 = dk_xy(x, y)
-        #print('term 1: ' + str(term1))
-        #print('term 2: ' + str(term2))
-        #print('term 3: ' + str(term3))
-        #print('term 4: ' + str(term4))
-        #print('x: ' + str(x))
-        #print('sp(x): ' + str(sp(x)))
-        #print('y: ' + str(y))
-        #print('sp(y): ' + str(sp(y)))
 
         return term1 + term2 + term3 + term4
 
