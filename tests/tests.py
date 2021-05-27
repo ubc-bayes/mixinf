@@ -36,6 +36,8 @@ parser.add_argument('--tol', type = float, nargs = '+',
 help = 'sequence of step size tolerances at which to stop alg if maxiter not exceeded')
 parser.add_argument('--stop', type = str, default = 'default', choices=['default', 'median'],
 help = 'stopping criterion for lbvi, bvi, and ubvi. Default is ksd tolerance for lbvi and iter number for the other. Median is using custom ksd with median sq distance bw')
+parser.add_argument('--kl', action = "store_true",
+help = 'if specified, kl is calculated for boosting methods and stored; else, ksd is calculated and stored')
 parser.add_argument('--lbvi', action = "store_true",
 help = 'run lbvi?')
 parser.add_argument('-N', type = int,
@@ -185,6 +187,7 @@ seed0 = args.seed
 stop = args.stop
 tols = np.array(args.tol)
 no_tols = tols.shape[0]
+klcalc = args.kl
 
 # ALGS SETTINGS
 # lbvi
@@ -380,6 +383,10 @@ for r in reps:
         sp = egrad(logp) # returns (N,K)
         up = lbvi.up_gen(kernel, sp, dk_x, dk_y, dk_xy)
         stop_up = None
+        if klcalc:
+            kl_psample = lambda size : p_sample(size,K)
+        else:
+            kl_psample = None
 
         # if running median stopping criterion, import functions and create ksd
         if stop == 'median':
@@ -407,14 +414,12 @@ for r in reps:
             if verbose: print('generating sample')
             y = np.unique(sample(N, K), axis=0)
 
+
             # run algorithm
             if verbose:
                 print('starting lbvi optimization')
                 print()
-            w, T, obj, cput, act_k = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, cacheing = cacheing, result_cacheing = True, sample_recycling = lbvi_recycle, verbose = verbose, plot = False, gif = False, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True)
-            #lbvi_time = np.array([lbvi_end - lbvi_start])
-            #np.save(path + 'times/lbvi_time' + str(r) + '_' + str(tol) + '_' + str(seed) + '.npy', lbvi_time)
-            if verbose: print()
+            w, T, obj, cput, act_k, kls = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, cacheing = cacheing, result_cacheing = True, sample_recycling = lbvi_recycle, verbose = verbose, plot = False, gif = False, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True, p_sample = kl_psample)
 
             # save results
             if verbose: print('saving lbvi results')
@@ -424,18 +429,23 @@ for r in reps:
             np.save(tmp_path + 'cput_' + str(r) + '_' + str(tol) + '.npy', cput)
             np.save(tmp_path + 'obj_' + str(r) + '_' + str(tol) + '.npy', obj)
             np.save(tmp_path + 'kernels_' + str(r) + '_' + str(tol) + '.npy', act_k)
+            np.save(tmp_path + 'kl_' + str(r) + '_' + str(tol) + '.npy', kls)
 
             lbvi_times[r_counter-1,i] = cput[-1]
             lbvi_ksd[r_counter-1,i] = obj[-1]
             lbvi_kernel[r_counter-1,i] = act_k[-1]
 
             # plot trace
+            pltobj = obj
+            if klcalc: pltobj = obj
+
             if verbose: print('plotting lbvi objective trace')
             plt.clf()
-            plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
+            plt.plot(1 + np.arange(pltobj.shape[0]), pltobj, '-k')
             plt.xlabel('iteration')
             plt.ylabel('kernelized stein discrepancy')
-            plt.title('trace plot of ksd')
+            if klcalc: plt.ylabel('KL')
+            plt.title('objective trace plot')
             plt.savefig(tmp_path + 'lbvi_trace' + str(r) + '_' + str(tol) + '.png', dpi=900)
 
             if verbose: print('done with LBVI simulation')

@@ -139,7 +139,7 @@ def ksd(logp, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 1000)
     estimate ksd
 
     inputs:
-        - p target logdensity
+        - logp target logdensity
         - y kernel locations
         - T array with number of steps per kernel location
         - w array with location weights
@@ -167,6 +167,43 @@ def ksd(logp, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 1000)
     X = X[:B, :]
 
     return np.abs(up(X, Y).mean())
+###################################
+
+
+
+###################################
+def kl(logp, p_sample, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 1000, direction = 'forward'):
+    """
+    estimate kl
+
+    inputs:
+        - logp target logdensity
+        - p_sample generates samples from the target density
+        - y kernel locations
+        - T array with number of steps per kernel location
+        - w array with location weights
+        - up function to calculate expected value of
+        - kernel_sampler is a function that generates samples from the mixture kernels
+        - t_increment is an integer with the incremental number of steps per iteration
+        - chains is a list of N shape(T_n,K) arrays with current chains
+        - B number of MC samples
+        - direction is a string with the kl direction - one of 'forward' or 'reverse'
+    outputs:
+        - scalar, the estimated kl
+    """
+
+    if direction == 'forward':
+        if p_sample is None: return np.inf
+        ps = p_sample(B)
+        qs = mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains) # sample from mixture
+        q = stats.gaussian_kde(np.squeeze(qs), bw_method = 4)
+        #return max(0.,np.mean(logp(ps) - np.log(q.evaluate(np.squeeze(ps)))))
+        return np.mean(logp(ps) - q.logpdf(np.squeeze(ps)))
+    elif direction == 'reverse':
+        qs = mix_sample(B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains) # sample from mixture
+        q = stats.gaussian_kde(np.squeeze(qs), bw_method = 0.25)
+        #return max(0.,np.mean(np.log(q.evaluate(np.squeeze(qs))) - logp(qs)))
+        return np.mean(q.logpdf(np.squeeze(qs)) - logp(qs))
 ###################################
 
 
@@ -570,38 +607,39 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
 
 
 ###################################
-def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, cacheing = True, result_cacheing = False, sample_recycling = False, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = True):
+def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, cacheing = True, result_cacheing = False, sample_recycling = False, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = True, p_sample = None):
     """
     locally-adaptive boosting variational inference main routine
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
 
     inputs:
-        - y shape(N,K) array of kernel locations (sample)
-        - logp is a function,if verbose: print(str(n+1) + '/' + str(N), end = '\r') the target log densityreturn 10
-        - t_increment integer with number of steps to increase chain by
-        - t_max integer with max number of steps allowed per chaikernel_samplern
-        - up function to calculate expected value of when estimating ksd
-        - kernel_sampler is a function that generates samples from the mixture kernels
-        - w_maxiters is a function that receives the iteration number and a boolean indicating whether opt is long or not and outputs the max number of iterations for weight optimization
-        - w_schedule is a function that receives the iteration number and outputs the step size for the weight optimization
-        - B number of MC samples for estimating ksd and gradients
-        - maxiter is an integer with the max the number of algo iterations
-        - tol is a float with the tolerance below which the algorithm breaks the loop and stops
-        - stop_up indicates the stopping criterion. If None, the ksd provided will be used. Else, provide an auxiliary up function, which will be used to build a surrogate ksd to determine convergence
-        - weight_max is an integer indicating max number of iterations without weight optimization (if no new kernels are added to mixture)
-        - cacheing : boolean indicating whether mc samples should be cached
-        - result_cacheing : boolean indicating whether intermediate results should be stored (recommended for large jobs)
-        - sample_recycling is boolean indicating whether to generate a single sample and recycle or to generate samples at each iteration
-        - verbose is boolean indicating whether to print messages
-        - plot is boolean indicating whether to generate plots of the approximation at each iteration (only supported for uni and bivariate data)
-        - plt_lims is an array with the plotting limits (xinf, xsup, yinf, ysup)
-        - trace is boolean indicating whether to print a trace plot of the objective function
-        - plot_path is the path in which the trace plot is saved if generated
-        - gif is boolean and indicates whether a gif with the plots will be created (only if plot is also True)
+        - y                : shape(N,K) array of kernel locations (sample)
+        - logp             : function, the target log density
+        - t_increment      : integer with number of steps to increase chain by
+        - t_max            : integer with max number of steps allowed per chaikernel_samplern
+        - up               : function to calculate expected value of when estimating ksd
+        - kernel_sampler   : function that generates samples from the mixture kernels
+        - w_maxiters       : function that receives the iteration number and a boolean indicating whether opt is long or not and outputs the max number of iterations for weight optimization
+        - w_schedule       : function that receives the iteration number and outputs the step size for the weight optimization
+        - B                : number of MC samples for estimating ksd and gradients
+        - maxiter          : integer with the max the number of algo iterations
+        - tol              : float with the tolerance below which the algorithm breaks the loop and stops
+        - stop_up          : indicates the stopping criterion. If None, the ksd provided will be used. Else, provide an auxiliary up function, which will be used to build a surrogate ksd to determine convergence
+        - weight_max       : integer indicating max number of iterations without weight optimization (if no new kernels are added to mixture)
+        - cacheing         : boolean indicating whether mc samples should be cached
+        - result_cacheing  : boolean indicating whether intermediate results should be stored (recommended for large jobs)
+        - sample_recycling : boolean indicating whether to generate a single sample and recycle or to generate samples at each iteration
+        - verbose          : boolean indicating whether to print messages
+        - plot             : boolean indicating whether to generate plots of the approximation at each iteration (only supported for uni and bivariate data)
+        - plt_lims         : array with the plotting limits (xinf, xsup, yinf, ysup)
+        - trace            : boolean indicating whether to print a trace plot of the objective function
+        - plot_path        : the path in which the trace plot is saved if generated
+        - gif              : boolean indicating whether a gif with the plots will be created (only if plot is also True)
+        - p_sample         : function that generates samples from the target distribution (for calculating reverse kl in synthetic experiments) or None to be ignored
 
     outputs:
-        - w, T are shape(y.shape[0], ) arrays with the sample, the weights, and the steps sizes
-        - obj is an array with the value of the objective function at each iteration
+        - w, T : shape(y.shape[0], ) arrays with the sample, the weights, and the steps sizes
+        - obj  : array with the value of the objective function at each iteration
     """
     if verbose:
         print('running locally-adaptive boosting variational inference')
@@ -612,6 +650,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     t0 = time.perf_counter()
     N = y.shape[0]
     K = y.shape[1]
+    kls = np.inf
 
     # init array with chain arrays
     if cacheing:
@@ -667,7 +706,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     active = np.array([argmin]) # update active locations, kernel_sampler
     #if verbose: print('number of steps: ' + str(T))
 
-    # now update chains with the new increment
+    # now update chains with the new increlogp(ps) - np.log(q.evaluate(np.squeeze(ps)))ment
     if cacheing:
         if verbose: print('updating chains')
         _, chains = kernel_sampler(y, T, 1, logp, t_increment = t_increment, chains = chains, update = True)
@@ -678,8 +717,11 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     if verbose: print('estimating objective function')
     obj_timer0 = time.perf_counter() # to not time obj estimation
     obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 100000)]) # update objective
-    obj_timer = time.perf_counter() - obj_timer0
     if verbose: print('ksd: ' + str(obj[-1]))
+    if p_sample is not None:
+        kls = np.array([kl(logp, p_sample, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 10000, direction = 'reverse')])
+        if verbose: print('KL: ' + str(kls[-1]))
+    obj_timer = time.perf_counter() - obj_timer0
 
 
     # plot initial approximation
@@ -755,6 +797,9 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         if verbose: print('estimating objective function')
         obj_timer0 = time.perf_counter() # to not time obj estimation
         obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = None, B = 10000))
+        if p_sample is not None:
+            if verbose: print('estimating kl')
+            kls = np.append(kls, kl(logp, p_sample, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 10000, direction = 'reverse'))
         obj_timer = time.perf_counter() - obj_timer0
         if verbose: print('objective function estimated in ' + str(obj_timer) + ' seconds')
 
@@ -789,6 +834,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
             print('active steps: ' + str(T[active]))
             print('active weights: ' + str(w[active]))
             print('ksd: ' + str(obj[-1]))
+            if p_sample is not None: print('KL: ' + str(kls[-1]))
             print('cumulative cpu time: ' + str(cpu_time[-1]))
             #print('current chains: ' + str(chains))
             print()
@@ -807,8 +853,10 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         print('weights: ' + str(w))
         print('steps: ' + str(T))
         print('ksd: ' + str(obj[-1]))
+        if p_sample is not None: print('KL: ' + str(kls[-1]))
+        print('cumulative cpu time: ' + str(cpu_time[-1]))
 
-    return w, T, obj, cpu_time, active_kernels
+    return w, T, obj, cpu_time, active_kernels, kls
 
 
 
