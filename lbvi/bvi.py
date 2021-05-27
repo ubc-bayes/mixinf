@@ -79,9 +79,7 @@ def mixture_logpdf(x, mus, Sigmas, alphas):
 
 
 def KL(logq, sample_q, logp, B = 1000):
-
     theta = sample_q(B)
-
     return np.mean(logq(theta) - logp(theta), axis=-1)
 
 
@@ -353,16 +351,20 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
     alphas = np.zeros(N)
     alphas[0] = 1
 
-    if stop_up is None:
-        objs = np.array([KL(logq, sample_q, logp, 100000)])
-        if verbose: print('KL to target: ' + str(objs[0]))
-    else:
+    obj_timer0 = time.perf_counter()
+    # estimate kl and ksd
+    kls = np.array([KL(logq, sample_q, logp, 100000)])
+    obj = np.inf
+    if verbose: print('KL to target: ' + str(kls[0]))
+
+    if stop_up is not None:
         objs = np.array([ksd(logp, sample_q, stop_up, B = 100000)])
         if verbose: print('KSD to target: ' + str(objs[0]))
+    obj_timer = time.perf_counter() - obj_timer0
 
     # init cpu time and active kernels
     active_kernels = np.array([1.])
-    cpu_time = np.array([time.perf_counter() - t0])
+    cpu_time = np.array([time.perf_counter() - obj_timer - t0])
 
     if verbose:
         print('cumulative cpu time: ' + str(cpu_time[-1]))
@@ -420,14 +422,13 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
 
         # estimate divergence
         obj_timer0 = time.perf_counter()
-        if stop_up is None:
-            if verbose: print('estimating new KL')
-            objs = np.append(objs, KL(logq, sample_q, logp, 100000))
-            if verbose: print('KL to target: ' + str(objs[iter_no]))
-        else:
-            if verbose: print('estimating new KSD')
+        # estimate kl and ksd
+        kls = np.append(kls, KL(logq, sample_q, logp, 100000))
+        if verbose: print('KL to target: ' + str(kls[-1]))
+
+        if stop_up is not None:
             objs = np.append(objs, ksd(logp, sample_q, stop_up, B = 100000))
-            if verbose: print('KSD to target: ' + str(objs[iter_no]))
+            if verbose: print('KSD to target: ' + str(objs[-1]))
         obj_timer = time.perf_counter() - obj_timer0
 
         # assess convergence
@@ -439,7 +440,7 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
         else:
             active_kernels = np.append(active_kernels, active_kernels[-1] + 1)
         cpu_time = np.append(cpu_time, time.perf_counter() - obj_timer - t0)
-        
+
         if verbose:
             print('number of active kernels: ' + str(active_kernels[-1]))
             print('cumulative cpu time: ' + str(cpu_time[-1]))
@@ -454,10 +455,11 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
         print('means: ' + str(np.squeeze(mus[active])))
         print('sigmas: ' + str(np.squeeze(Sigmas[active])))
         print('weights: ' + str(np.squeeze(alphas[active])))
-        print('divergence: ' + str(objs[-1]))
+        print('KL: ' + str(kls[-1]))
+        if stop_up is not None: print('KSD: ' + str(objs[-1]))
 
 
-    return mus[0:iter_no,:], Sigmas[0:iter_no,:,:], alphas[0:iter_no], objs, cpu_time, active_kernels
+    return mus[0:iter_no,:], Sigmas[0:iter_no,:,:], alphas[0:iter_no], objs, cpu_time, active_kernels, kls
 
 
 def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, maxiter_alpha = 1000, maxiter_init = 1000, B = 1000, tol = 0.0001, verbose = True, traceplot = True, plotpath = 'plots/', stop_up = None):
@@ -495,16 +497,20 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
     alphas = np.zeros(N)
     alphas[0] = 1
 
-    if stop_up is None:
-        objs = np.array([KL(logq, sample_q, logp, 100000)])
-        if verbose: print('KL to target: ' + str(objs[0]))
-    else:
+    obj_timer0 = time.perf_counter()
+    # estimate kl and ksd
+    kls = np.array([KL(logq, sample_q, logp, 100000)])
+    if verbose: print('KL to target: ' + str(kls[0]))
+    obj = np.inf
+    if stop_up is not None:
         objs = np.array([ksd(logp, sample_q, stop_up, B = 100000)])
         if verbose: print('KSD to target: ' + str(objs[0]))
+    obj_timer = time.perf_counter() - obj_timer0
 
     # init cpu time and active kernels
     active_kernels = np.array([1.])
-    cpu_time = np.array([time.perf_counter() - t0])
+    cpu_time = np.array([time.perf_counter() - obj_timer - t0])
+
 
     if verbose:
         print('cumulative cpu time: ' + str(cpu_time[-1]))
@@ -575,14 +581,13 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
 
         # estimate divergence
         obj_timer0 = time.perf_counter()
-        if stop_up is None:
-            if verbose: print('estimating new KL')
-            objs = np.append(objs, KL(logq, sample_q, logp, 100000))
-            if verbose: print('KL to target: ' + str(objs[iter_no]))
-        else:
-            if verbose: print('estimating new KSD')
+        # estimate kl and ksd
+        kls = np.append(kls, KL(logq, sample_q, logp, 100000))
+        if verbose: print('KL to target: ' + str(kls[-1]))
+
+        if stop_up is not None:
             objs = np.append(objs, ksd(logp, sample_q, stop_up, B = 100000))
-            if verbose: print('KSD to target: ' + str(objs[iter_no]))
+            if verbose: print('KSD to target: ' + str(objs[-1]))
         obj_timer = time.perf_counter() - obj_timer0
 
         # assess convergence
@@ -609,7 +614,8 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         print('means: ' + str(np.squeeze(mus[active])))
         print('sigmas: ' + str(np.squeeze(Sigmas[active])))
         print('weights: ' + str(np.squeeze(alphas[active])))
-        print('divergence: ' + str(objs[-1]))
+        print('KL: ' + str(kls[-1]))
+        if stop_up is not None: print('ksd: ' + str(objs[-1]))
 
 
-    return mus[0:iter_no,:], Sigmas[0:iter_no,:], alphas[0:iter_no], objs, cpu_time, active_kernels
+    return mus[0:iter_no,:], Sigmas[0:iter_no,:], alphas[0:iter_no], objs, cpu_time, active_kernels, kls

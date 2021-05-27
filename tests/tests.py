@@ -547,9 +547,9 @@ for r in reps:
             if verbose: print()
             # split by whether covariance matrix is full or diagonal
             if bvi_diagonal:
-                mus, Sigmas, alphas, objs, cput, act_k = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up)
+                mus, Sigmas, alphas, objs, cput, act_k, kls = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up)
             else:
-                mus, Sigmas, alphas, objs, cput, act_k = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up)
+                mus, Sigmas, alphas, objs, cput, act_k, kls = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up)
             if verbose: print()
 
             # save results
@@ -560,6 +560,7 @@ for r in reps:
             np.save(tmp_path + 'cput_' + str(r) + '_' + str(tol) + '.npy', cput)
             np.save(tmp_path + 'obj_' + str(r) + '_' + str(tol) + '.npy', objs)
             np.save(tmp_path + 'kernels_' + str(r) + '_' + str(tol) + '.npy', act_k)
+            np.save(tmp_path + 'kl_' + str(r) + '_' + str(tol) + '.npy', kls)
 
             bvi_times[r_counter-1,i] = cput[-1]
             bvi_ksd[r_counter-1,i] = objs[-1]
@@ -567,12 +568,16 @@ for r in reps:
 
 
             # plot trace
-            if verbose: print('plotting bvi objective trace')
+            pltobj = obj
+            if klcalc: pltobj = obj
+
+            if verbose: print('plotting lbvi objective trace')
             plt.clf()
-            plt.plot(1 + np.arange(objs.shape[0]), objs, '-k')
+            plt.plot(1 + np.arange(pltobj.shape[0]), pltobj, '-k')
             plt.xlabel('iteration')
-            plt.ylabel('KL divergence')
-            plt.title('trace plot of KL')
+            plt.ylabel('kernelized stein discrepancy')
+            if klcalc: plt.ylabel('KL')
+            plt.title('objective trace plot')
             plt.savefig(tmp_path + 'bvi_trace' + str(r) + '_' + str(tol) + '.png', dpi=900)
 
 
