@@ -772,4 +772,33 @@ plt.tight_layout()
 plt.savefig(path + 'times_kernels_kl.' + extension, dpi=900, bbox_inches='tight')
 ###################
 
+
+# KL ###################
+# plot
+#niter = 30
+plt.clf()
+ebalpha = 0.75
+ebalpha2 = 0.5
+
+# kl error bars
+#plt.errorbar(range(1,niter+1), lbvi_kl_median[:niter], yerr = lbvi_kl_err2[:,:niter], linestyle = 'dotted', color = lbvi_color, alpha = ebalpha2)
+#plt.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err2[:,:niter], linestyle = 'dotted', color = ubvi_color, alpha = ebalpha2)
+#plt.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
+plt.errorbar(range(1,niter+1), lbvi_kl_median[:niter], yerr = lbvi_kl_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha)
+#plt.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha)
+#plt.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
+plt.plot(range(1,niter+1), lbvi_kl_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI')
+#plt.plot(range(1,niter+1), ubvi_kl_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
+#plt.plot(range(1,niter+1), bvi_kl_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
+
+# add labels and save
+
+plt.xlabel('Iteration #')
+plt.ylabel('KL estimate')
+#ax3.set_yscale('log')
+
+plt.tight_layout()
+plt.savefig(path + 'kl.' + extension, dpi=900, bbox_inches='tight')
+###################
+
 print('done plotting!')

@@ -503,7 +503,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
     if verbose: print('KL to target: ' + str(kls[0]))
     obj = np.inf
     if stop_up is not None:
-        objs = np.array([ksd(logp, sample_q, stop_up, B = 100000)])
+        objs = np.array([ksd(logp, sample_q, stop_up, B = 1000)])
         if verbose: print('KSD to target: ' + str(objs[0]))
     obj_timer = time.perf_counter() - obj_timer0
 
@@ -586,7 +586,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         if verbose: print('KL to target: ' + str(kls[-1]))
 
         if stop_up is not None:
-            objs = np.append(objs, ksd(logp, sample_q, stop_up, B = 100000))
+            objs = np.append(objs, ksd(logp, sample_q, stop_up, B = 1000))
             if verbose: print('KSD to target: ' + str(objs[-1]))
         obj_timer = time.perf_counter() - obj_timer0
 

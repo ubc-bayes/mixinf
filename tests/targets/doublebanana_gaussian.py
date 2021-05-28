@@ -28,10 +28,10 @@ def logp_mixture_aux(x, K):
 
 
 def logp_banana1(x, K = 2):
-    return -np.log(100*np.pi) - 0.5*x[..., 0]**2 / 50 - 0.5*(-x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2
+    return  -0.5*x[..., 0]**2 / 50 - 0.5*(-x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2 #-np.log(100*np.pi)
 
 def logp_banana2(x, K = 2):
-    return -np.log(100*np.pi) - 0.5*x[..., 0]**2 / 50 - 0.5*(x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2
+    return -0.5*x[..., 0]**2 / 50 - 0.5*(x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2 #-np.log(100*np.pi)
 
 alpha_b = 0.5 # each banana has the same weight
 def logp_banana_aux(x):
@@ -124,7 +124,7 @@ def w_maxiters(k, long_opt = False):
     return 1000
 
 #def w_schedule(k): return 0.01
-def w_schedule(k): return 0.01
+def w_schedule(k): return 0.001
 
 
 # CREATE UBVI SCHEDULES
