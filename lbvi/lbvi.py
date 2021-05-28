@@ -303,7 +303,7 @@ def plotting(y, T, w, logp, plot_path, iter_no, t_increment, kernel_sampler = No
             if lbvi_sample.size != 0:
                  # otherwise no plottting to do =(
                  lbvi_kde = stats.gaussian_kde(lbvi_sample.T, bw_method = 0.05).evaluate(tt.T).reshape(nn, nn).T
-                 cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = 10, colors = '#39558CFF')
+                 cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = 8, colors = '#39558CFF')
                  hcp_lbvi,_ = cp_lbvi.legend_elements()
                  hcps.append(hcp_lbvi[0])
                  legends.append('LBVI')
@@ -351,12 +351,12 @@ def gif_plot(plot_path):
     images = []
     for file_name in db.file_name:
         images.append(imageio.imread(plot_path + file_name))
-    imageio.mimsave(plot_path + 'evolution.gif', images, fps = 5)
+    imageio.mimsave(plot_path + 'evolution.gif', images, fps = 2)
 
 ###################################
 
 ###################################
-def w_grad(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None, mix_X = None, X = None):
+def w_grad(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None, X = None):
     """
     calculate gradient of the KSD wrt to the weights
 
@@ -370,54 +370,21 @@ def w_grad(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None, mix
         - kernel_sampler is a function that generates samples from the mixture kernels
         - t_increment is an integer with the incremental steps per iteration
         - chains is a list of N shape(T_n,K) arrays with current chains
-        - mix_X, X are either None or shape(2*B,K) arrays with samples to use for gradient calculation
+        - X is either None or a shape(B,N,K) array with samples to use for gradient calculation
             if None, samples will be generated; else, provided samples will be used
     outputs:
         - shape(y.shape[0],) array, the gradient
     """
-
     N = y.shape[0]
     K = y.shape[1]
-
-    # init
     grad_w = np.zeros(N)
+    if X is None: X = kernel_sampler(y = y, T = T, S = 2*B, logp = logp, t_increment = t_increment, chains = chains)
 
-    if mix_X is None:
-        # sample from the mixture
-        #print('sampling from mixture')
-        mix_X = mix_sample(2*B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains)
-    mix_X = mix_X[~np.isnan(mix_X).any(axis=-1)] # remove nans
-    mix_X = mix_X[~np.isinf(mix_X).any(axis=-1)] # remove infs
-
-    if X is None:
-        # sample from kernels
-        #print('w grad y: ' + str(y))
-        X = kernel_sampler(y = y, T = T, S = 2*B, logp = logp, t_increment = t_increment, chains = chains)
-    X = np.where(~np.isnan(X), X, 0) # remove nans
-    X = np.where(~np.isinf(X), X, 0) # remove infs
-
-    # get new size
-    if mix_X.shape[0] % 2 == 1:
-        B_new1 = int((mix_X.shape[0]-1)/2)
-    else:
-        B_new1 = int(mix_X.shape[0]/2)
-    if X.shape[0] % 2 == 1:
-        B_new2 = int((mix_X.shape[0]-1)/2)
-    else:
-        B_new2 = int(mix_X.shape[0]/2)
-    B = np.minimum(B_new1, B_new2)
-    mix_Y = mix_X[-B:]
-    mix_X = mix_X[:B]
-
-
-    # sample from each kernel and define gradient
-    for n in range(y.shape[0]):
-        tmp_X = X[:,n,:]
-        tmp_Y = tmp_X[-B:,:]
-        tmp_X = tmp_X[:B,:]
-
-        # get gradient
-        grad_w[n] = up(tmp_X, mix_X) + up(mix_Y, tmp_Y)
+    # retrieve samples from each kernel and add to gradient
+    for n in range(N):
+        g = 0
+        for i in range(N): g += w[i] * (up(X[:,n,:],X[:,i,:]) + up(X[:,i,:],X[:,n,:]))
+        grad_w[n] = g
     # end for
 
     return grad_w
@@ -450,10 +417,8 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
     outputs:
         - array with optimal weights of shape active.shape[0]
     """
-
     # if only one location is active, weight is 1
     if np.unique(active).shape[0] == 1: return np.array([1])
-
 
     # subset active locations and chains
     if chains is not None:
@@ -469,19 +434,14 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
     w = w / w.sum()
     n = active.shape[0]
 
-    #print('active chains: ' + str(active_chains))
-    #print('active sample: ' + str(y))
-    #print('active steps: ' + str(T))
-    #print('active weights: ' + str(w))
-
-    # generate recyclable samples
-    if sample_recycling:
-        if verbose: print('generating samples for recycling')
-        mix_X = mix_sample(2*B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = active_chains)
-        X = kernel_sampler(y = y, T = T, S = 2*B, logp = logp, t_increment = t_increment, chains = active_chains)
-    else:
-        mix_X = None
-        X = None
+    # create matrix K for gradient
+    X = kernel_sampler(y = y, T = T, S = B, logp = logp, t_increment = t_increment, chains = active_chains)
+    K = np.zeros((n,n))
+    for i in range(n):
+        for j in range(n): K[i,j] = up(X[:,i,:],X[:,j,:])
+        # end for
+    # end for
+    K += K.T
 
     # init algo
     convergence = False
@@ -490,20 +450,17 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
 
     # run optimization
     for k in range(maxiter):
-        #print(w)
         if verbose: print('weight opt iter: ' + str(k+1) + '/' + str(maxiter), end = '\r') # to visualize number of iterations
-        if convergence: break # assess convergence
-        Dw = w_grad(up, logp, y, T, w, B, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = active_chains, mix_X = mix_X, X = X) # get gradient
-        #print(Dw)
-        #w_step = 0.9*w_step - (b/np.sqrt(k+1)) * Dw # step size with momentum
+        if convergence: break
+        Dw = K@w
         w_step = - (b/np.sqrt(k+1)) * Dw # step size without momentum
         w += w_step # update weight
         w = simplex_project(w) # project to simplex
-        if verbose:
-            print('Dw: ' + str(Dw))
-            print('step: ' + str(w_step))
-            print('w: ' + str(w))
-            print()
+        #if verbose:
+        #    print('Dw: ' + str(Dw))
+        #    print('step: ' + str(w_step))
+        #    print('w: ' + str(w))
+        #    print()
         if np.linalg.norm(Dw) < tol: convergence = True # update convergence
 
         #if trace:
@@ -515,14 +472,8 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
         #    plt.ylabel('kernelized stein discrepancy')
         #    plt.title('trace plot of ksd in weight optimization')
         #    plt.savefig(tracepath + str(np.sum(T) / t_increment) + '.jpg', dpi = 300)
-
-
     # end for
-
-
-    if verbose:
-        print('weights optimized in ' + str(k+1) + ' iterations')
-
+    if verbose: print('weights optimized in ' + str(k+1) + ' iterations')
     return w
 ###################################
 
@@ -576,18 +527,13 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
         tmp_active = np.sort(tmp_active)
         tmp_chains = [chains[i] for i in tmp_active]
 
-        # update mixture with active chains
-        tmp_y = y[tmp_active,:]
-        tmp_w = tmp_w[tmp_active]
-        tmp_T = tmp_T[tmp_active]
+        # do 100 steps of weight optimization
+        #tmp_w  = weight_opt(logp, y, tmp_T, tmp_w, tmp_active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, tol = 0, b = b, B = B, maxiter = 100, sample_recycling = False, verbose = False, trace = False)
 
-        # do one step of weight optimization
-        Dw = w_grad(up, logp, tmp_y, tmp_T, tmp_w, B, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = tmp_chains)
-        tmp_w -= (b/np.sqrt(2.))*Dw # np.sqrt(2) is the denominator of step size in first iter of sgd
-        tmp_w = simplex_project(tmp_w)
+        tmp_w = tmp_w[tmp_active]
 
         # calculate decrement
-        new_objs[n] = ksd(logp, tmp_y, tmp_T, tmp_w, up, kernel_sampler, t_increment, tmp_chains, B = B)
+        new_objs[n] = ksd(logp, y[tmp_active,:], tmp_T[tmp_active], tmp_w, up, kernel_sampler, t_increment, tmp_chains, B = B)
     # end for
 
     #print('sample: ' + str(np.squeeze(y)))
@@ -995,4 +941,106 @@ def w_grad_old(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None,
     # end for
 
     return grad_w
+###################################
+
+
+###################################
+def weight_opt_old(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = None, tol = 0.001, b = 0.1, B = 1000, maxiter = 1000, sample_recycling = False, verbose = False, trace = False, tracepath = ''):
+    """
+    DEPRECATED; SEE NEW VERSION
+    optimize weights via sgd
+
+    inputs:
+        - logp target density
+        - y shape(N,K) kernel locations
+        - T array with number of steps per kernel location
+        - w array with location weights
+        - active array with number of active locations
+        - up function to calculate expected value of
+        - kernel_sampler is a function that generates samples from the mixture kernels
+        - t_inrement is an integer with the incremental number of steps per lbvi iteration
+        - chains is a list of N shape(T_n,K) arrays with current chains
+        - tol is the tolerance for convergence assessment
+        - b is the optimization schedule
+        - B number of MC samples
+        - maxiter bounds the number of algo iterations
+        - sample_recycling is boolean indicating whether to generate a single sample and recycle or to generate samples at each iteration
+        - verbose is boolean indicating whether to print messages
+        - trace is boolean indicating whether to print a trace plot of the objective function
+        - tracepath is the path in which the trace plot is saved if generated
+    outputs:
+        - array with optimal weights of shape active.shape[0]
+    """
+
+    # if only one location is active, weight is 1
+    if np.unique(active).shape[0] == 1: return np.array([1])
+
+
+    # subset active locations and chains
+    if chains is not None:
+        active_chains = [chains[n] for n in active]
+    else:
+        active_chains = None
+
+    y = y[active,:]
+    T = T[active]
+    w = w[active]
+    w[w == 0] = 0.1
+    #w = np.ones(w.shape[0]) / w.shape[0]
+    w = w / w.sum()
+    n = active.shape[0]
+
+    #print('active chains: ' + str(active_chains))
+    #print('active sample: ' + str(y))
+    #print('active steps: ' + str(T))
+    #print('active weights: ' + str(w))
+
+    # generate recyclable samples
+    if sample_recycling:
+        if verbose: print('generating samples for recycling')
+        X = kernel_sampler(y = y, T = T, S = B, logp = logp, t_increment = t_increment, chains = active_chains)
+    else:
+        X = None
+
+    # init algo
+    convergence = False
+    w_step = 0
+    obj = np.array([])
+
+    # run optimization
+    for k in range(maxiter):
+        #print(w)
+        if verbose: print('weight opt iter: ' + str(k+1) + '/' + str(maxiter), end = '\r') # to visualize number of iterations
+        if convergence: break # assess convergence
+        Dw = w_grad(up, logp, y, T, w, B, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = active_chains, X = X) # get gradient
+        #print(Dw)
+        #w_step = 0.9*w_step - (b/np.sqrt(k+1)) * Dw # step size with momentum
+        w_step = - (b/np.sqrt(k+1)) * Dw # step size without momentum
+        w += w_step # update weight
+        w = simplex_project(w) # project to simplex
+        if verbose:
+            print('Dw: ' + str(Dw))
+            print('step: ' + str(w_step))
+            print('w: ' + str(w))
+            print()
+        if np.linalg.norm(Dw) < tol: convergence = True # update convergence
+
+        #if trace:
+        #    obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = B))
+        #    #if verbose: print('ksd: ' + str(obj[-1]))
+        #    plt.clf()
+        #    plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
+        #    plt.xlabel('iteration')
+        #    plt.ylabel('kernelized stein discrepancy')
+        #    plt.title('trace plot of ksd in weight optimization')
+        #    plt.savefig(tracepath + str(np.sum(T) / t_increment) + '.jpg', dpi = 300)
+
+
+    # end for
+
+
+    if verbose:
+        print('weights optimized in ' + str(k+1) + ' iterations')
+
+    return w
 ###################################
