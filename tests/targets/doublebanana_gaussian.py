@@ -123,7 +123,8 @@ def w_maxiters(k, long_opt = False):
     if k>10: return 50
     return 100
 
-def w_schedule(k): return 0.01
+#def w_schedule(k): return 0.01
+def w_schedule(k): return 0.005
 
 
 # CREATE UBVI SCHEDULES

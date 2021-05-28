@@ -13,7 +13,7 @@ def get_gamma(x):
 # kernel and first and second order derivatives
 def get_kernel(x):
     # receives sample of size (N,K) and returns the kernel with banwidth = squared median, as well as derivatives and trace
-    gamma = get_gamma(x)
+    k_gamma = get_gamma(x)
 
     # t1,t2 are always (N,K) arrays
 

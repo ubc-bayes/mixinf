@@ -106,19 +106,29 @@ def up_gen(kernel, sp, dk_x, dk_y, dk_xy):
         - dk_y derivative of k wrt y
         - dk_xy trace of hessian of k
     outputs:
-        - a function that takes two vectors as input and outputs u_p
+        - off-diagonal mean of Up, which is (N,N)
     """
 
-    def anon_up(x, y):
+    def anon_up(x, y, verbose = False):
         # x, y shape(N,K)
-        # out shape(N,1)
+        # out is scalar, with mean of off-diagonal elements of up(x,y) (which itself is (N,N))
 
-        term1 = np.squeeze(np.matmul(sp(x)[:,np.newaxis,:], sp(y)[:,:,np.newaxis])) * kernel(x, y)
-        term2 = np.squeeze(np.matmul(sp(x)[:,np.newaxis,:], dk_y(x, y)[:,:,np.newaxis]))
-        term3 = np.squeeze(np.matmul(sp(y)[:,np.newaxis,:], dk_x(x, y)[:,:,np.newaxis]))
-        term4 = dk_xy(x, y)
+        # get all matrices
+        N = x.shape[0]
+        kr = kernel(x,y)
+        dkx = dk_x(x,y)
+        dky = dk_y(x,y)
+        dkxy = dk_xy(x,y)
+        sx = sp(x)
+        sy = sp(y)
 
-        return term1 + term2 + term3 + term4
+        term1 = kr*np.squeeze(np.matmul(sx[:,np.newaxis,np.newaxis,:], sy[np.newaxis,:,:,np.newaxis]))
+        term2 = np.squeeze(np.matmul(sx[:,np.newaxis,np.newaxis,:], dky[:,:,:,np.newaxis]))
+        term3 = np.squeeze(np.matmul(sy[:,np.newaxis,np.newaxis,:], dkx[:,:,:,np.newaxis]))
+        tmp = term1 + term2 + term3 + dkxy
+
+        #return(np.sum(tmp) - np.trace(tmp))/(N*(N-1)) # u-statistic; unbiased but can be negative
+        return np.mean(tmp) # v-statistic; biased but always positive
 
     return anon_up
 ###################################
@@ -144,20 +154,10 @@ def ksd(logp, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 1000)
     """
 
     # generate samples
-    X = mix_sample(2*B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains) # sample from mixture
+    X = mix_sample(B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains) # sample from mixture
     X = np.where(~np.isnan(X), X, 0)
     X = np.where(~np.isinf(X), X, 0)
-
-    # get new size
-    if X.shape[0] % 2 == 1:
-        B = int((X.shape[0]-1)/2)
-    else:
-        B = int(X.shape[0]/2)
-
-    Y = X[-B:, :]
-    X = X[:B, :]
-
-    return np.abs(up(X, Y).mean())
+    return up(X, X)
 ###################################
 
 
@@ -417,7 +417,7 @@ def w_grad(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None, mix
         tmp_X = tmp_X[:B,:]
 
         # get gradient
-        grad_w[n] = up(tmp_X, mix_X).mean() + up(mix_Y, tmp_Y).mean()
+        grad_w[n] = up(tmp_X, mix_X) + up(mix_Y, tmp_Y)
     # end for
 
     return grad_w
@@ -499,11 +499,11 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
         w_step = - (b/np.sqrt(k+1)) * Dw # step size without momentum
         w += w_step # update weight
         w = simplex_project(w) # project to simplex
-        #if verbose:
-        #    print('Dw: ' + str(Dw))
-        #    print('step: ' + str(w_step))
-        #    print('w: ' + str(w))
-        #    print()
+        if verbose:
+            print('Dw: ' + str(Dw))
+            print('step: ' + str(w_step))
+            print('w: ' + str(w))
+            print()
         if np.linalg.norm(Dw) < tol: convergence = True # update convergence
 
         #if trace:
@@ -687,7 +687,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     tmp_ksd = np.zeros(N)
     for n in range(N):
         if verbose: print(str(n+1) + '/' + str(N), end = '\r')
-        tmp_ksd[n] = ksd(logp = logp, y = y[n,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = None, B = B)
+        tmp_ksd[n] = ksd(logp = logp, y = y[n,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = None, B = 1000)
         # end for
 
     argmin = np.argmin(tmp_ksd) # ksd minimizer
@@ -707,7 +707,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     # estimate objective function
     if verbose: print('estimating objective function')
     obj_timer0 = time.perf_counter() # to not time obj estimation
-    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 10000)]) # update objective
+    obj = np.array([ksd(logp = logp, y = y[argmin,:].reshape(1, K), T = np.array([t_increment]), w = np.ones(1), up = up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, B = 1000)]) # update objective
     if verbose: print('ksd: ' + str(obj[-1]))
     if p_sample is not None:
         kls = np.array([kl(logp, p_sample, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 1000, direction = 'reverse')])
@@ -787,7 +787,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         # estimate objective
         if verbose: print('estimating objective function')
         obj_timer0 = time.perf_counter() # to not time obj estimation
-        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = None, B = 10000))
+        obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = None, B = 1000))
         if p_sample is not None:
             if verbose: print('estimating kl')
             kls = np.append(kls, kl(logp, p_sample, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 1000, direction = 'reverse'))
@@ -925,4 +925,74 @@ def choose_kernel_old(up, logp, y, active, T, t_increment, t_max, chains, w, B, 
     #print('sample: ' + str(np.squeeze(y)))
     #print('gradients: ' + str(grads))
     return np.argmin(grads)
+###################################
+
+
+###################################
+def w_grad_old(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None, mix_X = None, X = None):
+    """
+    DEPRECATED; SEE NEW VERSION
+    calculate gradient of the KSD wrt to the weights
+
+    inputs:
+        - up function to calculate expected value of
+        - logp target logdensity
+        - y shape(N,K) kernel locations
+        - T array with number of steps per kernel location
+        - w array with location weights
+        - B number of MC samples
+        - kernel_sampler is a function that generates samples from the mixture kernels
+        - t_increment is an integer with the incremental steps per iteration
+        - chains is a list of N shape(T_n,K) arrays with current chains
+        - mix_X, X are either None or shape(2*B,K) arrays with samples to use for gradient calculation
+            if None, samples will be generated; else, provided samples will be used
+    outputs:
+        - shape(y.shape[0],) array, the gradient
+    """
+
+    N = y.shape[0]
+    K = y.shape[1]
+
+    # init
+    grad_w = np.zeros(N)
+
+    if mix_X is None:
+        # sample from the mixture
+        #print('sampling from mixture')
+        mix_X = mix_sample(2*B, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains)
+    mix_X = mix_X[~np.isnan(mix_X).any(axis=-1)] # remove nans
+    mix_X = mix_X[~np.isinf(mix_X).any(axis=-1)] # remove infs
+
+    if X is None:
+        # sample from kernels
+        #print('w grad y: ' + str(y))
+        X = kernel_sampler(y = y, T = T, S = 2*B, logp = logp, t_increment = t_increment, chains = chains)
+    X = np.where(~np.isnan(X), X, 0) # remove nans
+    X = np.where(~np.isinf(X), X, 0) # remove infs
+
+    # get new size
+    if mix_X.shape[0] % 2 == 1:
+        B_new1 = int((mix_X.shape[0]-1)/2)
+    else:
+        B_new1 = int(mix_X.shape[0]/2)
+    if X.shape[0] % 2 == 1:
+        B_new2 = int((mix_X.shape[0]-1)/2)
+    else:
+        B_new2 = int(mix_X.shape[0]/2)
+    B = np.minimum(B_new1, B_new2)
+    mix_Y = mix_X[-B:]
+    mix_X = mix_X[:B]
+
+
+    # sample from each kernel and define gradient
+    for n in range(y.shape[0]):
+        tmp_X = X[:,n,:]
+        tmp_Y = tmp_X[-B:,:]
+        tmp_X = tmp_X[:B,:]
+
+        # get gradient
+        grad_w[n] = up(tmp_X, mix_X) + up(mix_Y, tmp_Y)
+    # end for
+
+    return grad_w
 ###################################
