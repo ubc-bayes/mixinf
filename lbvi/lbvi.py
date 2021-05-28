@@ -429,9 +429,9 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
     y = y[active,:]
     T = T[active]
     w = w[active]
-    w[w == 0] = 0.1
+    #w[w == 0] = 0.1
     #w = np.ones(w.shape[0]) / w.shape[0]
-    w = w / w.sum()
+    #w = w / w.sum()
     n = active.shape[0]
 
     # create matrix K for gradient
@@ -525,7 +525,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
         tmp_active = np.copy(active)
         if n not in active: tmp_active = np.append(tmp_active,n)
         tmp_active = np.sort(tmp_active)
-        tmp_chains = [chains[i] for i in tmp_active]
+        tmp_chains = [chains[i] for i in tmp_active] if chains is not None else None
 
         # do 100 steps of weight optimization
         #tmp_w  = weight_opt(logp, y, tmp_T, tmp_w, tmp_active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, tol = 0, b = b, B = B, maxiter = 100, sample_recycling = False, verbose = False, trace = False)

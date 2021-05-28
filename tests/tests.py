@@ -419,7 +419,7 @@ for r in reps:
             if verbose:
                 print('starting lbvi optimization')
                 print()
-            w, T, obj, cput, act_k, kls = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, cacheing = cacheing, result_cacheing = True, sample_recycling = lbvi_recycle, verbose = verbose, plot = False, gif = True, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True, p_sample = kl_psample)
+            w, T, obj, cput, act_k, kls = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, cacheing = cacheing, result_cacheing = True, sample_recycling = lbvi_recycle, verbose = verbose, plot = False, gif = False, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True, p_sample = kl_psample)
 
             # save results
             if verbose: print('saving lbvi results')
