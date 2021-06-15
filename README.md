@@ -1,6 +1,6 @@
-# Locally-Adapted Boosting Variational Inference (L-BVI)
+# Locally-Adaptive Boosting Variational Inference (L-BVI)
 
-This repository contains a Python package that can be used to do Bayesian inference using locally-adapted boosting variational inference (L-BVI).  
+This repository contains a Python package that can be used to do Bayesian inference using locally-adaptive boosting variational inference (LBVI).  
 
 <p float="left">
   <img src="fourmixture.gif" width="400" />
