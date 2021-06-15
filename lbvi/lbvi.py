@@ -392,7 +392,7 @@ def w_grad(up, logp, y, T, w, B, kernel_sampler, t_increment, chains = None, X =
 
 
 ###################################
-def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = None, tol = 0.001, b = 0.1, B = 1000, maxiter = 1000, sample_recycling = False, verbose = False, trace = False, tracepath = ''):
+def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = None, tol = 0.001, b = 0.1, B = 1000, maxiter = 1000, verbose = False, trace = False, tracepath = ''):
     """
     optimize weights via sgd
 
@@ -410,7 +410,6 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
         - b is the optimization schedule
         - B number of MC samples
         - maxiter bounds the number of algo iterations
-        - sample_recycling is boolean indicating whether to generate a single sample and recycle or to generate samples at each iteration
         - verbose is boolean indicating whether to print messages
         - trace is boolean indicating whether to print a trace plot of the objective function
         - tracepath is the path in which the trace plot is saved if generated
@@ -497,7 +496,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
         - kernel_sampler is a function that generates samples from the mixture kernels
         - b is the step size for one step of sgd
     outputs:
-        - integer with location that minimizes linear approximation
+        - integer with location that minimizes ksd
     """
 
     N = y.shape[0]
@@ -528,7 +527,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
         tmp_chains = [chains[i] for i in tmp_active] if chains is not None else None
 
         # do 100 steps of weight optimization
-        #tmp_w  = weight_opt(logp, y, tmp_T, tmp_w, tmp_active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, tol = 0, b = b, B = B, maxiter = 100, sample_recycling = False, verbose = False, trace = False)
+        #tmp_w  = weight_opt(logp, y, tmp_T, tmp_w, tmp_active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, tol = 0, b = b, B = B, maxiter = 100, verbose = False, trace = False)
 
         tmp_w = tmp_w[tmp_active]
 
@@ -544,7 +543,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, t_max, chains, w, B, kern
 
 
 ###################################
-def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, cacheing = True, result_cacheing = False, sample_recycling = False, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = True, p_sample = None):
+def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_schedule = None, B = 1000, maxiter = 100, tol = 0.001, stop_up = None, weight_max = 20, cacheing = True, result_cacheing = False, verbose = False, plot = True, plt_lims = None, plot_path = 'plots/', trace = False, gif = True, p_sample = None):
     """
     locally-adaptive boosting variational inference main routine
     given a sample and a target, find the mixture of user-defined kernels that best approximates the target
@@ -565,7 +564,6 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - weight_max       : integer indicating max number of iterations without weight optimization (if no new kernels are added to mixture)
         - cacheing         : boolean indicating whether mc samples should be cached
         - result_cacheing  : boolean indicating whether intermediate results should be stored (recommended for large jobs)
-        - sample_recycling : boolean indicating whether to generate a single sample and recycle or to generate samples at each iteration
         - verbose          : boolean indicating whether to print messages
         - plot             : boolean indicating whether to generate plots of the approximation at each iteration (only supported for uni and bivariate data)
         - plt_lims         : array with the plotting limits (xinf, xsup, yinf, ysup)
@@ -732,7 +730,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         # update weights
         if update_weights:
             if verbose: print('updating weights')
-            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, tol = 0, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), sample_recycling = sample_recycling, verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
+            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, tol = 0, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
         else:
             if verbose: print('not updating weights')
 

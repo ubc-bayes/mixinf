@@ -6,6 +6,7 @@ import numpy as np
 import scipy.stats as stats
 import pandas as pd
 import time, bisect
+import matplotlib.pyplot as plt
 plt.rcParams.update({'figure.max_open_warning': 0})
 import cProfile, pstats, io
 import os
@@ -33,13 +34,13 @@ def choose_kernel(up, logp, y, active, T, t_increment, chains, w, B, kernel_samp
         - kernel_sampler is a function that generates samples from the mixture kernels
         - b is the step size for one step of sgd
     outputs:
-        - integer with location that minimizes linear approximation
+        - integer with location that minimizes ksd
     """
 
     N = y.shape[0]
     inactive = np.setdiff1d(np.arange(N), active) # inactive components
     new_objs = np.zeros(inactive.shape[0])
-    i = 1
+    i = 0
 
 
     ##########################
@@ -48,7 +49,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, chains, w, B, kernel_samp
     ##########################
     ##########################
     for n in inactive:
-        if verbose: print(str(i) + '/' + str(inactive.shape[0]), end = '\r')
+        if verbose: print(str(i+1) + '/' + str(inactive.shape[0]), end = '\r')
 
         # define new mixture by increasing steps of chain n
         tmp_w = np.copy(w)
@@ -65,7 +66,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, chains, w, B, kernel_samp
         tmp_chains = [chains[i] for i in tmp_active] if chains is not None else None
 
         # calculate decrement
-        new_objs[n] = ksd(logp, y[tmp_active,:], tmp_T[tmp_active], tmp_w[tmp_active], up, kernel_sampler, t_increment, tmp_chains, B = B)
+        new_objs[i] = ksd(logp, y[tmp_active,:], tmp_T[tmp_active], tmp_w[tmp_active], up, kernel_sampler, t_increment, tmp_chains, B)
 
         i += 1
     # end for
@@ -232,12 +233,12 @@ def ulbvi(y, logp, t_increment, up, kernel_sampler, w_maxiters = None, w_schedul
 
         if verbose:
             print('iteration ' + str(iter_no + 1))
-            print('assessing convergence')
+            #print('assessing convergence')
         if convergence: break
 
 
         if verbose: print('choosing next kernel')
-        argmin = choose_kernel(up, logp, y, active, T, t_increment, t_max, chains = chains, w = w, B = B, kernel_sampler = kernel_sampler, b = w_schedule(1), verbose = verbose)
+        argmin = choose_kernel(up, logp, y, active, T, t_increment, chains = chains, w = w, B = B, kernel_sampler = kernel_sampler, b = w_schedule(1), verbose = verbose)
         if verbose: print('chosen sample point: ' + str(y[argmin, 0:min(K,3)]))
 
 
@@ -262,7 +263,7 @@ def ulbvi(y, logp, t_increment, up, kernel_sampler, w_maxiters = None, w_schedul
 
         # update chains
         if cacheing:
-            if verbose: print('updating chains')
+            #if verbose: print('updating chains')
             _, chains = kernel_sampler(y, T, 1, logp, t_increment, chains = chains, update = True)
             #if verbose: print('new chains: ' + str(chains))
 
@@ -270,28 +271,28 @@ def ulbvi(y, logp, t_increment, up, kernel_sampler, w_maxiters = None, w_schedul
         # update weights
         if update_weights:
             if verbose: print('updating weights')
-            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, tol = 0, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), sample_recycling = sample_recycling, verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
+            w[active] = weight_opt(logp, y, T, w, active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, tol = 0, b = w_schedule(iter_no), B = B, maxiter = w_maxiters(iter_no, long_opt), verbose = verbose, trace = trace, tracepath = plot_path + 'weight_trace/')
         else:
             if verbose: print('not updating weights')
 
 
         # estimate objective
-        if verbose: print('estimating objective function')
+        #if verbose: print('estimating objective function')
         obj_timer0 = time.perf_counter() # to not time obj estimation
         obj = np.append(obj, ksd(logp = logp, y = y, T = T, w = w, up = stop_up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = None, B = 1000))
         if p_sample is not None:
-            if verbose: print('estimating kl')
+            #if verbose: print('estimating kl')
             kls = np.append(kls, kl(logp, p_sample, y, T, w, up, kernel_sampler, t_increment, chains = None, B = 1000, direction = 'reverse'))
         obj_timer = time.perf_counter() - obj_timer0
-        if verbose: print('objective function estimated in ' + str(obj_timer) + ' seconds')
+        #if verbose: print('objective function estimated in ' + str(obj_timer) + ' seconds')
 
         # update convergence
-        if verbose: print('updating convergence')
+        #if verbose: print('updating convergence')
         if np.abs(obj[-1]) < tol: convergence = True
 
         # plot current approximation
         if plot:
-            if verbose: print('plotting')
+            #if verbose: print('plotting')
             try:
                 plotting(y, T, w, logp, plot_path, iter_no = iter_no + 1, t_increment = t_increment, kernel_sampler = kernel_sampler, plt_lims = plt_lims, N = 10000)
             except:
@@ -311,10 +312,10 @@ def ulbvi(y, logp, t_increment, up, kernel_sampler, w_maxiters = None, w_schedul
 
 
         if verbose:
-            print('number of active kernels: ' + str(active_kernels[-1]))
+            print('number of active kernels: ' + str(int(active_kernels[-1])))
             print('active sample: ' + str(np.squeeze(y[active, 0:min(K,3)])))
-            print('active steps: ' + str(T[active]))
             print('active weights: ' + str(w[active]))
+            print('active steps: ' + str(np.unique(T[active])))
             print('ksd: ' + str(obj[-1]))
             if p_sample is not None: print('KL: ' + str(kls[-1]))
             print('cumulative cpu time: ' + str(cpu_time[-1]))
