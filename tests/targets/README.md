@@ -28,9 +28,9 @@ These functions are related to BVI optimizations.
 * `regularization(k)` determines the regularization used to define the target in the new component optimization. `k` is an integer (iteration number)
 
 ## Directory roadmap
-* `cauchy` contains the standard Cauchy distribution
-* `banana` contains the banana distribution in 2 dimensions
-* `banana-gaussian` contains a mixture of a mixture of 4 bivariate Gaussians and a double banana in 2 dimensions
-* `double-banana` contains a double banana in 2 dimensions
-* `five-mixture` contains an evenly-spaced mixture of 5 Gaussians
-* `four-mixture` contains a non-evenly-spaced mixture of 4 Gaussians. They are divided into two separate groups, each with two bumps
+* `cauchy.py` contains the standard Cauchy distribution
+* `banana.py` contains the banana distribution in 2 dimensions
+* `doublebanana_gaussian.py` contains a mixture of a mixture of 4 bivariate Gaussians and a double banana in 2 dimensions
+* `fivemixture.py` contains an evenly-spaced mixture of 5 Gaussians
+* `fourmixture.py` contains a non-evenly-spaced mixture of 4 Gaussians. They are divided into two separate groups, each with two bumps
+* `network.py` is used in the facebool-like network example
