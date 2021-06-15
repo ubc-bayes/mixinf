@@ -76,23 +76,13 @@ def mixture_rvs(size, w, x, rho):
 ###########
 
 
-# now define function to sample from double banana via rwmh
-def double_banana_sample(size, burnin = 0.5):
-    # Gaussian proposals
-    sd = 10
-    #def logr(x, y): return -0.5 * x.shape[1] * np.sum((x - y)**2, axis = -1) / sd**2 - 0.5*x.shape[1]*np.log(2*np.pi) - x.shape[1]*np.log(sd) # gaussian log density
-    def r_sampler(y): return sd * np.random.randn(1, y.shape[1]) + y # gaussian sampler
-    y = np.array([[1, 0]]) # init
-    n_steps = int(np.round(size/(1-burnin))) # account for burn-in
-    out = np.zeros((n_steps,2))
-    for t in range(n_steps):
-        tmp_y = r_sampler(y) # generate proposal
-        logratio = logp_banana_aux(tmp_y)-logp_banana_aux(y) # log hastings ratio
-        if np.log(np.random.rand(1)) < np.minimum(0, logratio):
-            out[t,:] = tmp_y # accept proposal
-        else:
-            out[t,:] = y     # reject proposal
-    return out[-size:,:]
+# now define function to sample from double banana
+def double_banana_sample(size):
+    z1 = np.random.randn(size)*np.sqrt(50)
+    z2 = np.random.randn(size)
+    z2 = z2 + 0.1*z1**2 + 5
+    z2[:int(size/2)] = -z2[:int(size/2)]
+    return np.vstack((z1,z2)).reshape(size,2)
 
 # now define p sampler
 def p_sample(size, K=2):
