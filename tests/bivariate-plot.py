@@ -31,7 +31,7 @@ parser.add_argument('--inpath', type = str, default = 'results/',
 help = 'path of folder where csv files are stored')
 parser.add_argument('--outpath', type = str, default = 'results/plots/',
 help = 'path of folder where plots will be saved')
-parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana-gaussian', 'four-banana', 'double-banana-gaussian'],
+parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'double-banana-gaussian', 'banana'],
 help = 'target distribution to use')
 parser.add_argument('--reps', type = int, default = 1,
 help = 'number of times each method was run')
@@ -106,21 +106,6 @@ if target == 'banana':
     from targets.banana import *
     xlim = np.array([-15, 15])
     ylim = np.array([-15, 15])
-if target == 'double-banana':
-    from targets.double_banana import *
-    xlim = np.array([-2.5, 2.5])
-    ylim = np.array([-1, 1])
-if target == 'banana-gaussian':
-    from targets.banana_gaussian import *
-    xlim = np.array([-3, 3])
-    ylim = np.array([-2, 3])
-    Levels = 4
-if target == 'four-banana':
-    from targets.four_banana import *
-    xlim = np.array([-3, 3])
-    ylim = np.array([-3, 3])
-    Levels = 4
-
 if target == 'double-banana-gaussian':
     from targets.doublebanana_gaussian import *
     xlim = np.array([-25, 25])
