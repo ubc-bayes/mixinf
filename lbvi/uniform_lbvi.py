@@ -37,44 +37,52 @@ def choose_kernel(up, logp, y, active, T, t_increment, chains, w, B, kernel_samp
     """
 
     N = y.shape[0]
-    new_objs = np.zeros(N)
+    inactive = np.setdiff1d(np.arange(N), active) # inactive components
+    new_objs = np.zeros(inactive.shape[0])
+    i = 1
 
-    for n in range(N):
-        if verbose: print(str(n+1) + '/' + str(N), end = '\r')
+
+    ##########################
+    ##########################
+    ### adding one kernel ####
+    ##########################
+    ##########################
+    for n in inactive:
+        if verbose: print(str(i) + '/' + str(inactive.shape[0]), end = '\r')
 
         # define new mixture by increasing steps of chain n
         tmp_w = np.copy(w)
         tmp_T = np.copy(T)
-        tmp_T[n] += t_increment
+        tmp_T[n] = T[active[0]]
 
-        # limit number of steps
-        if tmp_T[n] > t_max:
-            new_objs[n] = np.inf
-            continue
-
-        # increase weight if necessary
-        if tmp_w[n] == 0:
-            tmp_w[n] = 0.1/(1+tmp_T[n]/t_increment)
-            tmp_w = tmp_w / tmp_w.sum()
+        # increase weight
+        tmp_w[n] = 0.1/(1+tmp_T[n]/t_increment)
+        tmp_w = tmp_w / tmp_w.sum()
 
         # update active chains
-        tmp_active = np.copy(active)
-        if n not in active: tmp_active = np.append(tmp_active,n)
+        tmp_active = np.append(active,n)
         tmp_active = np.sort(tmp_active)
         tmp_chains = [chains[i] for i in tmp_active] if chains is not None else None
 
-        # do 100 steps of weight optimization
-        #tmp_w  = weight_opt(logp, y, tmp_T, tmp_w, tmp_active, up, kernel_sampler = kernel_sampler, t_increment = t_increment, chains = chains, tol = 0, b = b, B = B, maxiter = 100, sample_recycling = False, verbose = False, trace = False)
-
-        tmp_w = tmp_w[tmp_active]
-
         # calculate decrement
-        new_objs[n] = ksd(logp, y[tmp_active,:], tmp_T[tmp_active], tmp_w, up, kernel_sampler, t_increment, tmp_chains, B = B)
+        new_objs[n] = ksd(logp, y[tmp_active,:], tmp_T[tmp_active], tmp_w[tmp_active], up, kernel_sampler, t_increment, tmp_chains, B = B)
+
+        i += 1
     # end for
 
-    #print('sample: ' + str(np.squeeze(y)))
-    #print('ksds: ' + str(new_objs))
-    return np.argmin(new_objs)
+    # get inactive chain with smallest ksd
+    argmin = np.argmin(new_objs)
+
+    #######################
+    #######################
+    ### increasing all ####
+    #######################
+    #######################
+    tmp_ksd = ksd(logp, y[active,:], T[active]+t_increment, w[active], up, kernel_sampler, t_increment, chains, B)
+    if tmp_ksd < argmin:
+        return active[0] # if increasing all is better, return the first element of active
+    else:
+        return argmin
 ###################################
 
 
@@ -235,7 +243,7 @@ def ulbvi(y, logp, t_increment, up, kernel_sampler, w_maxiters = None, w_schedul
 
         # update active set and steps and determine weight opt details
         if argmin not in active:
-            T[argmin] = active[0] # if minimizer not active, assign current T
+            T[argmin] = T[active[0]] # if minimizer not active, assign current T
             active = np.append(active, argmin) # update active locations
             update_weights = True
             weight_opt_counter = 0
