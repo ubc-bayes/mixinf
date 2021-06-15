@@ -575,8 +575,11 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         - p_sample         : function that generates samples from the target distribution (for calculating reverse kl in synthetic experiments) or None to be ignored
 
     outputs:
-        - w, T : shape(y.shape[0], ) arrays with the sample, the weights, and the steps sizes
-        - obj  : array with the value of the objective function at each iteration
+        - w, T           : shape(y.shape[0], ) arrays with the sample, the weights, and the steps sizes
+        - obj            : array with the value of the objective function at each iteration
+        - cpu_time       : array with the cumulative cpu time at each iteration
+        - active_kernels : array with the number of active kernels at each iteration
+        - kls            : array with the value of the kl divergence at each iteration
     """
     if verbose:
         print('running locally-adaptive boosting variational inference')
@@ -643,7 +646,7 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
     active = np.array([argmin]) # update active locations, kernel_sampler
     #if verbose: print('number of steps: ' + str(T))
 
-    # now update chains with the new increlogp(ps) - np.log(q.evaluate(np.squeeze(ps)))ment
+    # now update chains with the new increment
     if cacheing:
         if verbose: print('updating chains')
         _, chains = kernel_sampler(y, T, 1, logp, t_increment = t_increment, chains = chains, update = True)
@@ -682,7 +685,11 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         print('cpu time: ' + str(cpu_time[-1]))
         print()
 
-
+    #######################
+    #######################
+    ##### lbvi loop #######
+    #######################
+    #######################
     for iter_no in range(maxiter):
 
         if verbose:
@@ -794,3 +801,4 @@ def lbvi(y, logp, t_increment, t_max, up, kernel_sampler, w_maxiters = None, w_s
         print('cumulative cpu time: ' + str(cpu_time[-1]))
 
     return w, T, obj, cpu_time, active_kernels, kls
+###################################
