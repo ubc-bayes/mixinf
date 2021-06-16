@@ -87,7 +87,7 @@ def double_banana_sample(size):
 # now define p sampler
 def p_sample(size, K=2):
     out = np.zeros((size,2)) # init
-    inds = np.random.choice([0,1], size = size, p = [alpha, 1 - alpha], replace = True) # select indices from banana/gaussian mixture
+    inds = np.random.choice([0,1], size = size, p = [alpha, 1-alpha], replace = True) # select indices from banana/gaussian mixture
     n_banana = inds[inds == 0].shape[0]
     n_gauss = size - n_banana
     out[inds == 0,:] = double_banana_sample(n_banana)           # sample from banana
@@ -100,7 +100,7 @@ def p_sample(size, K=2):
 #    return sd * np.random.randn(size, K) + mu
 def sample(size,K=2):
     out = np.zeros((size,2)) # init
-    inds = np.random.choice([0,1], size = size, p = [0.5, 0.5], replace = True) # select indices from banana/gaussian mixture
+    inds = np.random.choice([0,1], size = size, p = [0.2, 0.8], replace = True) # select indices from banana/gaussian mixture
     n_banana = inds[inds == 0].shape[0]
     n_gauss = size - n_banana
     out[inds == 0,:] = double_banana_sample(n_banana)           # sample from banana

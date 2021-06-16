@@ -428,7 +428,7 @@ def weight_opt(logp, y, T, w, active, up, kernel_sampler, t_increment, chains = 
     y = y[active,:]
     T = T[active]
     w = w[active]
-    w[w == 0] = 0.1
+    #w[w == 0] = 0.1
     #w = np.ones(w.shape[0]) / w.shape[0]
     w = w / w.sum()
     n = active.shape[0]
