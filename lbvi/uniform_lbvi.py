@@ -40,16 +40,15 @@ def choose_kernel(up, logp, y, active, T, t_increment, chains, w, B, kernel_samp
     N = y.shape[0]
     inactive = np.setdiff1d(np.arange(N), active) # inactive components
     new_objs = np.zeros(inactive.shape[0])
-    i = 0
-
 
     ##########################
     ##########################
     ### adding one kernel ####
     ##########################
     ##########################
-    for n in inactive:
+    for i in range(inactive.shape[0]):
         if verbose: print(str(i+1) + '/' + str(inactive.shape[0]), end = '\r')
+        n = inactive[i]
 
         # define new mixture by increasing steps of chain n
         tmp_w = np.copy(w)
@@ -67,12 +66,7 @@ def choose_kernel(up, logp, y, active, T, t_increment, chains, w, B, kernel_samp
 
         # calculate decrement
         new_objs[i] = ksd(logp, y[tmp_active,:], tmp_T[tmp_active], tmp_w[tmp_active], up, kernel_sampler, t_increment, tmp_chains, B)
-
-        i += 1
     # end for
-
-    # get inactive chain with smallest ksd
-    argmin = np.argmin(new_objs)
 
     #######################
     #######################
@@ -80,10 +74,10 @@ def choose_kernel(up, logp, y, active, T, t_increment, chains, w, B, kernel_samp
     #######################
     #######################
     tmp_ksd = ksd(logp, y[active,:], T[active]+t_increment, w[active], up, kernel_sampler, t_increment, chains, B)
-    if tmp_ksd < argmin:
+    if tmp_ksd < np.amin(new_objs):
         return active[0] # if increasing all is better, return the first element of active
     else:
-        return argmin
+        return inactive[np.argmin(new_objs)] # if not, return the inactive component that minimizes ksd
 ###################################
 
 
