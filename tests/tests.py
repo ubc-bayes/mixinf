@@ -523,7 +523,7 @@ for r in reps:
             if verbose: print('starting ubvi optimization')
             if verbose: print()
             ubvi_start = timer()
-            ubvi_y = ubvi.UBVI(logp, gauss, adam, n_init = ubvi_init, n_samples = B, up = stop_up, n_logfg_samples = ubvi_logfg, tol = tol, init_inflation = ubvi_inflation)
+            ubvi_y = ubvi.UBVI(logp, gauss, adam, y, n_init = ubvi_init, n_samples = B, up = stop_up, n_logfg_samples = ubvi_logfg, tol = tol, init_inflation = ubvi_inflation)
             ubvi_results = []
             for n in range(1,ubvi_kernels+1):
                 build = ubvi_y.build(n)

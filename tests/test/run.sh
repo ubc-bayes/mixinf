@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # run simuluation
-python3 -W ignore ../tests.py -d 1 --target 'cauchy' -B 1000 --reps 1 --tol 0.0 --stop 'default' -N 10 --kl --bvi --bvi_diagonal --bvi_kernels 5 --bvi_init 1000 --bvi_alpha 1000 --cleanup --verbose
+python3 -W ignore ../tests.py -d 1 --target 'cauchy' -B 1000 --reps 1 --tol 0.0 --stop 'median' -N 10 --kl --ubvi --ubvi_kernels 10 --ubvi_init 1000 --ubvi_inflation 16 --ubvi_logfg 10000 --ubvi_adamiter 10000 --cleanup --verbose
 
 
 # plot

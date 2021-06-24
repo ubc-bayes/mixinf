@@ -387,12 +387,8 @@ class BoostingVI(object):
 
         # GC: init using provided sample
         mu0 = self._choose_kernel()
-        if self.diag:
-            lSig = np.zeros(self.y.shape[1])
-            x0 = np.hstack((mu0, lSig))
-        else:
-            L0 = np.eye(self.y.shape[0])
-            x0 = np.hstack((mu0, L0.reshape(self.y.shape[0]*self.y.shape[0])))
+        lSig = np.zeros(self.y.shape[1])
+        x0 = np.hstack((mu0, lSig))
 
         if x0 is None:
             #if every single initialization had an infinite objective, just raise an error
@@ -428,7 +424,7 @@ class BoostingVI(object):
 # UBVI ####################################
 class UBVI(BoostingVI):
 
-    def __init__(self, logp, component_dist, opt_alg, up = None, n_samples = 100, n_logfg_samples = 100, tol = 0.001, **kw):
+    def __init__(self, logp, component_dist, opt_alg, y = None, up = None, n_samples = 100, n_logfg_samples = 100, tol = 0.001, **kw):
         super().__init__(component_dist, opt_alg, **kw)
         self.logp = logp
         self.n_samples = n_samples
@@ -437,6 +433,7 @@ class UBVI(BoostingVI):
         self._logfg = np.empty(0)
         self._logfgsum = -np.inf
         self.up = up
+        self.y = y
         self.tol = tol
 
     def _compute_weights(self):
@@ -585,7 +582,7 @@ class UBVI(BoostingVI):
             tmp_logh = lambda x : -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(9) - 0.5*np.sum(((x-mu)/3)**2, axis=-1)
             tmp_sample_h = lambda size : self.y[n,:] + 3*np.random.randn(size,K)
 
-            if logq is None:
+            if self.N == 0:
                 # for first iteration, calculate individual KL divergences
                 # between target and components with N(y_n, 9I)
                 samples = tmp_sample_h(10000)
@@ -607,5 +604,5 @@ class UBVI(BoostingVI):
                 samples = tmp_sample_q(10000)
                 kls[n] = np.mean(tmp_logq(samples) - self.logp(samples))
         # end for
-        return self.y[np.argmin(kls),:].reshape(1,K)
+        return self.y[np.argmin(kls),:].reshape(K)
 ####################################
