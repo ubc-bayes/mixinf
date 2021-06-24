@@ -252,11 +252,12 @@ def ubvi_adam(x0, obj, grd, learning_rate, num_iters, callback = None):
 # BOOSTING VI ####################################
 class BoostingVI(object):
 
-    def __init__(self, component_dist, opt_alg, up = None, n_init = 10, init_inflation = 100, tol = 0.001, estimate_error = True, verbose = True):
+    def __init__(self, component_dist, opt_alg, y = None, up = None, n_init = 10, init_inflation = 100, tol = 0.001, estimate_error = True, verbose = True):
         self.N = 0 #current num of components
         self.component_dist = component_dist #component distribution object
         self.opt_alg = opt_alg #optimization algorithm function
-        self.up = up
+        self.up = up # to calculate ksd
+        self.y = y # sample to initialize optimization
         self.weights = np.empty(0) #weights
         self.params = np.empty((0, 0))
         self.cput = np.array([0.]) #total computation time so far
@@ -372,22 +373,35 @@ class BoostingVI(object):
         obj0 = np.inf
         t0 = time.perf_counter()
         #try initializing n_init times
-        for n in range(self.n_init):
-            xtmp = self.component_dist.params_init(self.params, self.weights, self.init_inflation)
-            objtmp = self._objective(xtmp, -1)
-            if objtmp < obj0 or x0 is None:
-                x0 = xtmp
-                obj0 = objtmp
-            if self.verbose and (n == 0 or n == self.n_init - 1 or time.perf_counter() - t0 > 0.5):
-                if n == 0:
-                    print("{:^30}|{:^30}|{:^30}".format('Iteration', 'Best x0', 'Best obj0'))
-                print("{:^30}|{:^30}|{:^30.3f}".format(n, str(x0), obj0))
-                t0 = time.perf_counter()
+        #for n in range(self.n_init):
+        #    xtmp = self.component_dist.params_init(self.params, self.weights, self.init_inflation)
+        #    objtmp = self._objective(xtmp, -1)
+        #    if objtmp < obj0 or x0 is None:
+        #        x0 = xtmp
+        #        obj0 = objtmp
+        #    if self.verbose and (n == 0 or n == self.n_init - 1 or time.perf_counter() - t0 > 0.5):
+        #        if n == 0:
+        #            print("{:^30}|{:^30}|{:^30}".format('Iteration', 'Best x0', 'Best obj0'))
+        #        print("{:^30}|{:^30}|{:^30.3f}".format(n, str(x0), obj0))
+        #        t0 = time.perf_counter()
+
+        # GC: init using provided sample
+        mu0 = self._choose_kernel()
+        if self.diag:
+            lSig = np.zeros(self.y.shape[1])
+            x0 = np.hstack((mu0, lSig))
+        else:
+            L0 = np.eye(self.y.shape[0])
+            x0 = np.hstack((mu0, L0.reshape(self.y.shape[0]*self.y.shape[0])))
+
         if x0 is None:
             #if every single initialization had an infinite objective, just raise an error
             raise ValueError
         #return the initialized result
         return x0
+
+    def _choose_kernel(self):
+        raise NotImplementedError
 
     def _compute_weights(self):
         raise NotImplementedError
@@ -556,4 +570,42 @@ class UBVI(BoostingVI):
         output = self.component_dist.unflatten(paired_params)
         output.update([('weights', ps)])
         return output
+
+    # GC: choose which sample point to use as starting point of optimization
+    def _choose_kernel(self):
+        NN = self.y.shape[0]
+        K = self.y.shape[1]
+
+        kls = np.zeros(NN)
+        for n in range(NN):
+            if self.verbose: print(str(n+1) + '/' + str(NN), end = '\r')
+
+            # new component is a N(y_n, 9I)
+            mu = self.y[n,:].reshape(K)
+            tmp_logh = lambda x : -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(9) - 0.5*np.sum(((x-mu)/3)**2, axis=-1)
+            tmp_sample_h = lambda size : self.y[n,:] + 3*np.random.randn(size,K)
+
+            if logq is None:
+                # for first iteration, calculate individual KL divergences
+                # between target and components with N(y_n, 9I)
+                samples = tmp_sample_h(10000)
+                kls[n] = np.mean(tmp_logh(samples) - self.logp(samples))
+            else:
+                # for other iterations, add each component to mixture with small weight
+                # and calculate KL
+                def tmp_logq(x):
+                    m = np.maximum(np.log(0.95) + 2*self._logg(x), np.log(0.05) + tmp_logh(x))
+                    return m + np.log(np.exp(np.log(0.95) + 2*self._logg(x) - m) + np.exp(np.log(0.05) + tmp_logh(x) - m))
+                def tmp_sample_q(size):
+                    out = np.zeros((size,K))
+                    sizeq = int(size*0.95)
+                    sizeh = size - sizeq
+                    out[:sizeq] = self._sample_g(sizeq)
+                    out[sizeq:] = tmp_sample_h(sizeh)
+                    return out
+
+                samples = tmp_sample_q(10000)
+                kls[n] = np.mean(tmp_logq(samples) - self.logp(samples))
+        # end for
+        return self.y[np.argmin(kls),:].reshape(1,K)
 ####################################
