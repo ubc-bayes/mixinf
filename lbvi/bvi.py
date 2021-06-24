@@ -370,6 +370,10 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
 
     # initialize
     convergence = False
+    if verbose: print('choosing starting point')
+    y_init = choose_kernel(y, logp, logq = None, sample_q = None, verbose = True)
+    print('chosen point: ' + str(y_init))
+
     if verbose: print('getting initial approximation')
     mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, diagonal = False, gamma_init = gamma_init, B = B, maxiter = maxiter_init, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
     if verbose:
@@ -396,6 +400,7 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
     # estimate kl and ksd
     kls = np.array([KL(logq, sample_q, logp, 100000)])
     obj = np.inf
+    objs = None
     if verbose: print('KL to target: ' + str(kls[0]))
 
     if stop_up is not None:
@@ -411,16 +416,20 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
         print('cumulative cpu time: ' + str(cpu_time[-1]))
         print()
 
-    # bvi loop
+    ############
+    ############
+    # bvi loop #
+    ############
+    ############
     for iter_no in range(1, N):
         if verbose: print('iteration ' + str(iter_no+1))
         if convergence: break
 
-        # draw initial guess from inflation of current mixture
-        inflation = np.random.poisson(size=(1,K)) + 1
-        mu_guess = inflation*sample_q(1)
-        Sigma_guess = inflation[0,0]*np.amax(np.diagonal(Sigma))
+        # draw initial guess from provided sample
+        if verbose: print('choosing new initialization point')
+        mu_guess = choose_kernel(y, logp, logq, sample_q, verbose = True)
         Sigma_guess = 3
+        if verbose: print('initializing at ' + str(mu_guess))
 
         # get new gaussian
         if verbose: print('obtaining new component')
@@ -574,7 +583,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         if verbose: print('iteration ' + str(iter_no+1))
         if convergence: break
 
-        # draw initial guess from inflation of current mixture
+        # draw initial guess from provided sample
         if verbose: print('choosing new initialization point')
         mu_guess = choose_kernel(y, logp, logq, sample_q, verbose = True)
         Sigma_guess = 3
