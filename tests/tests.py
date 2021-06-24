@@ -19,6 +19,8 @@ from timeit import default_timer as timer
 # import the suite of functions from parent directory
 sys.path.insert(1, os.path.join(sys.path[0], '../lbvi/'))
 import lbvi
+import bvi
+import ubvi
 
 
 # ARG PARSE SETTINGS ####
@@ -390,6 +392,9 @@ for r in reps:
             if verbose: print('median squared distance bandwidth: ' + str(rbfm.get_gamma(p_x)))
         if verbose: print()
 
+        # generate sample
+        if verbose: print('generating sample')
+        y = np.unique(sample(N, K), axis=0)
 
         #######################
         #######################
@@ -403,11 +408,6 @@ for r in reps:
                 print('using ' + str(sample_kernel) + ' mcmc sampler')
                 print('using ' + str(rkhs) + ' rkhs kernel with bandwidth ' + str(lbvi_gamma))
                 print('initial sample size: ' + str(N))
-
-
-            # generate sample
-            if verbose: print('generating sample')
-            y = np.unique(sample(N, K), axis=0)
 
 
             # run algorithm
@@ -603,7 +603,7 @@ for r in reps:
             if verbose: print()
             # split by whether covariance matrix is full or diagonal
             if bvi_diagonal:
-                mus, Sigmas, alphas, objs, cput, act_k, kls = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up)
+                mus, Sigmas, alphas, objs, cput, act_k, kls = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up, y = y)
             else:
                 mus, Sigmas, alphas, objs, cput, act_k, kls = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up)
             if verbose: print()

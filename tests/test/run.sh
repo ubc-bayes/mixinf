@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # run simuluation
-python3 -W ignore ../tests.py -d 2 --target 'double-banana-gaussian' -B 1000 --reps 1 --tol 0.0 --stop 'default' --kl --ulbvi  -N 25 --kernel 'gaussian' --rkhs 'rbf' --gamma 10 --maxiter 25 --ut 10 -T 110 --weight_max 20 --no_cache --cleanup --verbose
+python3 -W ignore ../tests.py -d 1 --target 'cauchy' -B 1000 --reps 1 --tol 0.0 --stop 'default' -N 10 --kl --bvi --bvi_diagonal --bvi_kernels 5 --bvi_init 1000 --bvi_alpha 1000 --cleanup --verbose
 
 
 # plot

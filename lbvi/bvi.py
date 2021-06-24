@@ -316,6 +316,47 @@ def new_gaussian(logp, K, diagonal = False, mu0 = None, var0 = None, gamma_init 
 
 
 
+def choose_kernel(y, logp, logq = None, sample_q = None, verbose = False):
+    """
+    y is (N,K) with sample locations, logp target logdensity, logq,sample_q current approximation logdensity and sampler
+    returns (1,K) array
+    """
+    N = y.shape[0]
+    K = y.shape[1]
+
+    kls = np.zeros(N)
+    for n in range(N):
+        if verbose: print(str(n+1) + '/' + str(N), end = '\r')
+
+        # new component is a N(y_n, 9I)
+        mu = y[n,:].reshape(K)
+        tmp_logh = lambda x : -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(9) - 0.5*np.sum(((x-mu)/3)**2, axis=-1)
+        tmp_sample_h = lambda size : y[n,:] + 3*np.random.randn(size,K)
+
+        if logq is None:
+            # for first iteration, calculate individual KL divergences
+            # between target and components with N(y_n, 9I)
+            kls[n] = KL(logq = tmp_logh, sample_q = tmp_sample_h, logp = logp, B = 1000)
+        else:
+            # for other iterations, add each component to mixture with small weight
+            # and calculate KL
+            def tmp_logq(x):
+                m = np.maximum(np.log(0.95) + logq(x), np.log(0.05) + tmp_logh(x))
+                return m + np.log(np.exp(np.log(0.95) + logq(x) - m) + np.exp(np.log(0.05) + tmp_logh(x) - m))
+            def tmp_sample_q(size):
+                out = np.zeros((size,K))
+                sizeq = int(size*0.95)
+                sizeh = size - sizeq
+                out[:sizeq] = sample_q(sizeq)
+                out[sizeq:] = tmp_sample_h(sizeh)
+                return out
+
+            kls[n] = KL(logq = tmp_logq, sample_q = tmp_sample_q, logp = logp, B = 1000)
+    # end for
+    return y[np.argmin(kls),:].reshape(1,K)
+
+
+
 def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, maxiter_alpha = 1000, maxiter_init = 1000, B = 1000, tol = 0.0001, verbose = True, traceplot = True, plotpath = 'plots/', stop_up = None):
 
     if verbose:
@@ -432,7 +473,10 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
         obj_timer = time.perf_counter() - obj_timer0
 
         # assess convergence
-        if objs[-1] < tol: convergence = True
+        if stop_up is not None:
+            if objs[-1] < tol: convergence = True
+        else:
+            if kls[-1] < tol: convergence = True
 
         # calculate cumulative computing time and active kernels
         if alpha == 0:
@@ -462,7 +506,7 @@ def bvi(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None
     return mus[0:iter_no,:], Sigmas[0:iter_no,:,:], alphas[0:iter_no], objs, cpu_time, active_kernels, kls
 
 
-def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, maxiter_alpha = 1000, maxiter_init = 1000, B = 1000, tol = 0.0001, verbose = True, traceplot = True, plotpath = 'plots/', stop_up = None):
+def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alpha = None, maxiter_alpha = 1000, maxiter_init = 1000, B = 1000, tol = 0.0001, verbose = True, traceplot = True, plotpath = 'plots/', stop_up = None, y = None):
 
     if verbose:
         print('running boosting black-box variational inference with diagonal covariance matrix')
@@ -475,8 +519,12 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
 
     # initialize
     convergence = False
+    if verbose: print('choosing starting point')
+    y_init = choose_kernel(y, logp, logq = None, sample_q = None, verbose = True)
+    print('chosen point: ' + str(y_init))
+
     if verbose: print('getting initial approximation')
-    mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, diagonal = True, gamma_init = gamma_init, B = B, maxiter = maxiter_init, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
+    mu, Sigma, SigmaSqrt, SigmaLogDet, SigmaInv = new_gaussian(logp, K, diagonal = True, mu0 = y_init, gamma_init = gamma_init, B = B, maxiter = maxiter_init, tol = 0.001, verbose = False, traceplot = traceplot, plotpath = plotpath)
     if verbose:
         print('initial mean: ' + str(mu))
         print('initial variance: ' + str(Sigma))
@@ -502,6 +550,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
     kls = np.array([KL(logq, sample_q, logp, 100000)])
     if verbose: print('KL to target: ' + str(kls[0]))
     obj = np.inf
+    objs = None
     if stop_up is not None:
         objs = np.array([ksd(logp, sample_q, stop_up, B = 1000)])
         if verbose: print('KSD to target: ' + str(objs[0]))
@@ -516,16 +565,20 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         print('cumulative cpu time: ' + str(cpu_time[-1]))
         print()
 
-    # bvi loop
+    ############
+    ############
+    # bvi loop #
+    ############
+    ############
     for iter_no in range(1, N):
         if verbose: print('iteration ' + str(iter_no+1))
         if convergence: break
 
         # draw initial guess from inflation of current mixture
-        inflation = np.random.poisson(size=(1,K)) + 1
-        mu_guess = inflation*sample_q(1)
-        #Sigma_guess = inflation[0,0]*np.amax(Sigma)
+        if verbose: print('choosing new initialization point')
+        mu_guess = choose_kernel(y, logp, logq, sample_q, verbose = True)
         Sigma_guess = 3
+        if verbose: print('initializing at ' + str(mu_guess))
 
         # get new gaussian
         if verbose:
@@ -591,7 +644,10 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         obj_timer = time.perf_counter() - obj_timer0
 
         # assess convergence
-        if objs[-1] < tol: convergence = True
+        if stop_up is not None:
+            if objs[-1] < tol: convergence = True
+        else:
+            if kls[-1] < tol: convergence = True
 
         # calculate cumulative computing time and active kernels
         if alpha == 0:
