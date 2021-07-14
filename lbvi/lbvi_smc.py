@@ -40,7 +40,7 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
 ##########################
 ##########################
 ##########################
-def lbvi_smc(y, logp, smc, smc_eps, verbose = False):
+def lbvi_smc(y, logp, smc, smc_eps, B, verbose = False):
     """
     Run LBVI with SMC components
     Input:
@@ -48,6 +48,7 @@ def lbvi_smc(y, logp, smc, smc_eps, verbose = False):
     logp       : function, target log density
     smc        : function, smc sampler (see readme in tests/smc/)
     smc_eps    : float, step size for smc discretization
+    B          : int, number of MC samples to use for gradient estimation
     verbose    : boolean, whether to print messages
 
     out:
@@ -61,7 +62,7 @@ def lbvi_smc(y, logp, smc, smc_eps, verbose = False):
     N = y.shape[0]
     K = y.shape[1]
     betas = np.zeros(N)
-    beta_ls = [np.linspace(0,1,int(1/eps)) for n in range(N)]
+    beta_ls = [np.linspace(0,1,int(1/smc_eps)+1) for n in range(N)]
     w = np.zeros(N)
 
 

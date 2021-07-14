@@ -45,6 +45,8 @@ parser.add_argument('--lbvi_smc', action = "store_true",
 help = 'run lbvi with smc components?')
 parser.add_argument('--smc', type = str, default = 'smc', choices=['smc'],
 help = 'smc sampler to use in the lbvi mixture')
+parser.add_argument('--smc_eps', type = float, default = 0.01,
+help = 'step size of the smc discretization')
 parser.add_argument('--smc_sd', type = float, default = 1,
 help = 'std deviation of the rwmh rejuvenation kernel in smc')
 parser.add_argument('--smc_T', type = int, default = 1,
@@ -159,6 +161,9 @@ if not os.path.exists(path + 'results/'):
     os.makedirs(path + 'results/hmc/')
 else:
     # if you have to rerun X and want to cleanup, delete and recreate its directory
+    if lbvi_smc_flag and cleanup:
+        shutil.rmtree(path + 'results/lbvi_smc/')
+        os.makedirs(path + 'results/lbvi_smc/')
     if lbvi_flag and cleanup:
         shutil.rmtree(path + 'results/lbvi/')
         os.makedirs(path + 'results/lbvi/')
@@ -216,6 +221,7 @@ klcalc = args.kl
 # ALGS SETTINGS
 # lbvi smc
 smc_kernel = args.smc
+smc_eps = args.smc_eps
 smc_sd = args.smc_sd
 smc_T = args.smc_T
 # lbvi
@@ -415,6 +421,20 @@ for r in reps:
         # generate sample
         if verbose: print('generating sample')
         y = np.unique(sample(N, K), axis=0)
+
+        #######################
+        #######################
+        ### LBVI with SMC  ####
+        #######################
+        #######################
+        if lbvi_smc_flag:
+            tmp_path = path + 'lbvi_smc/'
+            if verbose:
+                print('LBVI with SMC components experiment')
+
+            y, w, obj, cpu_time, active_kernels = lbvi_smc.lbvi_smc(y, logp, smc, smc_eps, B, verbose)
+
+
 
         #######################
         #######################
