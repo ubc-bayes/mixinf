@@ -32,16 +32,14 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
     elif direction == 'forward':
         return np.mean(logp(theta) - logq(theta), axis=-1)
     else: raise NotImplementedError
-##########################
-##########################
-##########################
+
 
 ##########################
 ## Gaussian functions ####
 ##########################
-def norm_pdf(x, loc, sd):
+def norm_logpdf(x, mean, sd):
     """
-    PDF of isotropic Normal(loc, sd x I_K)
+    log PDF of isotropic Normal(loc, sd x I_K)
     Input:
     x    : nd-array, pdf will be evaluated at x; last axis corresponds to dimension and has shape K
     mean : shape(K,) array, mean of the distribution
@@ -50,7 +48,7 @@ def norm_pdf(x, loc, sd):
     K = x.shape[-1]
     return -0.5*np.sum((x-mean)**2,axis=-1)/sd**2 -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(sd)
 
-def norm_random(B, loc, sd):
+def norm_random(B, mean, sd):
     """
     Generate samples from isotropic Normal(loc, sd x I_K)
     Input:
@@ -60,13 +58,11 @@ def norm_random(B, loc, sd):
     """
     K = mean.shape[0]
     return sd*np.random.randn(B,K) + mean
-##########################
-##########################
-##########################
+
 
 
 ##########################
-##########################
+#### MAIN FUNCTION #######
 ##########################
 def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, verbose = False):
     """
@@ -110,7 +106,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, 
     for n in range(N):
         if verbose: print(str(n+1) + '/' + str(N), end = '\r')
         tmp_sampler = lambda B : norm_random(B, y[n,:], r_sd)
-        tmp_logq = lambda x : norm_pdf(x, y[n,:], r_sd)
+        tmp_logq = lambda x : norm_logpdf(x, y[n,:], r_sd)
         tmp_kl[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
     # end for
 
@@ -127,7 +123,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, 
     ##########################
     obj_timer = time.perf_counter()
     tmp_sampler = lambda B : norm_random(B, y[argmin,:], r_sd)
-    tmp_logq = lambda x : norm_pdf(x, y[argmin,:], r_sd)
+    tmp_logq = lambda x : norm_logpdf(x, y[argmin,:], r_sd)
     obj = np.array([kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = 10000)])
     obj_timer = time.perf_counter() - obj_timer
 

@@ -435,7 +435,7 @@ for r in reps:
                 print('Std. deviation of reference distributions: ' + str(smc_sd))
                 print()
 
-            y, w, obj, cpu_time, active_kernels = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, smc_sd = smc_sd, maxiter = maxiter, B = B, verbose = verbose)
+            y, w, obj, cpu_time, active_kernels = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, B = B, verbose = verbose)
 
 
 
