@@ -19,6 +19,7 @@ from timeit import default_timer as timer
 # import the suite of functions from parent directory
 sys.path.insert(1, os.path.join(sys.path[0], '../lbvi/'))
 import lbvi
+import lbvi_smc
 import bvi
 import ubvi
 
