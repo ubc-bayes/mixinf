@@ -35,7 +35,16 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
         return np.mean(logp(theta) - logq(theta), axis=-1)
     else: raise NotImplementedError
 
+def logsumexp(x):
+    maxx = np.maximum(x)
+    return maxx + np.log(np.sum(np.exp(x-maxx)))
 
+
+##########################
+##########################
+### mixture functions  ###
+##########################
+##########################
 def mix_sample(size, logp, w, smc, r_sd, beta, beta_ls):
     """
     Sample from mixture of SMC components
@@ -47,11 +56,15 @@ def mix_sample(size, logp, w, smc, r_sd, beta, beta_ls):
     r_sd    : float, std deviation of reference distributions
     beta    : (N,) array, contains betas of each component
     beta_ls : list of arrays, each array contains the discretization of each component
+
+    Output:
+    sample  : (size,K) array with sample from mixture
     """
 
     active = w>0
     tmp_y = y[active,:]
     tmp_w = w[active]
+    tmp_beta = beta[active]
 
     N = tmp_y.shape[0]
     K = tmp_y.shape[1]
@@ -66,10 +79,52 @@ def mix_sample(size, logp, w, smc, r_sd, beta, beta_ls):
         tmp_logr = lambda x : norm_logpdf(x, tmp_y[idx,:], r_sd)
         tmp_r_sample = lambda B : norm_random(B, tmp_y[idx,:], r_sd)
         tmp_beta_ls = beta_ls[idx]
-        tmp_out = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = counts[idx], beta_ls = tmp_beta_ls, Z0 = 1)
+        tmp_beta_ls = tmp_beta_ls[tmp_beta_ls <= tmp_beta[idx]]
+        tmp_out,_,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = counts[idx], beta_ls = tmp_beta_ls, Z0 = 1)
         out = np.concatenate((out, tmp_out)) # add to sample
     # end for
     return out[1:,:]
+
+def mix_logpdf(x, logp, w, smc, r_sd, beta, beta_ls):
+    """
+    Evaluate log pdf of mixture of SMC components
+    Input:
+    x       : nd-array, point at which to evaluate logpdf; last axis corresponds to dimension
+    logp    : function, target log density (for SMC)
+    w       : (N,) array, contains weights of each component
+    smc     : function, generates samples via SMC
+    r_sd    : float, std deviation of reference distributions
+    beta    : (N,) array, contains betas of each component
+    beta_ls : list of arrays, each array contains the discretization of each component
+
+    Output:
+    sample  : (size,K) array with sample from mixture
+    """
+    # filter out weights == 0
+    active = w>0
+    tmp_y = y[active,:]
+    tmp_w = w[active]
+    tmp_beta = beta[active]
+
+    N = tmp_y.shape[0]
+    K = tmp_y.shape[1]
+
+    lps = np.zeros(N)
+    for n in range(N):
+        # for each value, generate estimate normalizing constant
+        tmp_logr = lambda x : norm_logpdf(x, tmp_y[idx,:], r_sd)
+        tmp_r_sample = lambda B : norm_random(B, tmp_y[idx,:], r_sd)
+        tmp_beta_ls = beta_ls[idx]
+        tmp_beta_ls = tmp_beta_ls[tmp_beta_ls <= tmp_beta[idx]]
+
+        # run smc and use Z estimate to evaluate logpdf
+        _,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = counts[idx], beta_ls = tmp_beta_ls, Z0 = 1)
+        tmp_lp = (1-tmp_beta[idx])*tmp_logr(x) + tmp_beta[idx]*logp(x) # logpdf up to proportionality
+        tmp_lp = tmp_w[n]*tmp_lp/tmp_Z # normalize and account for weight
+        lps[n] = tmp_lp
+    # end for
+
+    return logsumexp(lps)
 
 
 
@@ -103,11 +158,11 @@ def norm_random(B, mean, sd):
 
 ##########################
 ##########################
-# weight perturbation ####
+#### weight functions ####
 ##########################
 ##########################
 
-## auxiliary functions ###
+## gradient calculation ###
 def kl_grad_alpha():
     """
     First derivative of KL wrt alpha
@@ -118,7 +173,8 @@ def kl_grad2_alpha():
     Second derivative of KL wrt alpha, evaluated at alpha=0
     """
 
-def choose_weight(y, logp, r_sd):
+## choosing next component based on weight ###
+def choose_weight(y, logp, beta_ls, r_sd):
     """
     Choose component that results in greatest KL decrease due to weight perturbation
     Input:
@@ -137,13 +193,18 @@ def choose_weight(y, logp, r_sd):
 
     for n in range(N):
 
-        if w[n] == 1: continue # can't perturb weight if it's the only element in mixture
+        if w[n] == 1:
+            logq =
+            kls[n] = kl(logq, logp, sampler, B = 1000, direction = 'reverse')
+            continue # can't perturb weight if it's the only element in mixture
+
         alpha_star = -kl_grad_alpha()/kl_grad2_alpha()
         alpha_star = np.min(1-w[n], np.max(-w[n], alpha_star)) # alpha_star in [-wk, 1-wk]
 
         # calculate kl estimate
         tmp_w = np.copy(w)
         tmp_w[n] = tmp_w[n] + alpha_star
+        kls[n] = kl(logq, logp, sampler, B = 1000, direction = 'reverse')
 
 
 
