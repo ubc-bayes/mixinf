@@ -12,6 +12,8 @@ import imageio
 
 ##########################
 ##########################
+## auxiliary functions ###
+##########################
 ##########################
 def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
     """
@@ -34,8 +36,47 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
     else: raise NotImplementedError
 
 
+def mix_sample(size, logp, w, smc, r_sd, beta, beta_ls):
+    """
+    Sample from mixture of SMC components
+    Input:
+    size    : int, size of the sample
+    logp    : function, target log density (for SMC)
+    w       : (N,) array, contains weights of each component
+    smc     : function, generates samples via SMC
+    r_sd    : float, std deviation of reference distributions
+    beta    : (N,) array, contains betas of each component
+    beta_ls : list of arrays, each array contains the discretization of each component
+    """
+
+    active = w>0
+    tmp_y = y[active,:]
+    tmp_w = w[active]
+
+    N = tmp_y.shape[0]
+    K = tmp_y.shape[1]
+
+    values = np.arange(N)
+    counts = np.floor(size*tmp_w).astype(int)
+    counts[-1] += size - counts.sum()
+
+    out = np.zeros((1,K))
+    for idx in values:
+        # for each value, generate a sample of size counts[idx]
+        tmp_logr = lambda x : norm_logpdf(x, tmp_y[idx,:], r_sd)
+        tmp_r_sample = lambda B : norm_random(B, tmp_y[idx,:], r_sd)
+        tmp_beta_ls = beta_ls[idx]
+        tmp_out = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = counts[idx], beta_ls = tmp_beta_ls, Z0 = 1)
+        out = np.concatenate((out, tmp_out)) # add to sample
+    # end for
+    return out[1:,:]
+
+
+
+##########################
 ##########################
 ## Gaussian functions ####
+##########################
 ##########################
 def norm_logpdf(x, mean, sd):
     """
@@ -60,9 +101,58 @@ def norm_random(B, mean, sd):
     return sd*np.random.randn(B,K) + mean
 
 
+##########################
+##########################
+# weight perturbation ####
+##########################
+##########################
+
+## auxiliary functions ###
+def kl_grad_alpha():
+    """
+    First derivative of KL wrt alpha
+    """
+
+def kl_grad2_alpha():
+    """
+    Second derivative of KL wrt alpha, evaluated at alpha=0
+    """
+
+def choose_weight(y, logp, r_sd):
+    """
+    Choose component that results in greatest KL decrease due to weight perturbation
+    Input:
+    y       : (N,K) array with locations
+    logp    : function, log target density
+    w       : array, weights of the mixture
+    r_sd    : float, std deviation of reference distributions
+
+    Output:
+    argmin  : component that minimizes the KL
+    disc    : estimate of the KL at the optimal component and alpha
+    """
+
+    N = y.shape[0]
+    K = y.shape[1]
+
+    for n in range(N):
+
+        if w[n] == 1: continue # can't perturb weight if it's the only element in mixture
+        alpha_star = -kl_grad_alpha()/kl_grad2_alpha()
+        alpha_star = np.min(1-w[n], np.max(-w[n], alpha_star)) # alpha_star in [-wk, 1-wk]
+
+        # calculate kl estimate
+        tmp_w = np.copy(w)
+        tmp_w[n] = tmp_w[n] + alpha_star
+
+
+
+
 
 ##########################
+##########################
 #### MAIN FUNCTION #######
+##########################
 ##########################
 def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, verbose = False):
     """
@@ -148,7 +238,13 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, 
     ##########################
     for iter in range(1,maxiter+1):
 
-        if verbose: print('Iteration ' + str(iter))
+        if verbose: print('Iteration ' + str(iter) + '/' + str(maxiter))
+
+
+        # calculate weights
+        disc,argmin = choose_weight()
+
+
 
 
     return y, w, obj, cpu_time, active_kernels
