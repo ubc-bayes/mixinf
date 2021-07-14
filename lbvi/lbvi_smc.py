@@ -40,7 +40,7 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
 ##########################
 ##########################
 ##########################
-def lbvi_smc(y, logp, smc, smc_eps, B, verbose = False):
+def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, B = 1000, verbose = False):
     """
     Run LBVI with SMC components
     Input:
@@ -48,6 +48,7 @@ def lbvi_smc(y, logp, smc, smc_eps, B, verbose = False):
     logp       : function, target log density
     smc        : function, smc sampler (see readme in tests/smc/)
     smc_eps    : float, step size for smc discretization
+    r_sd       : float, std deviation used for reference distributions; if None, 3 will be used
     B          : int, number of MC samples to use for gradient estimation
     verbose    : boolean, whether to print messages
 
@@ -72,12 +73,15 @@ def lbvi_smc(y, logp, smc, smc_eps, B, verbose = False):
     ##########################
     ##########################
     if verbose: print('Optimizing first component')
+    if r_sd is None: r_sd = 3
+    # TODO FIND INITIAL SD USING VI PASS
+    # is this a good idea? computational cost times N might be large
 
     tmp_kl = np.zeros(N)
     for n in range(N):
         if verbose: print(str(n+1) + '/' + str(N), end = '\r')
-        tmp_sampler = lambda B : 3*np.random.randn(B,K) + y[n,:]
-        tmp_logq = lambda x : -0.5*np.sum((x-y[n,:])**2,axis=-1) -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(3)
+        tmp_sampler = lambda B : r_sd*np.random.randn(B,K) + y[n,:]
+        tmp_logq = lambda x : -0.5*np.sum((x-y[n,:])**2,axis=-1)/r_sd**2 -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(r_sd)
         tmp_kl[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
     # end for
 
@@ -93,8 +97,8 @@ def lbvi_smc(y, logp, smc, smc_eps, B, verbose = False):
     ##########################
     ##########################
     obj_timer = time.perf_counter()
-    tmp_sampler = lambda B : 3*np.random.randn(B,K) + y[argmin,:]
-    tmp_logq = lambda x : -0.5*np.sum((x-y[argmin,:])**2,axis=-1) -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(3)
+    tmp_sampler = lambda B : r_sd*np.random.randn(B,K) + y[argmin,:]
+    tmp_logq = lambda x : -0.5*np.sum((x-y[argmin,:])**2,axis=-1)/r_sd**2 -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(r_sd)
     obj = np.array([kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = 10000)])
     obj_timer = time.perf_counter() - obj_timer
 

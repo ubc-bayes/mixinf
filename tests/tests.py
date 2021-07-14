@@ -431,8 +431,11 @@ for r in reps:
             tmp_path = path + 'lbvi_smc/'
             if verbose:
                 print('LBVI with SMC components experiment')
+                print('SMC discretization step size: ' + str(smc_eps))
+                print('Std. deviation of reference distributions: ' + str(smc_sd))
+                print()
 
-            y, w, obj, cpu_time, active_kernels = lbvi_smc.lbvi_smc(y, logp, smc, smc_eps, B, verbose)
+            y, w, obj, cpu_time, active_kernels = lbvi_smc.lbvi_smc(y, logp, smc, smc_eps, smc_sd, B, verbose)
 
 
 
