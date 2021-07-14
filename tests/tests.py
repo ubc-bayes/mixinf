@@ -30,7 +30,7 @@ parser.add_argument('-d', '--dim', type = int,
 help = 'dimension on which to run both optimizations')
 parser.add_argument('--target', type = str, default = '4-mixture', choices=['4-mixture', 'cauchy', '5-mixture', 'banana', 'double-banana-gaussian', 'network'],
 help = 'target distribution to use')
-parser.add_argument('-B', type = int, default = 500,
+parser.add_argument('-B', type = int, default = 1000,
 help = 'MC sample size for gradient estimation in SGD')
 parser.add_argument('--reps', type = int, default = 1, nargs = '+',
 help = 'sequence with repetition numbers - affects name of files being saved, so a sequence is needed')
@@ -40,12 +40,20 @@ parser.add_argument('--stop', type = str, default = 'default', choices=['default
 help = 'stopping criterion for lbvi, bvi, and ubvi. Default is ksd tolerance for lbvi and iter number for the other. Median is using custom ksd with median sq distance bw')
 parser.add_argument('--kl', action = "store_true",
 help = 'if specified, kl is calculated for boosting methods and stored; else, ksd is calculated and stored')
+parser.add_argument('--lbvi_smc', action = "store_true",
+help = 'run lbvi with smc components?')
+parser.add_argument('--smc', type = str, default = 'smc', choices=['smc'],
+help = 'smc sampler to use in the lbvi mixture')
+parser.add_argument('--smc_sd', type = float, default = 1,
+help = 'std deviation of the rwmh rejuvenation kernel in smc')
+parser.add_argument('--smc_T', type = int, default = 1,
+help = 'number of steps of the rwmh rejuvenation kernel in smc')
+parser.add_argument('-N', type = int,
+help = 'sample size to seed lbvi')
 parser.add_argument('--lbvi', action = "store_true",
 help = 'run lbvi?')
 parser.add_argument('--ulbvi', action = "store_true",
 help = 'run lbvi with uniform step size increments?')
-parser.add_argument('-N', type = int,
-help = 'sample size to seed lbvi')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian', 'network'],
 help = 'kernel to build the lbvi mixture')
 parser.add_argument('--rkhs', type = str, default = 'rbf', choices=['rbf'],
@@ -118,6 +126,7 @@ args = parser.parse_args()
 
 # FOLDER SETTINGS ###############
 # retrieve flags and folder settings
+lbvi_smc_flag = args.lbvi_smc
 lbvi_flag = args.lbvi
 ulbvi_flag = args.ulbvi
 ubvi_flag = args.ubvi
@@ -134,6 +143,7 @@ if not os.path.exists(path + 'results/'):
     os.makedirs(path + 'results/')
 
     # create all plotting directories, even if we won't be running smth
+    os.makedirs(path + 'results/lbvi_smc/')
     os.makedirs(path + 'results/lbvi/')
     os.makedirs(path + 'results/lbvi/plots/')
     os.makedirs(path + 'results/lbvi/plots/weight_trace/')
@@ -203,6 +213,10 @@ no_tols = tols.shape[0]
 klcalc = args.kl
 
 # ALGS SETTINGS
+# lbvi smc
+smc_kernel = args.smc
+smc_sd = args.smc_sd
+smc_T = args.smc_T
 # lbvi
 maxiter = args.maxiter
 t_increment = args.t_inc
@@ -263,6 +277,11 @@ if sample_kernel == 'gaussian':
     from kernels.gaussian import *
 if sample_kernel == 'network':
     from kernels.network import kernel_sampler
+
+# import smc kernel and create sampler with parameters
+if smc_kernel == 'smc':
+    from smc.smc import *
+    smc = create_smc(sd = smc_sd, steps = smc_T)
 
 # if running lbvi with uniform step size increments, import functions
 if ulbvi_flag: import uniform_lbvi
