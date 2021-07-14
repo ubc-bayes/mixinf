@@ -31,7 +31,7 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
         return np.mean(logq(theta) - logp(theta), axis=-1)
     elif direction == 'forward':
         return np.mean(logp(theta) - logq(theta), axis=-1)
-    else raise NotImplementedError
+    else: raise NotImplementedError
 ##########################
 ##########################
 ##########################
@@ -75,7 +75,7 @@ def lbvi_smc(y, logp, smc, smc_eps, verbose = False):
     tmp_kl = np.zeros(N)
     for n in range(N):
         if verbose: print(str(n+1) + '/' + str(N), end = '\r')
-        tmp_sampler = lambda B : return 3*np.random.randn(1,K) + y[n,:]
+        tmp_sampler = lambda B : 3*np.random.randn(B,K) + y[n,:]
         tmp_logq = lambda x : -0.5*np.sum((x-y[n,:])**2,axis=-1) -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(3)
         tmp_kl[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
     # end for
@@ -92,7 +92,7 @@ def lbvi_smc(y, logp, smc, smc_eps, verbose = False):
     ##########################
     ##########################
     obj_timer = time.perf_counter()
-    tmp_sampler = lambda B : return 3*np.random.randn(1,K) + y[argmin,:]
+    tmp_sampler = lambda B : 3*np.random.randn(B,K) + y[argmin,:]
     tmp_logq = lambda x : -0.5*np.sum((x-y[argmin,:])**2,axis=-1) -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(3)
     obj = np.array([kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = 10000)])
     obj_timer = time.perf_counter() - obj_timer
@@ -116,3 +116,5 @@ def lbvi_smc(y, logp, smc, smc_eps, verbose = False):
     # start main loop    #####
     ##########################
     ##########################
+
+    return y, w, obj, cpu_time, active_kernels
