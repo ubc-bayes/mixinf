@@ -196,10 +196,35 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     return np.mean(gamma_n(theta1) - gamma_n(theta2)) - (w[n]/(1-w[n]))
 
 
-def kl_grad2_alpha():
+def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     """
-    Second derivative of KL wrt alpha, evaluated at alpha=0
+    Second derivative of KL wrt alpha at component n, evaluated at alpha=0
+    Input: see choose_weight
     """
+    if w[n] == 1: raise ValueError('Cant calculate gradient KL if w == 1.')
+
+    beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
+    logq_full = lambda x : mix_logpdf(x, logp, w, smc, r_sd, beta, beta_ls)
+
+    # generate sample from nth component and define logpdf
+    tmp_logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
+    tmp_r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
+    tmp_beta_ls = beta_ls[n]
+    theta1,Z1,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
+    logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x))/Z1
+
+
+    # generate sample from mixture minus nth component and define logpdf
+    tmp_w = np.copy(w)
+    tmp_w[n] = 0.
+    tmp_w = tmp_w / (1-w[n]) # normalize
+    logq = lambda x : mix_logpdf(x, logp, tmp_w, smc, r_sd, beta, beta_ls)
+    theta2 = mix_sample(B, logp, tmp_w, smc, r_sd, beta, beta_ls)
+
+    # define psi
+    def psi_n(theta): return (np.exp(logqn(theta)) - np.exp(logq(theta))) / np.exp(logq_full(theta))
+
+    return np.mean(psi_n(theta1) - psi_n(theta2))
 
 ## choosing next component based on weight ###
 def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B):
