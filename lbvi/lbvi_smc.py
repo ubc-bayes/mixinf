@@ -229,7 +229,7 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
 
 
 ## choosing next component based on weight ###
-def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B):
+def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
     """
     Choose component that results in greatest KL decrease due to weight perturbation
     Input:
@@ -241,6 +241,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B):
     r_sd    : float, std deviation of reference distributions
     smc     : function, generates samples via SMC
     B       : integer, number of particles ot use in SMC and to estimate gradients
+    verbose    : boolean, whether to print messages
 
     Output:
     argmin  : component that minimizes the KL
@@ -370,7 +371,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, 
 
 
         # calculate weights
-        disc,argmin = choose_weight()
+        argmin,disc = choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose)
 
 
 
