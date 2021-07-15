@@ -226,6 +226,8 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
 
     return np.mean(psi_n(theta1) - psi_n(theta2))
 
+
+
 ## choosing next component based on weight ###
 def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B):
     """
@@ -256,10 +258,11 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B):
             sampler = lambda B : mix_sample(B, logp, tmp_w, smc, r_sd, beta, beta_ls)
             kls[n] = kl(logq, logp, sampler, B = B)
         else:
-            alpha_star = -kl_grad_alpha()/kl_grad2_alpha()         # minimizes second order approximation to kl
+            # calcualte minimizer of second order approximation to kl
+            alpha_star = -kl_grad_alpha(0, logp, y, w, beta, beta_ls, r_sd, smc, B, n)/kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
             alpha_star = np.min(1-w[n], np.max(-w[n], alpha_star)) # alpha_star in [-wk, 1-wk]
 
-            # calculate kl estimate
+            # calculate kl estimate at minimizer
             tmp_w = np.copy(w)
             tmp_w[n] = tmp_w[n] + alpha_star # optimal value
             tmp_logq = lambda x : mix_logpdf(x, logp, tmp_w, smc, r_sd, beta, beta_ls)
