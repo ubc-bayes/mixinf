@@ -75,12 +75,13 @@ def norm_random(B, mean, sd):
 ### mixture functions  ###
 ##########################
 ##########################
-def mix_sample(size, logp, w, smc, r_sd, beta, beta_ls):
+def mix_sample(size, logp, y, w, smc, r_sd, beta, beta_ls):
     """
     Sample from mixture of SMC components
     Input:
     size    : int, size of the sample
     logp    : function, target log density (for SMC)
+    y       : (N,K) array, component locations
     w       : (N,) array, contains weights of each component
     smc     : function, generates samples via SMC
     r_sd    : float, std deviation of reference distributions
@@ -115,17 +116,19 @@ def mix_sample(size, logp, w, smc, r_sd, beta, beta_ls):
     # end for
     return out[1:,:]
 
-def mix_logpdf(x, logp, w, smc, r_sd, beta, beta_ls):
+def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
     """
     Evaluate log pdf of mixture of SMC components
     Input:
     x       : nd-array, point at which to evaluate logpdf; last axis corresponds to dimension
     logp    : function, target log density (for SMC)
+    y       : (N,K) array, component locations
     w       : (N,) array, contains weights of each component
     smc     : function, generates samples via SMC
     r_sd    : float, std deviation of reference distributions
     beta    : (N,) array, contains betas of each component
     beta_ls : list of arrays, each array contains the discretization of each component
+    B       : int, number of particles to use in SMC
 
     Output:
     sample  : (size,K) array with sample from mixture
@@ -142,14 +145,14 @@ def mix_logpdf(x, logp, w, smc, r_sd, beta, beta_ls):
     lps = np.zeros(N)
     for n in range(N):
         # for each value, generate estimate normalizing constant
-        tmp_logr = lambda x : norm_logpdf(x, tmp_y[idx,:], r_sd)
-        tmp_r_sample = lambda B : norm_random(B, tmp_y[idx,:], r_sd)
-        tmp_beta_ls = beta_ls[idx]
-        tmp_beta_ls = tmp_beta_ls[tmp_beta_ls <= tmp_beta[idx]]
+        tmp_logr = lambda x : norm_logpdf(x, tmp_y[n,:], r_sd)
+        tmp_r_sample = lambda B : norm_random(B, tmp_y[n,:], r_sd)
+        tmp_beta_ls = beta_ls[n]
+        tmp_beta_ls = tmp_beta_ls[tmp_beta_ls <= tmp_beta[n]]
 
         # run smc and use Z estimate to evaluate logpdf
-        _,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = counts[idx], beta_ls = tmp_beta_ls, Z0 = 1)
-        tmp_lp = (1-tmp_beta[idx])*tmp_logr(x) + tmp_beta[idx]*logp(x) # logpdf up to proportionality
+        _,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
+        tmp_lp = (1-tmp_beta[n])*tmp_logr(x) + tmp_beta[n]*logp(x) # logpdf up to proportionality
         tmp_lp = tmp_w[n]*tmp_lp/tmp_Z # normalize and account for weight
         lps[n] = tmp_lp
     # end for
@@ -171,7 +174,7 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     """
     if w[n] == 1: raise ValueError('Cant calculate gradient KL if w == 1.')
 
-    beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
+    beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(y.shape[0])]
 
     # generate sample from nth component and define logpdf
     tmp_logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
@@ -185,8 +188,8 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     tmp_w = np.copy(w)
     tmp_w[n] = 0.
     tmp_w = tmp_w / (1-w[n]) # normalize
-    logq = lambda x : mix_logpdf(x, logp, tmp_w, smc, r_sd, beta, beta_ls)
-    theta2 = mix_sample(B, logp, tmp_w, smc, r_sd, beta, beta_ls)
+    logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
+    theta2 = mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
 
     # define gamma
     def gamma_n(theta):
@@ -204,7 +207,7 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     if w[n] == 1: raise ValueError('Cant calculate gradient KL if w == 1.')
 
     beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
-    logq_full = lambda x : mix_logpdf(x, logp, w, smc, r_sd, beta, beta_ls)
+    logq_full = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
 
     # generate sample from nth component and define logpdf
     tmp_logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
@@ -218,8 +221,8 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     tmp_w = np.copy(w)
     tmp_w[n] = 0.
     tmp_w = tmp_w / (1-w[n]) # normalize
-    logq = lambda x : mix_logpdf(x, logp, tmp_w, smc, r_sd, beta, beta_ls)
-    theta2 = mix_sample(B, logp, tmp_w, smc, r_sd, beta, beta_ls)
+    logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
+    theta2 = mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
 
     # define psi
     def psi_n(theta): return (np.exp(logqn(theta)) - np.exp(logq(theta))) / np.exp(logq_full(theta))
@@ -255,8 +258,8 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
     for n in range(N):
         if w[n] == 1:
             # can't perturb weight if it's the only element in mixture
-            logq = lambda x : mix_logpdf(x, logp, w, smc, r_sd, beta, beta_ls)
-            sampler = lambda B : mix_sample(B, logp, tmp_w, smc, r_sd, beta, beta_ls)
+            logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
+            sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, beta_ls)
             kls[n] = kl(logq, logp, sampler, B = B)
         else:
             # calcualte minimizer of second order approximation to kl
@@ -266,8 +269,8 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
             # calculate kl estimate at minimizer
             tmp_w = np.copy(w)
             tmp_w[n] = tmp_w[n] + alpha_star # optimal value
-            tmp_logq = lambda x : mix_logpdf(x, logp, tmp_w, smc, r_sd, beta, beta_ls)
-            tmp_sampler = lambda B : mix_sample(B, logp, tmp_w, smc, r_sd, beta, beta_ls)
+            tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
+            tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
             kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
         # end if
     # end for
@@ -371,7 +374,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, 
 
 
         # calculate weights
-        argmin,disc = choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose)
+        argmin,disc = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, B, verbose)
 
 
 
