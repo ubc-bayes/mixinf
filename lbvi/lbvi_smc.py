@@ -40,6 +40,36 @@ def logsumexp(x):
     return maxx + np.log(np.sum(np.exp(x-maxx)))
 
 
+
+
+##########################
+##########################
+## Gaussian functions ####
+##########################
+##########################
+def norm_logpdf(x, mean, sd):
+    """
+    log PDF of isotropic Normal(loc, sd x I_K)
+    Input:
+    x    : nd-array, pdf will be evaluated at x; last axis corresponds to dimension and has shape K
+    mean : shape(K,) array, mean of the distribution
+    sd   : float, isotropic standard deviation
+    """
+    K = x.shape[-1]
+    return -0.5*np.sum((x-mean)**2,axis=-1)/sd**2 -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(sd)
+
+def norm_random(B, mean, sd):
+    """
+    Generate samples from isotropic Normal(loc, sd x I_K)
+    Input:
+    B    : int, number of samples to draw
+    mean : shape(K,) array, mean of the distribution
+    sd   : float, isotropic standard deviation
+    """
+    K = mean.shape[0]
+    return sd*np.random.randn(B,K) + mean
+
+
 ##########################
 ##########################
 ### mixture functions  ###
@@ -127,35 +157,6 @@ def mix_logpdf(x, logp, w, smc, r_sd, beta, beta_ls):
     return logsumexp(lps)
 
 
-
-##########################
-##########################
-## Gaussian functions ####
-##########################
-##########################
-def norm_logpdf(x, mean, sd):
-    """
-    log PDF of isotropic Normal(loc, sd x I_K)
-    Input:
-    x    : nd-array, pdf will be evaluated at x; last axis corresponds to dimension and has shape K
-    mean : shape(K,) array, mean of the distribution
-    sd   : float, isotropic standard deviation
-    """
-    K = x.shape[-1]
-    return -0.5*np.sum((x-mean)**2,axis=-1)/sd**2 -0.5*K*np.log(2*np.pi) - 0.5*K*np.log(sd)
-
-def norm_random(B, mean, sd):
-    """
-    Generate samples from isotropic Normal(loc, sd x I_K)
-    Input:
-    B    : int, number of samples to draw
-    mean : shape(K,) array, mean of the distribution
-    sd   : float, isotropic standard deviation
-    """
-    K = mean.shape[0]
-    return sd*np.random.randn(B,K) + mean
-
-
 ##########################
 ##########################
 #### weight functions ####
@@ -163,10 +164,37 @@ def norm_random(B, mean, sd):
 ##########################
 
 ## gradient calculation ###
-def kl_grad_alpha():
+def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     """
-    First derivative of KL wrt alpha
+    First derivative of KL wrt alpha for component n
+    Input: see choose_weight
     """
+    if w[n] == 1: raise ValueError('Cant calculate gradient KL if w == 1.')
+
+    beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
+
+    # generate sample from nth component and define logpdf
+    tmp_logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
+    tmp_r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
+    tmp_beta_ls = beta_ls[n]
+    theta1,Z1,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
+    logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x))/Z1
+
+
+    # generate sample from mixture minus nth component and define logpdf
+    tmp_w = np.copy(w)
+    tmp_w[n] = 0.
+    tmp_w = tmp_w / (1-w[n]) # normalize
+    logq = lambda x : mix_logpdf(x, logp, tmp_w, smc, r_sd, beta, beta_ls)
+    theta2 = mix_sample(B, logp, tmp_w, smc, r_sd, beta, beta_ls)
+
+    # define gamma
+    def gamma_n(theta):
+        exponents = np.array([np.log(w[n]+alpha) + logqn(theta), np.log(1-(alpha/(1-w[n]))) + logq(theta)])
+        return logsumexp(exponents) - logp(theta)
+
+    return np.mean(gamma_n(theta1) - gamma_n(theta2)) - (w[n]/(1-w[n]))
+
 
 def kl_grad2_alpha():
     """
@@ -174,14 +202,18 @@ def kl_grad2_alpha():
     """
 
 ## choosing next component based on weight ###
-def choose_weight(y, logp, beta_ls, r_sd):
+def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B):
     """
     Choose component that results in greatest KL decrease due to weight perturbation
     Input:
-    y       : (N,K) array with locations
     logp    : function, log target density
-    w       : array, weights of the mixture
+    y       : (N,K) array with locations
+    w       : (N,) array, weights of components
+    beta    : (N,) array, betas of components
+    beta_ls : list of np arrays, contains discretizations of components
     r_sd    : float, std deviation of reference distributions
+    smc     : function, generates samples via SMC
+    B       : integer, number of particles ot use in SMC and to estimate gradients
 
     Output:
     argmin  : component that minimizes the KL
@@ -190,21 +222,28 @@ def choose_weight(y, logp, beta_ls, r_sd):
 
     N = y.shape[0]
     K = y.shape[1]
+    beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
 
     for n in range(N):
-
         if w[n] == 1:
-            logq =
-            kls[n] = kl(logq, logp, sampler, B = 1000, direction = 'reverse')
-            continue # can't perturb weight if it's the only element in mixture
+            # can't perturb weight if it's the only element in mixture
+            logq = lambda x : mix_logpdf(x, logp, w, smc, r_sd, beta, beta_ls)
+            sampler = lambda B : mix_sample(B, logp, tmp_w, smc, r_sd, beta, beta_ls)
+            kls[n] = kl(logq, logp, sampler, B = B)
+        else:
+            alpha_star = -kl_grad_alpha()/kl_grad2_alpha()         # minimizes second order approximation to kl
+            alpha_star = np.min(1-w[n], np.max(-w[n], alpha_star)) # alpha_star in [-wk, 1-wk]
 
-        alpha_star = -kl_grad_alpha()/kl_grad2_alpha()
-        alpha_star = np.min(1-w[n], np.max(-w[n], alpha_star)) # alpha_star in [-wk, 1-wk]
-
-        # calculate kl estimate
-        tmp_w = np.copy(w)
-        tmp_w[n] = tmp_w[n] + alpha_star
-        kls[n] = kl(logq, logp, sampler, B = 1000, direction = 'reverse')
+            # calculate kl estimate
+            tmp_w = np.copy(w)
+            tmp_w[n] = tmp_w[n] + alpha_star # optimal value
+            tmp_logq = lambda x : mix_logpdf(x, logp, tmp_w, smc, r_sd, beta, beta_ls)
+            tmp_sampler = lambda B : mix_sample(B, logp, tmp_w, smc, r_sd, beta, beta_ls)
+            kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+        # end if
+    # end for
+    argmin = np.argmin(kls)
+    return argmin, kls[argmin]
 
 
 
