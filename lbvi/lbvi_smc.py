@@ -188,7 +188,7 @@ def kl_grad_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     return w[n]*np.cov(logr(theta)+logr(theta), logq(theta)-logp(theta))[0][1]
 
 
-def kl_grad2_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
+def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     """
     First derivative of KL wrt beta for component n evaluated at 0
     Input: see choose_beta
@@ -249,7 +249,7 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
             kls[n] = np.inf
         else:
             # calculate minimizer of second order approximation to kl
-            beta_star = -kl_grad_beta(0, logp, y, w, beta, beta_ls, r_sd, smc, B, n)/kl_grad2_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+            beta_star = beta[n]-kl_grad_beta(beta[n], logp, y, w, beta, beta_ls, r_sd, smc, B, n)/kl_grad2_beta(beta[n], logp, y, w, beta, beta_ls, r_sd, smc, B, n)
             beta_star = min(1, max(0, beta_star))
 
             # calculate kl estimate at minimizer
