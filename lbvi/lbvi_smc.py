@@ -497,26 +497,29 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
         if verbose: print('Iteration ' + str(iter) + '/' + str(maxiter))
 
 
-        # calculate weights
+        # calculate optimal weight perturbation
         w_argmin,w_disc,alpha_s = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, w_gamma, B, verbose)
         if verbose:
             print('Component with optimal weight: ' + str(y[w_argmin]))
             print('Estimated KL at optimal weight: ' + str(w_disc))
             print('Optimal alpha: ' + str(alpha_s))
 
-        # calculate beta
+        # calculate optimal beta perturbation
         beta_argmin,beta_disc,beta_s = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, b_gamma, B, verbose)
         if verbose:
             print('Component with optimal beta: ' + str(y[beta_argmin]))
             print('Estimated KL at optimal beta: ' + str(beta_disc))
             print('Optimal beta: ' + str(beta_s))
 
+        # determine whether to perturb weight or beta
         if w_disc < beta_disc:
             if verbose: print('Modifying the weight of ' + str(y[w_argmin]))
-            # TODO add weight optimization
+            w[argmin] = w[argmin] + alpha_s
         else:
             if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
-            # TODO add beta optimization
+            beta[argmin] = beta_s
+
+        # estimate objective function
 
         if verbose: print()
     # end for
