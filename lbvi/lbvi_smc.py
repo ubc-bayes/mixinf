@@ -520,6 +520,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
             active = np.append(active, beta_argmin)
 
         # update mixture
+        active = np.unique(active)
         logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, betas, beta_ls, B)
         q_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, betas, beta_ls)
 
