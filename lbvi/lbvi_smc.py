@@ -182,8 +182,7 @@ def kl_grad_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
     r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
     tmp_beta_ls = beta_ls[n]
-    theta,Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
-    #logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x)) - np.log(Z)
+    theta,_,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
     logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
 
     return w[n]*np.cov(logr(theta)+logr(theta), logq(theta)-logp(theta))[0][1]
@@ -198,6 +197,25 @@ def kl_grad2_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     float, stochastic estimate of KL gradient
     """
 
+    beta[n] = b
+    beta_ls = [beta_ls[i][beta_ls[i] <= beta[i]] for i in range(y.shape[0])]
+
+    # generate sample from nth component and calculate logpdf
+    logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
+    r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
+    tmp_beta_ls = beta_ls[n]
+    theta,Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
+    logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x)) - np.log(Z)
+    logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
+
+    logrp = logr(theta) + logp(theta)
+    logqbyp = logq(theta) - logp(theta)
+    g = w[n]*np.exp(logqn(theta))/np.exp(logq(theta)) + logqbyp
+    g = g*(logrp - np.mean(logrp))
+    term1 = w[n]*np.cov(logrp, g)[0][1]
+    term2 = w[n]*np.mean(logqbyp)*np.var(logrp)
+
+    return term1-term2
 
 
 ## choosing next component based on weight ###
