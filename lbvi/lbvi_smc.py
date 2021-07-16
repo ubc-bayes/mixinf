@@ -175,6 +175,18 @@ def kl_grad_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     float, stochastic estimate of KL gradient
     """
 
+    beta[n] = b
+    beta_ls = [beta_ls[i][beta_ls[i] <= beta[i]] for i in range(y.shape[0])]
+
+    # generate sample from nth component
+    logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
+    r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
+    tmp_beta_ls = beta_ls[n]
+    theta,Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
+    #logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x)) - np.log(Z)
+    logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
+
+    return w[n]*np.cov(logr(theta)+logr(theta), logq(theta)-logp(theta))[0][1]
 
 
 def kl_grad2_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
@@ -218,7 +230,7 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
             # can't perturb beta if component is not active
             kls[n] = np.inf
         else:
-            # calcualte minimizer of second order approximation to kl
+            # calculate minimizer of second order approximation to kl
             beta_star = -kl_grad_beta(0, logp, y, w, beta, beta_ls, r_sd, smc, B, n)/kl_grad2_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
             beta_star = min(1, max(0, beta_star))
 
@@ -231,6 +243,9 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
     # end for
     argmin = np.argmin(kls)
     return argmin, kls[argmin]
+
+
+
 
 
 ##########################
@@ -248,16 +263,16 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     Output:
     float, stochastic estimate of KL gradient
     """
-    if w[n] == 1: raise ValueError('Cannot calculate gradient KL if w == 1.')
+    if w[n] == 1: raise ValueError('Cannot calculate KL gradient if w == 1.')
 
-    beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(y.shape[0])]
+    beta_ls = [beta_ls[i][beta_ls[i] <= beta[i]] for i in range(y.shape[0])]
 
     # generate sample from nth component and define logpdf
     tmp_logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
     tmp_r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
     tmp_beta_ls = beta_ls[n]
     theta1,Z1,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
-    logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x))/Z1
+    logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x)) - np.log(Z1)
 
 
     # generate sample from mixture minus nth component and define logpdf
@@ -287,9 +302,9 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     Output:
     float, stochastic estimate of KL second derivative
     """
-    if w[n] == 1: raise ValueError('Cant calculate gradient KL if w == 1.')
+    if w[n] == 1: raise ValueError('Cant calculate KL gradient if w == 1.')
 
-    beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(y.shape[0])]
+    beta_ls = [beta_ls[i][beta_ls[i] <= beta[i]] for i in range(y.shape[0])]
     logq_full = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
 
     # generate sample from nth component and define logpdf
@@ -297,7 +312,7 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     tmp_r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
     tmp_beta_ls = beta_ls[n]
     theta1,Z1,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
-    logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x))/Z1
+    logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x)) - np.log(Z1)
 
 
     # generate sample from mixture minus nth component and define logpdf
