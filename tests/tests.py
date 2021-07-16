@@ -45,9 +45,13 @@ parser.add_argument('--lbvi_smc', action = "store_true",
 help = 'run lbvi with smc components?')
 parser.add_argument('--smc', type = str, default = 'smc', choices=['smc'],
 help = 'smc sampler to use in the lbvi mixture')
+parser.add_argument('--smc_wgamma', type = float, default = 1.,
+help = 'step size of the smc weight newton step')
+parser.add_argument('--smc_bgamma', type = float, default = 1.,
+help = 'step size of the smc beta newton step')
 parser.add_argument('--smc_eps', type = float, default = 0.01,
 help = 'step size of the smc discretization')
-parser.add_argument('--smc_sd', type = float, default = 1,
+parser.add_argument('--smc_sd', type = float, default = 1.,
 help = 'std deviation of the rwmh rejuvenation kernel in smc')
 parser.add_argument('--smc_T', type = int, default = 1,
 help = 'number of steps of the rwmh rejuvenation kernel in smc')
@@ -221,6 +225,8 @@ klcalc = args.kl
 # ALGS SETTINGS
 # lbvi smc
 smc_kernel = args.smc
+smc_wgamma = args.smc_wgamma
+smc_bgamma = args.smc_bgamma
 smc_eps = args.smc_eps
 smc_sd = args.smc_sd
 smc_T = args.smc_T
@@ -324,6 +330,7 @@ if verbose:
 
 # print which algorithms are being run
 
+if lbvi_smc_flag: print('running LBVI with SMC components')
 if lbvi_flag: print('running LBVI')
 if ulbvi_flag: print('running LBVI with uniform step size increments')
 if ubvi_flag: print('running UBVI')
@@ -363,28 +370,30 @@ for r in reps:
         file_name = path + 'settings/settings_iter-' + str(r) + '_tol-' + str(tol) + '.txt'
         if not os.path.isfile(file_name):
             # if file does not exist, initialize with info
-            settings_text = 'lbvi comparison settings\n\ntarget: ' + target + '\ndimension: ' + str(K) + '\ngradient MC sample size: ' + str(B) + '\nstopping criterion: ' + stop + '\ntolerance: ' +     str(tol) + '\nrandom seed: ' + str(seed)
+            settings_text = 'lLBVIbvi comparison settings\n\nTarget: ' + target + '\nDimension: ' + str(K) + '\nGradient MC sample size: ' + str(B) + '\nStopping criterion: ' + stop + '\nTolerance: ' +     str(tol) + '\nRandom seed: ' + str(seed)
         else:
             # if file exists, no need to initilaize
             settings_text = ''
 
         # depending on which methods are being run, modify what is being appended to file
+        if lbvi_smc_flag:
+            settings_text += '\n\nLBVI SMC settings:' + '\nInitial sample size: ' + str(N) + '\nSMC sampler: ' + str(smc_kernel) + '\nWeight Newton step: ' + str(smc_wgamma) + '\nBeta Newton step: ' + str(smc_bgamma) + '\nDiscretization step size: ' + str(smc_eps) + '\nMCMC rejuvenation kernel std. deviation: ' + str(smc_sd) + ' (also used as std. deviation of SMC reference distributions)' + '\nMCMC rejuvenation kernel number of steps per rejuvenation step: ' + str(smc_T)
         if lbvi_flag:
-            settings_text += '\n\nlbvi settings:' + '\ninitial sample size: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' +    rkhs + '\nstep increments: ' + str(t_increment) + '\nmax no. of steps per kernel: ' + str(t_max) + '\nmax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nmax no of iterations: ' + str(maxiter)
-        if lbvi_flag:
-            settings_text += '\n\nulbvi settings:' + '\ninitial sample size: ' + str(N) + '\nkernel sampler: ' + sample_kernel + '\nrkhs kernel: ' +    rkhs + '\nstep increments: ' + str(ulbvi_t) + '\nmax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nmax no of iterations: ' + str(maxiter)
+            settings_text += '\n\nLBVI settings:' + '\nInitial sample size: ' + str(N) + '\nKernel sampler: ' + sample_kernel + '\nRKHS kernel: ' +    rkhs + '\nStep increments: ' + str(t_increment) + '\nMax no. of steps per kernel: ' + str(t_max) + '\nMax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nMax no of iterations: ' + str(maxiter)
+        if ulbvi_flag:
+            settings_text += '\n\nULBVI settings:' + '\nInitial sample size: ' + str(N) + '\nKernel sampler: ' + sample_kernel + '\nRKHS kernel: ' +    rkhs + '\nStep increments: ' + str(ulbvi_t) + '\nMax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nMax no of iterations: ' + str(maxiter)
         if ubvi_flag:
-            settings_text += '\n\nubvi settings:' + '\nno. of kernels to add: ' + str(ubvi_kernels) + '\ncomponent initialization sample size: ' + str(ubvi_init) + '\ncomponent initialization inflation: ' + str(ubvi_inflation) + '\nlogfg estimation sample size: ' + str(ubvi_logfg) + '\nadam weight optimization iterations: ' + str(ubvi_adamiter)
+            settings_text += '\n\nUBVI settings:' + '\nNo. of kernels to add: ' + str(ubvi_kernels) + '\nComponent initialization sample size: ' + str(ubvi_init) + '\nComponent initialization inflation: ' + str(ubvi_inflation) + '\nlogfg estimation sample size: ' + str(ubvi_logfg) + '\nADAM weight optimization iterations: ' + str(ubvi_adamiter)
         if bvi_flag:
-            settings_text +=  '\n\nbvi settings:' + '\nno. of kernels to add: ' + str(bvi_kernels)
+            settings_text +=  '\n\nBBBVI settings:' + '\nNo. of kernels to add: ' + str(bvi_kernels)
             if bvi_diagonal:
-                settings_text +=  '\ndiagonal covariance matrix'
+                settings_text +=  '\nDiagonal covariance matrix'
             else:
-                settings_text +=  '\nfull covariance matrix'
+                settings_text +=  '\nFull covariance matrix'
         if hmc_flag:
-            settings_text +=  '\n\nhmc settings:' + '\nno. of steps to run chain for: ' + str(hmc_T) + '\nno. of steps to run leapfrog integrator for: ' + str(hmc_L) + '\nstep size of leapfrog integrator: ' + str(hmc_eps)
+            settings_text +=  '\n\nHMC settings:' + '\nNo. of steps to run chain for: ' + str(hmc_T) + '\nNo. of steps to run leapfrog integrator for: ' + str(hmc_L) + '\nStep size of leapfrog integrator: ' + str(hmc_eps)
         if rwmh_flag:
-            settings_text +=  '\n\nrwmh settings:' + '\nno. of steps to run chain for: ' + str(rwmh_T)
+            settings_text +=  '\n\nRWMH settings:' + '\nNo. of steps to run chain for: ' + str(rwmh_T)
 
         # finally, open the file and append current settings
         # os_RDWR gives reading and writing permissions; os.O_APPEND tells python to append instead of rewriting the file; O_CREAT tells python to create the file if it doesn't exist already
@@ -435,7 +444,7 @@ for r in reps:
                 print('Std. deviation of reference distributions: ' + str(smc_sd))
                 print()
 
-            y, w, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, B = B, verbose = verbose)
+            y, w, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_gamma = smc_wgamma, b_gamma = smc_bgamma, B = B, verbose = verbose)
 
             # save results
             if verbose: print('Saving lbvi results')
