@@ -243,6 +243,7 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
     K = y.shape[1]
     trimmed_beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
     kls = np.zeros(N)
+    beta_star = np.zeros(N)
 
     for n in range(N):
         if w[n] == 0:
@@ -250,19 +251,19 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
             kls[n] = np.inf
         else:
             # calculate minimizer of second order approximation to kl
-            beta_star = beta[n]-kl_grad_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)/kl_grad2_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)
-            beta_star = min(1, max(0, beta_star))
+            beta_star[n] = beta[n]-b_gamma*kl_grad_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)/kl_grad2_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)
+            beta_star[n] = min(1, max(0, beta_star[n]))
 
             # calculate kl estimate at minimizer
             tmp_trimmed_beta_ls = trimmed_beta_ls.copy()
-            tmp_trimmed_beta_ls[n] = beta_ls[n][beta_ls[n] <= beta_star] # trim nth discretization up to beta_star instead of beta[n]
+            tmp_trimmed_beta_ls[n] = beta_ls[n][beta_ls[n] <= beta_star[n]] # trim nth discretization up to beta_star instead of beta[n]
             tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls, B)
             tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls)
             kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
         # end if
     # end for
     argmin = np.argmin(kls)
-    return argmin, kls[argmin]
+    return argmin, kls[argmin], beta_star[argmin]
 
 
 
@@ -374,6 +375,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
     K = y.shape[1]
     beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
     kls = np.zeros(N)
+    alpha_star = np.zeros(N)
 
     for n in range(N):
         if w[n] == 1:
@@ -383,19 +385,19 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
             kls[n] = kl(logq, logp, sampler, B = B)
         else:
             # calcualte minimizer of second order approximation to kl
-            alpha_star = -kl_grad_alpha(0, logp, y, w, beta, beta_ls, r_sd, smc, B, n)/kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
-            alpha_star = min(1-w[n], max(-w[n], alpha_star)) # alpha_star in [-wk, 1-wk]
+            alpha_star[n] = -w_gamma*kl_grad_alpha(0, logp, y, w, beta, beta_ls, r_sd, smc, B, n)/kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+            alpha_star[n] = min(1-w[n], max(-w[n], alpha_star[n])) # alpha_star in [-wk, 1-wk]
 
             # calculate kl estimate at minimizer
             tmp_w = np.copy(w)
-            tmp_w[n] = tmp_w[n] + alpha_star # optimal value
+            tmp_w[n] = tmp_w[n] + alpha_star[n] # optimal value
             tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
             tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
             kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
         # end if
     # end for
     argmin = np.argmin(kls)
-    return argmin, kls[argmin]
+    return argmin, kls[argmin], alpha_star[argmin]
 
 
 
@@ -496,22 +498,24 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
 
 
         # calculate weights
-        w_argmin,w_disc = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, w_gamma, B, verbose)
+        w_argmin,w_disc,alpha_s = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, w_gamma, B, verbose)
         if verbose:
             print('Component with optimal weight: ' + str(y[w_argmin]))
             print('Estimated KL at optimal weight: ' + str(w_disc))
+            print('Optimal alpha: ' + str(alpha_s))
 
         # calculate beta
-        beta_argmin,beta_disc = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, b_gamma, B, verbose)
+        beta_argmin,beta_disc,beta_s = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, b_gamma, B, verbose)
         if verbose:
             print('Component with optimal beta: ' + str(y[beta_argmin]))
             print('Estimated KL at optimal beta: ' + str(beta_disc))
+            print('Optimal beta: ' + str(beta_s))
 
         if w_disc < beta_disc:
-            if verbose: print('Optimizing the weight of ' + str(y[w_argmin]))
+            if verbose: print('Modifying the weight of ' + str(y[w_argmin]))
             # TODO add weight optimization
         else:
-            if verbose: print('Optimizing the beta of ' + str(y[beta_argmin]))
+            if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
             # TODO add beta optimization
 
         if verbose: print()
