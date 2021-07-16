@@ -35,9 +35,9 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
         return np.mean(logp(theta) - logq(theta), axis=-1)
     else: raise NotImplementedError
 
-def logsumexp(x):
-    maxx = np.maximum(x)
-    return maxx + np.log(np.sum(np.exp(x-maxx)))
+def logsumexp(x,axis=0):
+    maxx = np.amax(x,axis=axis)
+    return maxx + np.log(np.sum(np.exp(x-maxx),axis=axis))
 
 
 
@@ -193,8 +193,12 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
 
     # define gamma
     def gamma_n(theta):
-        exponents = np.array([np.log(w[n]+alpha) + logqn(theta), np.log(1-(alpha/(1-w[n]))) + logq(theta)])
-        return logsumexp(exponents) - logp(theta)
+        if w[n]+alpha == 0:
+            # the extra element has a weight of 0
+            return logq(theta) - logp(theta)
+        else:
+            exponents = np.array([np.log(w[n]+alpha) + logqn(theta), np.log(1-(alpha/(1-w[n]))) + logq(theta)])
+            return logsumexp(exponents) - logp(theta)
 
     return np.mean(gamma_n(theta1) - gamma_n(theta2)) - (w[n]/(1-w[n]))
 
