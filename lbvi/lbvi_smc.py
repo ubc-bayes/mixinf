@@ -104,6 +104,11 @@ def mix_sample(size, logp, y, w, smc, r_sd, beta, beta_ls):
     counts = np.floor(size*tmp_w).astype(int)
     counts[-1] += size - counts.sum()
 
+    if np.any(counts < 0):
+        print('Error, negative counts. Counts: ' + str(counts))
+        print('size: ' + str(size))
+        print('weights: ' + str(tmp_w))
+
     out = np.zeros((1,K))
     for idx in values:
         # for each value, generate a sample of size counts[idx]
@@ -310,6 +315,7 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
             return logq(theta) - logp(theta)
         else:
             exponents = np.array([np.log(w[n]+alpha) + logqn(theta), np.log(1-(alpha/(1-w[n]))) + logq(theta)])
+            print(exponents.shape)
             return logsumexp(exponents) - logp(theta)
 
     return np.mean(gamma_n(theta1) - gamma_n(theta2)) - (w[n]/(1-w[n]))
@@ -389,8 +395,8 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
             alpha_star[n] = min(1-w[n], max(-w[n], alpha_star[n])) # alpha_star in [-wk, 1-wk]
 
             # calculate kl estimate at minimizer
-            tmp_w = np.copy(w)
-            tmp_w[n] = tmp_w[n] + alpha_star[n] # optimal value
+            tmp_w = w*(1-alpha_star[n]/(1-w[n]))
+            tmp_w[n] = w[n] + alpha_star[n] # optimal value using original w instead of scaled one
             tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
             tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
             kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
@@ -445,8 +451,6 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     ##########################
     if verbose: print('Optimizing first component')
     if r_sd is None: r_sd = 3
-    # TODO FIND INITIAL SD USING VI PASS
-    # is this a good idea? computational cost times N might be large
 
     tmp_kl = np.zeros(N)
     for n in range(N):
@@ -458,7 +462,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
 
     argmin = np.argmin(tmp_kl)    # kl minimizer
     if verbose: print('First component mean: ' + str(y[argmin, 0:min(K,3)]))
-    w[argmin] = 1                 # update weight
+    w[argmin] = 1.                # update weight
     active = np.array([argmin])   # init active set
 
 
@@ -470,7 +474,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     obj_timer = time.perf_counter()
     tmp_sampler = lambda B : norm_random(B, y[argmin,:], r_sd)
     tmp_logq = lambda x : norm_logpdf(x, y[argmin,:], r_sd)
-    obj = np.array([kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = 10000)])
+    obj = np.array([kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = 100000)])
     obj_timer = time.perf_counter() - obj_timer
 
 
@@ -511,15 +515,41 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
             print('Estimated KL at optimal beta: ' + str(beta_disc))
             print('Optimal beta: ' + str(beta_s))
 
-        # determine whether to perturb weight or beta
+        # determine whether to perturb weight or beta and update active set
         if w_disc < beta_disc:
             if verbose: print('Modifying the weight of ' + str(y[w_argmin]))
-            w[argmin] = w[argmin] + alpha_s
+            tmp_w = np.copy(w)
+            w = w*(1 - alpha_s/(1-w[w_argmin]))       # evenly scale down other weights
+            w[w_argmin] = tmp_w[w_argmin] + alpha_s   # except argmin; that one increases by alpha
+            active = np.append(active, w_argmin)
         else:
             if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
-            beta[argmin] = beta_s
+            betas[beta_argmin] = beta_s
+            active = np.append(active, beta_argmin)
+
+        # update mixture
+        logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, betas, beta_ls, B)
+        q_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, betas, beta_ls)
 
         # estimate objective function
+        obj_timer = time.perf_counter()
+        obj = np.append(obj, kl(logq = logq, logp = logp, sampler = q_sampler, B = 100000))
+        obj_timer = time.perf_counter() - obj_timer
+
+        # update cpu times and active components
+        cpu_time = np.append(cpu_time, time.perf_counter() - t0 - obj_timer)
+        active_kernels = np.append(active_kernels, w[w>0].shape[0])
+
+        # stats printout
+        if verbose:
+            print('Active components: ' + str(y[active, 0:min(K,3)]))
+            print('Weights: ' + str(w[active]))
+            print('Betas: ' + str(betas[active]))
+            print('KL: ' + str(obj[-1]))
+            print('# of active kernels: ' + str(active_kernels[-1]))
+            print('CPU time: ' + str(cpu_time[-1]))
+            print()
+
 
         if verbose: print()
     # end for
