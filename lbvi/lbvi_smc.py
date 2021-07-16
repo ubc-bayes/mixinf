@@ -205,7 +205,7 @@ def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
     tmp_beta_ls = beta_ls[n]
     theta,Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
-    logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x)) - np.log(Z)
+    logqn = lambda x : ((1-beta[n])*logr(x) + beta[n]*logp(x)) - np.log(Z)
     logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
 
     logrp = logr(theta) + logp(theta)
@@ -249,10 +249,11 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
             kls[n] = np.inf
         else:
             # calculate minimizer of second order approximation to kl
-            beta_star = beta[n]-kl_grad_beta(beta[n], logp, y, w, beta, beta_ls, r_sd, smc, B, n)/kl_grad2_beta(beta[n], logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+            beta_star = beta[n]-kl_grad_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)/kl_grad2_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)
             beta_star = min(1, max(0, beta_star))
 
             # calculate kl estimate at minimizer
+            tmp_trimmed_beta_ls = trimmed_beta_ls.copy()
             tmp_trimmed_beta_ls[n] = beta_ls[n][beta_ls[n] <= beta_star] # trim nth discretization up to beta_star instead of beta[n]
             tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls, B)
             tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls)
@@ -498,6 +499,9 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, 
 
         # calculate beta
         beta_argmin,beta_disc = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, B, verbose)
+        if verbose:
+            print('Component with optimal beta: ' + str(y[beta_argmin]))
+            print('Estimated KL at optimal beta: ' + str(beta_disc))
 
 
 
