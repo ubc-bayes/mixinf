@@ -142,7 +142,7 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
     N = tmp_y.shape[0]
     K = tmp_y.shape[1]
 
-    lps = np.zeros(N)
+    lps = np.zeros((N,x.shape[0]))
     for n in range(N):
         # for each value, generate estimate normalizing constant
         tmp_logr = lambda x : norm_logpdf(x, tmp_y[n,:], r_sd)
@@ -153,11 +153,11 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
         # run smc and use Z estimate to evaluate logpdf
         _,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
         tmp_lp = (1-tmp_beta[n])*tmp_logr(x) + tmp_beta[n]*logp(x) # logpdf up to proportionality
-        tmp_lp = tmp_w[n]*tmp_lp/tmp_Z # normalize and account for weight
-        lps[n] = tmp_lp
+        tmp_lp = np.log(tmp_w[n]) + tmp_lp - np.log(tmp_Z) # normalize and account for weight
+        lps[n,:] = tmp_lp
     # end for
 
-    return logsumexp(lps)
+    return logsumexp(lps,axis=1)
 
 
 ##########################
