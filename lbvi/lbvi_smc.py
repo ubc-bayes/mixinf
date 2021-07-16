@@ -161,6 +161,80 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
 
 ##########################
 ##########################
+####  beta functions  ####
+##########################
+##########################
+
+## gradient calculation ###
+def kl_grad_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
+    """
+    First derivative of KL wrt beta for component n evaluated at b
+    Input: see choose_beta
+
+    Output:
+    float, stochastic estimate of KL gradient
+    """
+
+
+
+def kl_grad2_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
+    """
+    First derivative of KL wrt beta for component n evaluated at 0
+    Input: see choose_beta
+
+    Output:
+    float, stochastic estimate of KL gradient
+    """
+
+
+
+## choosing next component based on weight ###
+def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
+    """
+    Choose component that results in greatest KL decrease due to beta perturbation
+    Input:
+    logp    : function, log target density
+    y       : (N,K) array with locations
+    w       : (N,) array, weights of components
+    beta    : (N,) array, betas of components
+    beta_ls : list of np arrays, contains discretizations of components
+    r_sd    : float, std deviation of reference distributions
+    smc     : function, generates samples via SMC
+    B       : integer, number of particles ot use in SMC and to estimate gradients
+    verbose    : boolean, whether to print messages
+
+    Output:
+    argmin  : component that minimizes the KL
+    disc    : estimate of the KL at the optimal component and alpha
+    """
+
+    N = y.shape[0]
+    K = y.shape[1]
+    trimmed_beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
+    kls = np.zeros(N)
+
+    for n in range(N):
+        if w[n] == 0:
+            # can't perturb beta if component is not active
+            kls[n] = np.inf
+        else:
+            # calcualte minimizer of second order approximation to kl
+            beta_star = -kl_grad_beta(0, logp, y, w, beta, beta_ls, r_sd, smc, B, n)/kl_grad2_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+            beta_star = min(1, max(0, beta_star))
+
+            # calculate kl estimate at minimizer
+            tmp_trimmed_beta_ls[n] = beta_ls[n][beta_ls[n] <= beta_star] # trim nth discretization up to beta_star instead of beta[n]
+            tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls, B)
+            tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls)
+            kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+        # end if
+    # end for
+    argmin = np.argmin(kls)
+    return argmin, kls[argmin]
+
+
+##########################
+##########################
 #### weight functions ####
 ##########################
 ##########################
@@ -168,10 +242,13 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
 ## gradient calculation ###
 def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     """
-    First derivative of KL wrt alpha for component n
+    First derivative of KL wrt alpha for component n evaluated at alpha
     Input: see choose_weight
+
+    Output:
+    float, stochastic estimate of KL gradient
     """
-    if w[n] == 1: raise ValueError('Cant calculate gradient KL if w == 1.')
+    if w[n] == 1: raise ValueError('Cannot calculate gradient KL if w == 1.')
 
     beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(y.shape[0])]
 
@@ -204,8 +281,11 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
 
 def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     """
-    Second derivative of KL wrt alpha at component n, evaluated at alpha=0
+    Second derivative of KL wrt alpha at component n, evaluated at 0
     Input: see choose_weight
+
+    Output:
+    float, stochastic estimate of KL second derivative
     """
     if w[n] == 1: raise ValueError('Cant calculate gradient KL if w == 1.')
 
@@ -378,10 +458,13 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, 
 
 
         # calculate weights
-        wargmin,wdisc = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, B, verbose)
+        w_argmin,w_disc = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, B, verbose)
         if verbose:
-            print('Component with optimal weight: ' + str(y[wargmin]))
-            print('Estimated KL at optimal weight: ' + str(wdisc))
+            print('Component with optimal weight: ' + str(y[w_argmin]))
+            print('Estimated KL at optimal weight: ' + str(w_disc))
+
+        # calculate beta
+        beta_argmin,beta_disc = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, B, verbose)
 
 
 
