@@ -219,7 +219,7 @@ def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
 
 
 ## choosing next component based on weight ###
-def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
+def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = False):
     """
     Choose component that results in greatest KL decrease due to beta perturbation
     Input:
@@ -230,8 +230,9 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
     beta_ls : list of np arrays, contains discretizations of components
     r_sd    : float, std deviation of reference distributions
     smc     : function, generates samples via SMC
+    b_gamma : float, newton's step size
     B       : integer, number of particles ot use in SMC and to estimate gradients
-    verbose    : boolean, whether to print messages
+    verbose : boolean, whether to print messages
 
     Output:
     argmin  : component that minimizes the KL
@@ -349,7 +350,7 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
 
 
 ## choosing next component based on weight ###
-def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
+def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = False):
     """
     Choose component that results in greatest KL decrease due to weight perturbation
     Input:
@@ -360,8 +361,9 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
     beta_ls : list of np arrays, contains discretizations of components
     r_sd    : float, std deviation of reference distributions
     smc     : function, generates samples via SMC
+    w_gamma : float, newton's step size
     B       : integer, number of particles ot use in SMC and to estimate gradients
-    verbose    : boolean, whether to print messages
+    verbose : boolean, whether to print messages
 
     Output:
     argmin  : component that minimizes the KL
@@ -404,7 +406,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
 #### MAIN FUNCTION #######
 ##########################
 ##########################
-def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, verbose = False):
+def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 1., b_gamma = 1., B = 1000, verbose = False):
     """
     Run LBVI with SMC components
     Input:
@@ -414,6 +416,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, 
     smc_eps    : float, step size for smc discretization
     r_sd       : float, std deviation used for reference distributions; if None, 3 will be used
     maxiter    : int, maximum number of iterations to run the main loop for
+    w_gamma    : float, newton's step size for weight optimization
+    b_gamma    : float, newton's step size for beta optimization
     B          : int, number of MC samples to use for gradient estimation
     verbose    : boolean, whether to print messages
 
@@ -492,13 +496,13 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, 
 
 
         # calculate weights
-        w_argmin,w_disc = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, B, verbose)
+        w_argmin,w_disc = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, w_gamma, B, verbose)
         if verbose:
             print('Component with optimal weight: ' + str(y[w_argmin]))
             print('Estimated KL at optimal weight: ' + str(w_disc))
 
         # calculate beta
-        beta_argmin,beta_disc = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, B, verbose)
+        beta_argmin,beta_disc = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, b_gamma, B, verbose)
         if verbose:
             print('Component with optimal beta: ' + str(y[beta_argmin]))
             print('Estimated KL at optimal beta: ' + str(beta_disc))
