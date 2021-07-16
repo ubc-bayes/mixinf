@@ -515,6 +515,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
             print('Estimated KL at optimal beta: ' + str(beta_disc))
             print('Optimal beta: ' + str(beta_s))
 
+        if iter > 5: w_disc = np.inf
+
         # determine whether to perturb weight or beta and update active set
         if w_disc < beta_disc:
             if verbose: print('Modifying the weight of ' + str(y[w_argmin]))

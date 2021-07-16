@@ -8,8 +8,8 @@ def create_smc(sd, steps):
     # steps : number of steps taken by the chain at each rejuvenation step
 
     def logsumexp(x):
-        m = np.amax(x)
-        return m + np.log(np.sum(np.exp(x-m)))
+        m = np.amax(x,axis=-1)
+        return m + np.log(np.sum(np.exp(x-m[...,np.newaxis]), axis=-1))
 
     #################
     #################
@@ -74,8 +74,8 @@ def create_smc(sd, steps):
             w = w/np.sum(w)                                   # normalize for np.random.multinomial
 
             ##### resample   #####
-            reps = np.random.multinomial(n = N, pvals = w)
-            tmp_x = np.repeat(x, reps, axis=0).reshape(N,x.shape[1])
+            reps = np.random.multinomial(n = x.shape[0], pvals = w)
+            tmp_x = np.repeat(x, reps, axis=0).reshape(x.shape)
 
             ##### rejuvenate #####
             x = rwmh_step(x = tmp_x, logp = new_logm)

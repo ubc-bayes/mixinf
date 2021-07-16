@@ -435,7 +435,30 @@ for r in reps:
                 print('Std. deviation of reference distributions: ' + str(smc_sd))
                 print()
 
-            y, w, obj, cpu_time, active_kernels = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, B = B, verbose = verbose)
+            y, w, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, B = B, verbose = verbose)
+
+            # save results
+            if verbose: print('Saving lbvi results')
+            np.save(tmp_path + 'y_' + str(r) + '_' + str(tol) + '.npy', y)
+            np.save(tmp_path + 'w_' + str(r) + '_' + str(tol) + '.npy', w)
+            np.save(tmp_path + 'cput_' + str(r) + '_' + str(tol) + '.npy', cput)
+            np.save(tmp_path + 'obj_' + str(r) + '_' + str(tol) + '.npy', obj)
+            np.save(tmp_path + 'kernels_' + str(r) + '_' + str(tol) + '.npy', act_k)
+            np.save(tmp_path + 'kl_' + str(r) + '_' + str(tol) + '.npy', obj)
+
+
+            # plot trace
+
+            if verbose: print('Plotting LBVI SMC objective trace')
+            plt.clf()
+            plt.plot(1 + np.arange(obj.shape[0]), obj, '-k')
+            plt.xlabel('iteration')
+            plt.ylabel('KL')
+            plt.title('KL trace plot')
+            plt.savefig(tmp_path + 'lbvi_trace' + str(r) + '_' + str(tol) + '.png', dpi=900)
+
+            if verbose: print('Done with LBVI SMC simulation')
+            if verbose: print()
 
 
 
