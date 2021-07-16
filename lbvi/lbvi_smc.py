@@ -35,9 +35,10 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
         return np.mean(logp(theta) - logq(theta), axis=-1)
     else: raise NotImplementedError
 
-def logsumexp(x,axis=0):
-    maxx = np.amax(x,axis=axis)
-    return maxx + np.log(np.sum(np.exp(x-maxx[:,np.newaxis]),axis=axis))
+def logsumexp(x):
+    # logsumexp over last axis of x
+    maxx = np.amax(x,axis=-1)
+    return maxx + np.log(np.sum(np.exp(x-maxx[...,np.newaxis]),axis=-1))
 
 
 
@@ -161,7 +162,7 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
         tmp_lp = np.log(tmp_w[n]) + tmp_lp - np.log(tmp_Z) # normalize and account for weight
         lps[:,n] = tmp_lp
     # end for
-    return logsumexp(lps,axis=1)
+    return logsumexp(lps)
 
 
 ##########################
@@ -314,8 +315,7 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
             # the extra element has a weight of 0
             return logq(theta) - logp(theta)
         else:
-            exponents = np.array([np.log(w[n]+alpha) + logqn(theta), np.log(1-(alpha/(1-w[n]))) + logq(theta)])
-            print(exponents.shape)
+            exponents = np.column_stack((np.log(w[n]+alpha) + logqn(theta), np.log(1-(alpha/(1-w[n]))) + logq(theta)))
             return logsumexp(exponents) - logp(theta)
 
     return np.mean(gamma_n(theta1) - gamma_n(theta2)) - (w[n]/(1-w[n]))
