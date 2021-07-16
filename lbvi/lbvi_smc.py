@@ -503,6 +503,16 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, 
             print('Component with optimal beta: ' + str(y[beta_argmin]))
             print('Estimated KL at optimal beta: ' + str(beta_disc))
 
+        if w_disc < beta_disc:
+            if verbose: print('Optimizing the weight of ' + str(y[w_argmin]))
+            # TODO add weight optimization
+        else:
+            if verbose: print('Optimizing the beta of ' + str(y[beta_argmin]))
+            # TODO add beta optimization
+
+        if verbose: print()
+    # end for
+
 
 
 
