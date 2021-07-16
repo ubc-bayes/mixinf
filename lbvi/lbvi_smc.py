@@ -37,7 +37,7 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
 
 def logsumexp(x,axis=0):
     maxx = np.amax(x,axis=axis)
-    return maxx + np.log(np.sum(np.exp(x-maxx),axis=axis))
+    return maxx + np.log(np.sum(np.exp(x-maxx[:,np.newaxis]),axis=axis))
 
 
 
@@ -141,8 +141,8 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
 
     N = tmp_y.shape[0]
     K = tmp_y.shape[1]
+    lps = np.zeros((x.shape[0],N))
 
-    lps = np.zeros((N,x.shape[0]))
     for n in range(N):
         # for each value, generate estimate normalizing constant
         tmp_logr = lambda x : norm_logpdf(x, tmp_y[n,:], r_sd)
@@ -154,9 +154,8 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
         _,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
         tmp_lp = (1-tmp_beta[n])*tmp_logr(x) + tmp_beta[n]*logp(x) # logpdf up to proportionality
         tmp_lp = np.log(tmp_w[n]) + tmp_lp - np.log(tmp_Z) # normalize and account for weight
-        lps[n,:] = tmp_lp
+        lps[:,n] = tmp_lp
     # end for
-
     return logsumexp(lps,axis=1)
 
 
@@ -210,7 +209,7 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     """
     if w[n] == 1: raise ValueError('Cant calculate gradient KL if w == 1.')
 
-    beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
+    beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(y.shape[0])]
     logq_full = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
 
     # generate sample from nth component and define logpdf
@@ -258,6 +257,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
     N = y.shape[0]
     K = y.shape[1]
     beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
+    kls = np.zeros(N)
 
     for n in range(N):
         if w[n] == 1:
@@ -268,7 +268,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, B, verbose = False):
         else:
             # calcualte minimizer of second order approximation to kl
             alpha_star = -kl_grad_alpha(0, logp, y, w, beta, beta_ls, r_sd, smc, B, n)/kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
-            alpha_star = np.min(1-w[n], np.max(-w[n], alpha_star)) # alpha_star in [-wk, 1-wk]
+            alpha_star = min(1-w[n], max(-w[n], alpha_star)) # alpha_star in [-wk, 1-wk]
 
             # calculate kl estimate at minimizer
             tmp_w = np.copy(w)
@@ -378,7 +378,10 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, B = 1000, 
 
 
         # calculate weights
-        argmin,disc = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, B, verbose)
+        wargmin,wdisc = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, B, verbose)
+        if verbose:
+            print('Component with optimal weight: ' + str(y[wargmin]))
+            print('Estimated KL at optimal weight: ' + str(wdisc))
 
 
 
