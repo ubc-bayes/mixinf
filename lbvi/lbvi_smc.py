@@ -191,7 +191,8 @@ def kl_grad_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     theta,_,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
     logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
 
-    return w[n]*np.cov(logr(theta)+logr(theta), logq(theta)-logp(theta))[0][1]
+    lp = logp(theta)
+    return w[n]*np.cov(lp-logr(theta), logq(theta)-lp)[0][1]
 
 
 def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
@@ -214,12 +215,12 @@ def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     logqn = lambda x : ((1-beta[n])*logr(x) + beta[n]*logp(x)) - np.log(Z)
     logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
 
-    logrp = logr(theta) + logp(theta)
+    logrbyp = logr(theta) - logp(theta)
     logqbyp = logq(theta) - logp(theta)
     g = w[n]*np.exp(logqn(theta))/np.exp(logq(theta)) + logqbyp
-    g = g*(logrp - np.mean(logrp))
-    term1 = w[n]*np.cov(logrp, g)[0][1]
-    term2 = w[n]*np.mean(logqbyp)*np.var(logrp)
+    g = g*(logrbyp - np.mean(logrbyp))
+    term1 = w[n]*np.cov(logrbyp, g)[0][1]
+    term2 = w[n]*np.mean(logqbyp)*np.var(logrbyp)
 
     return term1-term2
 
