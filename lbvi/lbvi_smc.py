@@ -323,7 +323,7 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     Output:
     float, stochastic estimate of KL gradient
     """
-    if w[n] == 1: return 0
+    if w[n] == 1: return 0.
 
     beta_ls = [beta_ls[i][beta_ls[i] <= beta[i]] for i in range(y.shape[0])]
 
@@ -358,7 +358,7 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     Output:
     float, stochastic estimate of KL second derivative
     """
-    if w[n] == 1: raise ValueError('Cant calculate KL gradient if w == 1.')
+    if w[n] == 1: return 0.
 
     beta_ls = [beta_ls[i][beta_ls[i] <= beta[i]] for i in range(y.shape[0])]
     logq_full = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
@@ -381,7 +381,7 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     # define psi
     def psi_n(theta): return (np.exp(logqn(theta)) - np.exp(logq(theta))) / np.exp(logq_full(theta))
 
-    return np.mean(psi_n(theta1) - psi_n(theta2))
+    return (1-w[n])**2 * np.mean(psi_n(theta1) - psi_n(theta2))
 
 
 
