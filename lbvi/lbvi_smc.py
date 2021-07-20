@@ -323,7 +323,7 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     Output:
     float, stochastic estimate of KL gradient
     """
-    if w[n] == 1: raise ValueError('Cannot calculate KL gradient if w == 1.')
+    if w[n] == 1: return 0
 
     beta_ls = [beta_ls[i][beta_ls[i] <= beta[i]] for i in range(y.shape[0])]
 
@@ -344,14 +344,10 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
 
     # define gamma
     def gamma_n(theta):
-        if w[n]+alpha == 0:
-            # the extra element has a weight of 0
-            return logq(theta) - logp(theta)
-        else:
-            exponents = np.column_stack((np.log(w[n]+alpha) + logqn(theta), np.log(1-(alpha/(1-w[n]))) + logq(theta)))
-            return logsumexp(exponents) - logp(theta)
+        exponents = np.column_stack((np.log((1-alpha)*w[n]+alpha) + logqn(theta), np.log(1-alpha) + np.log(1-w[n]) + logq(theta)))
+        return logsumexp(exponents) - logp(theta)
 
-    return np.mean(gamma_n(theta1) - gamma_n(theta2)) - (w[n]/(1-w[n]))
+    return (1-w[n])*np.mean(gamma_n(theta1) - gamma_n(theta2))
 
 
 def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
