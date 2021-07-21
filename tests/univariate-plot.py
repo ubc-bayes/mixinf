@@ -148,8 +148,8 @@ bvi_kernels = np.array([])
 print('begin plotting!')
 
 # define colors and settings
-lbvi_color = '#0756f0FF'
 lbvi_smc_color = '#39558CFF'
+lbvi_color = '#0756f0FF'
 ubvi_color = '#D64B40FF'
 bvi_color = '#74D055FF'
 gvi_color = '0.2'
