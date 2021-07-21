@@ -41,6 +41,92 @@ def logsumexp(x):
     return maxx + np.log(np.sum(np.exp(x-maxx[...,np.newaxis]),axis=-1))
 
 
+def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims = None, B = 10000):
+    """
+    Plot the current approximation against the target
+    Input:
+    logp      : function, target log density (for SMC)
+    y         : (N,K) array, component locations
+    w         : (N,) array, contains weights of each component
+    smc       : function, generates samples via SMC
+    r_sd      : float, std deviation of reference distributions
+    beta      : (N,) array, contains betas of each component
+    beta_ls   : list of arrays, each array contains the discretization of each component
+    plt_name  : str, path, file name, and extension in single string to save plot
+    plt_lims  : (K,) array with plot limits or None to let matplotlib choose the limits
+    B         : int, number of particles in SMC
+    """
+    plt.clf()
+
+    # univariate data plotting
+    if y.shape[1] == 1:
+        # get plotting limits
+        x_lower = plt_lims[0]
+        x_upper = plt_lims[1]
+        y_upper = plt_lims[3]
+
+        # plot target density
+        t = np.linspace(x_lower, x_upper, 1000)
+        p = np.exp(logp(t[:,np.newaxis]))
+        plt.plot(t, p, linestyle = 'solid', color = 'black', label = 'p(x)', lw = 3)
+
+
+        # generate and plot approximation
+        q = np.exp(mix_logpdf(t[:,np.newaxis], logp, y, w, smc, r_sd, beta, beta_ls, B))
+        plt.plot(t, q, linestyle = 'dashed', color = '#39558CFF', label='q(x)', lw = 3)
+
+        # beautify and save plot
+        plt.ylim(0, y_upper)
+        plt.xlim(x_lower, x_upper)
+        plt.legend(frameon = False)
+        plt.savefig(plt_name, dpi = 300)
+
+    # bivariate dataplotting
+    if y.shape[1] == 2:
+        # get plotting limits
+        x_lower = plt_lims[0]
+        x_upper = plt_lims[1]
+        y_lower = plt_lims[2]
+        y_upper = plt_lims[3]
+
+        # plot target density
+        nn = 100
+        xx = np.linspace(x_lower, x_upper, nn)
+        yy = np.linspace(y_lower, y_upper, nn)
+        tt = np.array(np.meshgrid(xx, yy)).T.reshape(nn**2, 2)
+        lp = logp(tt).reshape(nn, nn).T
+        cp = plt.contour(xx, yy, np.exp(lp), colors = 'black', levels = 4)
+        hcp,_ = cp.legend_elements()
+        hcps = [hcp[0]]
+        legends = ['p(x)']
+
+        if kernel_sampler is None:
+            plt.scatter(y[:,0], y[:,1], marker='.', c='k', alpha = 0.2, label = '')
+        else:
+            # generate and plot approximation
+            lbvi_sample = mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler, t_increment = t_increment)
+            lbvi_sample = lbvi_sample[~np.isnan(lbvi_sample).any(axis=-1)] # remove nans
+            lbvi_sample = lbvi_sample[~np.isinf(lbvi_sample).any(axis=-1)] # remove infs
+            if lbvi_sample.size != 0:
+                 # otherwise no plottting to do =(
+                 lbvi_kde = stats.gaussian_kde(lbvi_sample.T, bw_method = 0.05).evaluate(tt.T).reshape(nn, nn).T
+                 cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = 8, colors = '#39558CFF')
+                 hcp_lbvi,_ = cp_lbvi.legend_elements()
+                 hcps.append(hcp_lbvi[0])
+                 legends.append('LBVI')
+
+        # beautify and save plot
+        plt.ylim(y_lower, y_upper)
+        plt.xlim(x_lower, x_upper)
+        #plt.suptitle('l-bvi approximation to density')
+        # assign plot title
+        #if kernel_sampler is None:
+        #    plt.title('initial sample')
+        #else:
+        #    plt.title('iter: ' + str(iter_no))
+        plt.savefig(plot_path + 'iter_' + str(iter_no) + '.jpg', dpi = 300)
+
+
 
 
 ##########################
