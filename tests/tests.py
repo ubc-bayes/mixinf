@@ -449,7 +449,7 @@ for r in reps:
             y, w, betas, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_gamma = smc_wgamma, b_gamma = smc_bgamma, B = B, verbose = verbose, plot = True, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
 
             # save results
-            if verbose: print('Saving lbvi results')
+            if verbose: print('Saving LBVI results')
             np.save(tmp_path + 'y_' + str(r) + '_' + str(tol) + '.npy', y)
             np.save(tmp_path + 'w_' + str(r) + '_' + str(tol) + '.npy', w)
             np.save(tmp_path + 'betas_' + str(r) + '_' + str(tol) + '.npy', betas)
@@ -608,7 +608,7 @@ for r in reps:
                 ubvi_results.append(build)
                 print('cpu times: ' + str(build['cput']))
                 # assess convergence
-                if build['ksd'][-1] < tol:
+                if build['kl'][-1] < tol:
                     if verbose: print('tolerance reached; breaking')
                     break
             ubvi_end = timer()
@@ -629,7 +629,6 @@ for r in reps:
             weights = ubvi_results[no_ubvi_kernels-1]['weights']#[:jstar]
             weights = weights / weights.sum()
             cput = ubvi_results[no_ubvi_kernels-1]['cput'][1:]
-            obj = ubvi_results[no_ubvi_kernels-1]['ksd'][1:]
             act_k = ubvi_results[no_ubvi_kernels-1]['active_kernels'][1:]
             kls = ubvi_results[no_ubvi_kernels-1]['kl'][1:]
 
@@ -638,21 +637,18 @@ for r in reps:
             np.save(tmp_path + 'covariances_' + str(r) + '_' + str(tol) + '.npy', Sigs)
             np.save(tmp_path + 'weights_' + str(r) + '_' + str(tol) + '.npy', weights)
             np.save(tmp_path + 'cput_' + str(r) + '_' + str(tol) + '.npy', cput)
-            np.save(tmp_path + 'obj_' + str(r) + '_' + str(tol) + '.npy', obj)
             np.save(tmp_path + 'kernels_' + str(r) + '_' + str(tol) + '.npy', act_k)
             np.save(tmp_path + 'kl_' + str(r) + '_' + str(tol) + '.npy', kls)
 
 
             # plot trace
-            pltobj = obj
-            if klcalc: pltobj = kls
+            pltobj = kls
 
-            if verbose: print('plotting lbvi objective trace')
+            if verbose: print('plotting ubvi objective trace')
             plt.clf()
             plt.plot(1 + np.arange(pltobj.shape[0]), pltobj, '-k')
             plt.xlabel('iteration')
-            plt.ylabel('kernelized stein discrepancy')
-            if klcalc: plt.ylabel('KL')
+            plt.ylabel('KL')
             plt.title('objective trace plot')
             plt.savefig(tmp_path + 'ubvi_trace' + str(r) + '_' + str(tol) + '.png', dpi=900)
 
@@ -698,15 +694,13 @@ for r in reps:
 
 
             # plot trace
-            pltobj = objs
-            if klcalc: pltobj = kls
+            pltobj = kls
 
             if verbose: print('plotting lbvi objective trace')
             plt.clf()
             plt.plot(1 + np.arange(pltobj.shape[0]), pltobj, '-k')
             plt.xlabel('iteration')
-            plt.ylabel('kernelized stein discrepancy')
-            if klcalc: plt.ylabel('KL')
+            plt.ylabel('KL')
             plt.title('objective trace plot')
             plt.savefig(tmp_path + 'bvi_trace' + str(r) + '_' + str(tol) + '.png', dpi=900)
 
