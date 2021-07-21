@@ -401,7 +401,7 @@ if dens_plots:
 
             if ubvi_flag:
                 # add ubvi log density
-                ax1.plot(t1, ubvi.logsumexp(lq_ubvi, axis=1), linestyle = 'dashed', color = ubvi_color, label='UBVI', lw = normal_linewidth)
+                ax1.plot(t1, ubvi.logsumexp(lq_ubvi, axis=1), linestyle = 'dashed', color = ubvi_color, label='UBVI', lw = normal_linewidth) 
                 ax2.plot(t2, ubvi.logsumexp(lq_ubvi, axis=0), linestyle = 'dashed', color = ubvi_color, label='UBVI', lw = normal_linewidth)
 
             if bvi_flag:
