@@ -149,7 +149,7 @@ def gif_plot(plot_path):
     images = []
     for file_name in db.file_name:
         images.append(imageio.imread(plot_path + file_name))
-    imageio.mimsave(plot_path + 'evolution.gif', images, fps = 2)
+    imageio.mimsave(plot_path + 'lbvi.gif', images, fps = 2)
 
 
 ##########################
@@ -552,7 +552,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
 #### MAIN FUNCTION #######
 ##########################
 ##########################
-def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 1., b_gamma = 1., B = 1000, verbose = False, plot = False, plot_path = '', plot_lims = [-10,10,-10,10], gif_plot = False):
+def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 1., b_gamma = 1., B = 1000, verbose = False, plot = False, plot_path = '', plot_lims = [-10,10,-10,10], gif = False):
     """
     Run LBVI with SMC components
     Input:
@@ -569,7 +569,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     plot       : boolean, whether to plot approximation vs target at each iteration
     plot_path  : str, folder in which plots should be saved (ignored if plot == False)
     plot_lims  : (4,) array, plot limits; see plotting function documentation
-    gif_plot   : boolean, whether to create a gif with the approximation plots; only done if plot=True as well
+    gif        : boolean, whether to create a gif with the approximation plots; only done if plot=True as well
 
     Output:
     """
@@ -629,7 +629,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     if plot:
         if verbose: print('Plotting approximation')
         plt_name = plot_path + 'iter_0.jpg'
-        plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plot_lims, B = 10000)
+        plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000)
     plt_timer = time.perf_counter() - plt_timer
 
     ##########################
@@ -687,7 +687,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
         if plot:
             if verbose: print('Plotting approximation')
             plt_name = plot_path + 'iter_' + str(iter) + '.jpg'
-            plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plot_lims, B = 10000)
+            plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000)
         plt_timer = time.perf_counter() - plt_timer
 
         # update cpu times and active components
@@ -706,7 +706,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     # end for
 
     # generate gif plot
-    if plot and gif_plot:
+    if plot and gif:
         if verbose: print('Generating gif')
         gif_plot(plot_path)
 

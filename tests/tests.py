@@ -169,6 +169,7 @@ else:
     if lbvi_smc_flag and cleanup:
         shutil.rmtree(path + 'results/lbvi_smc/')
         os.makedirs(path + 'results/lbvi_smc/')
+        os.makedirs(path + 'results/lbvi_smc/plots/')
     if lbvi_flag and cleanup:
         shutil.rmtree(path + 'results/lbvi/')
         os.makedirs(path + 'results/lbvi/')
@@ -445,7 +446,7 @@ for r in reps:
                 print('Std. deviation of reference distributions: ' + str(smc_sd))
                 print()
 
-            y, w, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_gamma = smc_wgamma, b_gamma = smc_bgamma, B = B, verbose = verbose, plot = True, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif_plot = True)
+            y, w, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_gamma = smc_wgamma, b_gamma = smc_bgamma, B = B, verbose = verbose, plot = True, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
 
             # save results
             if verbose: print('Saving lbvi results')
