@@ -446,12 +446,13 @@ for r in reps:
                 print('Std. deviation of reference distributions: ' + str(smc_sd))
                 print()
 
-            y, w, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_gamma = smc_wgamma, b_gamma = smc_bgamma, B = B, verbose = verbose, plot = True, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
+            y, w, betas, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_gamma = smc_wgamma, b_gamma = smc_bgamma, B = B, verbose = verbose, plot = True, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
 
             # save results
             if verbose: print('Saving lbvi results')
             np.save(tmp_path + 'y_' + str(r) + '_' + str(tol) + '.npy', y)
             np.save(tmp_path + 'w_' + str(r) + '_' + str(tol) + '.npy', w)
+            np.save(tmp_path + 'betas_' + str(r) + '_' + str(tol) + '.npy', betas)
             np.save(tmp_path + 'cput_' + str(r) + '_' + str(tol) + '.npy', cput)
             np.save(tmp_path + 'obj_' + str(r) + '_' + str(tol) + '.npy', obj)
             np.save(tmp_path + 'kernels_' + str(r) + '_' + str(tol) + '.npy', act_k)

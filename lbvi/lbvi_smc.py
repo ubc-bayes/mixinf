@@ -712,4 +712,4 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
         if verbose: print('Generating gif')
         gif_plot(plot_path)
 
-    return y, w, obj, cpu_time, active_kernels
+    return y, w, betas, obj, cpu_time, active_kernels

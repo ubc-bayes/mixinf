@@ -19,6 +19,7 @@ import pickle as pk
 
 # import the suite of functions from parent directory
 sys.path.insert(1, os.path.join(sys.path[0], '../lbvi/'))
+import lbvi_smc
 import lbvi # functions to do locally-adapted boosting variational inference
 import bvi
 import ubvi
@@ -39,6 +40,16 @@ parser.add_argument('--tol', type = float, nargs = '+',
 help = 'sequence of step size tolerances')
 parser.add_argument('--no_dens', action = "store_true",
 help = 'skip plots of all densities and log densities?')
+parser.add_argument('--lbvi_smc', action = "store_true",
+help = 'plot lbvi with smc components?')
+parser.add_argument('--smc', type = str, default = 'smc', choices=['smc'],
+help = 'smc sampler to use in the lbvi mixture')
+parser.add_argument('--smc_eps', type = float, default = 0.01,
+help = 'step size of the smc discretization')
+parser.add_argument('--smc_sd', type = float, default = 1.,
+help = 'std deviation of the rwmh rejuvenation kernel in smc')
+parser.add_argument('--smc_T', type = int, default = 1,
+help = 'number of steps of the rwmh rejuvenation kernel in smc')
 parser.add_argument('--lbvi', action = "store_true",
 help = 'plot lbvi?')
 parser.add_argument('--kernel', type = str, default = 'gaussian', choices=['gaussian'],
@@ -79,6 +90,7 @@ reps = args.reps
 tols = np.array(args.tol)
 
 # import flags
+lbvi_smc_flag = args.lbvi_smc
 lbvi_flag = args.lbvi
 ubvi_flag = args.ubvi
 bvi_flag = args.bvi
@@ -111,6 +123,15 @@ lbvi_gamma = args.gamma
 if rkhs == 'rbf':
     from RKHSkernels.rbf import *
 kernel, dk_x, dk_y, dk_xy = get_kernel(lbvi_gamma)
+
+# import smc sampler
+smc_kernel = args.smc
+smc_eps = args.smc_eps
+smc_sd = args.smc_sd
+smc_T = args.smc_T
+if smc_kernel == 'smc':
+    from smc.smc import *
+    smc = create_smc(sd = smc_sd, steps = smc_T)
 
 # define densities and up
 def logp(x): return logp_aux(x, 1)
@@ -145,6 +166,15 @@ if dens_plots:
         print(str(r+1) + '/'+ str(reps), end='\r')
         for tol in tols:
 
+            if lbvi_smc_flag:
+                # retrieve lbvi smc results
+                tmp_path = inpath + 'lbvi_smc/'
+                y = np.load(tmp_path + 'y_' + str(r+1) + '_' + str(tol) + '.npy')
+                w = np.load(tmp_path + 'w_' + str(r+1) + '_' + str(tol) + '.npy')
+                betas = np.load(tmp_path + 'betas_' + str(r+1) + '_' + str(tol) + '.npy')
+                beta_ls = [np.linspace(0,1,int(1/smc_eps)+1) for n in range(y.shape[0])]
+                lbvi_smc_logq = lambda x : lbvi_smc.mix_logpdf(x, logp, y, w, smc, smc_sd, betas, beta_ls, 10000)
+
             if lbvi_flag:
                 # retrieve lbvi settings
                 tmp_path = inpath + 'lbvi/'
@@ -155,12 +185,6 @@ if dens_plots:
 
             if ubvi_flag:
                 # retrieve ubvi results
-                #n = len(ubvis[r])
-                #ubvi_mu = ubvis[r][n-1]['mus']
-                #ubvi_Sig = ubvis[r][n-1]['Sigs']
-                #ubvi_wt = ubvis[r][n-1]['weights']
-                #ubvi_ksd = np.array([ ubvis[r][i]['ksd'] for i in range(len(ubvis[r]))])
-
                 tmp_path = inpath + 'ubvi/'
                 ubvi_mu = np.load(tmp_path + 'means_' + str(r+1) + '_' + str(tol) + '.npy')
                 ubvi_Sig = np.load(tmp_path + 'covariances_' + str(r+1) + '_' + str(tol) + '.npy')
@@ -204,10 +228,14 @@ if dens_plots:
             f = logp(t[:,np.newaxis])
             plt.plot(t, f, linestyle = 'solid', color = 'black', label = 'log p(x)', lw = normal_linewidth)
 
+            if lbvi_smc_flag:
+                # add lbvi smc log density
+                plt.plot(t, lbvi_smc_logq(t[:,np.newaxis]), linestyle = 'dashed', color = lbvi_smc_color, label='LBVI', lw = normal_linewidth)
+
             if lbvi_flag:
                 # add lbvi log density based on kde
                 lbvi_kde = stats.gaussian_kde(np.squeeze(lbvi_sample), bw_method = 0.25).evaluate(t)
-                plt.plot(t, np.log(lbvi_kde), linestyle = 'dashed', color = lbvi_color, label = 'LBVI', lw = normal_linewidth)
+                plt.plot(t, np.log(lbvi_kde), linestyle = 'dashed', color = lbvi_color, label = 'LBVI MCMC', lw = normal_linewidth)
 
             if ubvi_flag:
                 # add ubvi log density
@@ -253,12 +281,14 @@ if dens_plots:
             f = p(t[:,np.newaxis])
             plt.plot(t, f, linestyle = 'solid', color = 'black', label = 'p(x)', lw = normal_linewidth)
 
+            if lbvi_smc_flag:
+                # add lbvi smc density
+                plt.plot(t, np.exp(lbvi_smc_logq(t[:,np.newaxis])), linestyle = 'dashed', color = lbvi_smc_color, label='LBVI', lw = normal_linewidth)
+
             if lbvi_flag:
                 # add lbvi histogram
-                #kk = lbvi.mix_sample(10000, y = y, T = T, w = w, logp = logp, kernel_sampler = kernel_sampler)
-                #plt.hist(kk, label = 'LBVI', density = True, bins = 50, alpha = 0.3, facecolor = lbvi_color, edgecolor='black')
                 lbvi_kde = stats.gaussian_kde(np.squeeze(lbvi_sample), bw_method = 0.05).evaluate(t)
-                plt.plot(t, lbvi_kde, linestyle = 'dashed', color = lbvi_color, label = 'LBVI', lw = normal_linewidth)
+                plt.plot(t, lbvi_kde, linestyle = 'dashed', color = lbvi_color, label = 'LBVI MCMC', lw = normal_linewidth)
 
             if ubvi_flag:
                 # add ubvi density
@@ -522,7 +552,7 @@ pltalpha = 0.75
 
 
 # TIMES AND KERNELS TOGETHER FINAL (?) VERSION ###################
-if lbvi_flag and bvi_flag and ubvi_flag:
+if lbvi_smc_flag and bvi_flag and ubvi_flag:
 
     # init arrays
     ttols = tols.shape[0]
