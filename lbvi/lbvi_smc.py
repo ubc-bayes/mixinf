@@ -628,9 +628,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
         # determine whether to perturb weight or beta and update active set
         if w_disc < beta_disc:
             if verbose: print('Modifying the weight of ' + str(y[w_argmin]))
-            tmp_w = np.copy(w)
-            w = w*(1 - alpha_s/(1-w[w_argmin]))       # evenly scale down other weights
-            w[w_argmin] = tmp_w[w_argmin] + alpha_s   # except argmin; that one increases by alpha
+            w = (1-alpha_s)*w                     # evenly scale down weights
+            w[w_argmin] = w[w_argmin] + alpha_s   # add alpha bit to argmin weight
             active = np.append(active, w_argmin)
         else:
             if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
@@ -668,8 +667,5 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
             print('CPU time: ' + str(cpu_time[-1]))
             print()
     # end for
-
-
-
 
     return y, w, obj, cpu_time, active_kernels
