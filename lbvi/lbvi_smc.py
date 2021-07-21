@@ -111,7 +111,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         lq = mix_logpdf(tt, logp, y, w, smc, r_sd, beta, beta_ls, B).reshape(nn, nn).T
         q = np.exp(lq)
         cq = plt.contour(xx, yy, np.exp(lq), colors = '#39558CFF', levels = 4)
-        hcq,_ = cp_lbvi.legend_elements()
+        hcq,_ = cq.legend_elements()
         hcps.append(hcq[0])
         legends.append('q(x)')
 
