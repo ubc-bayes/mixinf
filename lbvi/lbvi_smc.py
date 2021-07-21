@@ -78,7 +78,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims = None, B 
         # beautify and save plot
         plt.ylim(0, y_upper)
         plt.xlim(x_lower, x_upper)
-        plt.legend(frameon = False)
+        plt.legend(fontsize = 'medium', frameon = False)
         plt.savefig(plt_name, dpi = 300)
 
     # bivariate dataplotting
@@ -100,31 +100,20 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims = None, B 
         hcps = [hcp[0]]
         legends = ['p(x)']
 
-        if kernel_sampler is None:
-            plt.scatter(y[:,0], y[:,1], marker='.', c='k', alpha = 0.2, label = '')
-        else:
-            # generate and plot approximation
-            lbvi_sample = mix_sample(N, y, T, w, logp, kernel_sampler = kernel_sampler, t_increment = t_increment)
-            lbvi_sample = lbvi_sample[~np.isnan(lbvi_sample).any(axis=-1)] # remove nans
-            lbvi_sample = lbvi_sample[~np.isinf(lbvi_sample).any(axis=-1)] # remove infs
-            if lbvi_sample.size != 0:
-                 # otherwise no plottting to do =(
-                 lbvi_kde = stats.gaussian_kde(lbvi_sample.T, bw_method = 0.05).evaluate(tt.T).reshape(nn, nn).T
-                 cp_lbvi = plt.contour(xx, yy, lbvi_kde, levels = 8, colors = '#39558CFF')
-                 hcp_lbvi,_ = cp_lbvi.legend_elements()
-                 hcps.append(hcp_lbvi[0])
-                 legends.append('LBVI')
+
+        # generate and plot approximation
+        lq = mix_logpdf(tt, logp, y, w, smc, r_sd, beta, beta_ls, B).reshape(nn, nn).T
+        q = np.exp(lq)
+        cq = plt.contour(xx, yy, np.exp(lq), colors = '#39558CFF', levels = 4)
+        hcq,_ = cp_lbvi.legend_elements()
+        hcps.append(hcq[0])
+        legends.append('q(x)')
 
         # beautify and save plot
         plt.ylim(y_lower, y_upper)
         plt.xlim(x_lower, x_upper)
-        #plt.suptitle('l-bvi approximation to density')
-        # assign plot title
-        #if kernel_sampler is None:
-        #    plt.title('initial sample')
-        #else:
-        #    plt.title('iter: ' + str(iter_no))
-        plt.savefig(plot_path + 'iter_' + str(iter_no) + '.jpg', dpi = 300)
+        plt.legend(hcps, legends, fontsize = 'medium', frameon = False)
+        plt.savefig(plt_name, dpi = 300)
 
 
 
