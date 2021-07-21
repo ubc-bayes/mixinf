@@ -151,6 +151,7 @@ if not os.path.exists(path + 'results/'):
 
     # create all plotting directories, even if we won't be running smth
     os.makedirs(path + 'results/lbvi_smc/')
+    os.makedirs(path + 'results/lbvi_smc/plots/')
     os.makedirs(path + 'results/lbvi/')
     os.makedirs(path + 'results/lbvi/plots/')
     os.makedirs(path + 'results/lbvi/plots/weight_trace/')
@@ -444,7 +445,7 @@ for r in reps:
                 print('Std. deviation of reference distributions: ' + str(smc_sd))
                 print()
 
-            y, w, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_gamma = smc_wgamma, b_gamma = smc_bgamma, B = B, verbose = verbose)
+            y, w, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_gamma = smc_wgamma, b_gamma = smc_bgamma, B = B, verbose = verbose, plot = True, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif_plot = True)
 
             # save results
             if verbose: print('Saving lbvi results')
