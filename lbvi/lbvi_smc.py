@@ -41,9 +41,9 @@ def logsumexp(x):
     return maxx + np.log(np.sum(np.exp(x-maxx[...,np.newaxis]),axis=-1))
 
 
-def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims = None, B = 10000):
+def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000):
     """
-    Plot the current approximation against the target
+    Plot the current approximation against the target (for K <= 2)
     Input:
     logp      : function, target log density (for SMC)
     y         : (N,K) array, component locations
@@ -53,7 +53,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims = None, B 
     beta      : (N,) array, contains betas of each component
     beta_ls   : list of arrays, each array contains the discretization of each component
     plt_name  : str, path, file name, and extension in single string to save plot
-    plt_lims  : (K,) array with plot limits or None to let matplotlib choose the limits
+    plt_lims  : (4,) array, plot limits (also used to generate linspaces). Should be [x_inf, x_sup, y_inf, y_sup]
     B         : int, number of particles in SMC
     """
     plt.clf()
@@ -518,7 +518,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
 #### MAIN FUNCTION #######
 ##########################
 ##########################
-def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 1., b_gamma = 1., B = 1000, verbose = False):
+def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 1., b_gamma = 1., B = 1000, verbose = False, plot = False, plot_path = '', plot_lims = [-10,10,-10,10]):
     """
     Run LBVI with SMC components
     Input:
@@ -532,6 +532,9 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     b_gamma    : float, newton's step size for beta optimization
     B          : int, number of MC samples to use for gradient estimation
     verbose    : boolean, whether to print messages
+    plot       : boolean, whether to plot approximation vs target at each iteration
+    plot_path  : str, folder in which plots should be saved (ignored if plot == False)
+    plot_lims  : (4,) array, plot limits; see plotting function documentation
 
     Output:
     """
@@ -584,10 +587,21 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
 
     ##########################
     ##########################
+    # plot approximation #####
+    ##########################
+    ##########################
+    plt_timer = time.perf_counter()
+    if verbose and plot: print('Plotting approximation')
+    plt_name = plot_path + 'iter_0.jpg'
+    plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plot_lims, B = 10000)
+    plt_timer = time.perf_counter() - plt_timer
+
+    ##########################
+    ##########################
     # stats print out    #####
     ##########################
     ##########################
-    cpu_time = np.array([time.perf_counter() - t0 - obj_timer])
+    cpu_time = np.array([time.perf_counter() - t0 - obj_timer - plt_timer])
     active_kernels = np.array([1.])
     if verbose:
         print('KL: ' + str(obj[-1]))
@@ -633,8 +647,15 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
         obj = np.append(obj, kl(logq = logq, logp = logp, sampler = q_sampler, B = 100000))
         obj_timer = time.perf_counter() - obj_timer
 
+        # plot approximation
+        plt_timer = time.perf_counter()
+        if verbose and plot: print('Plotting approximation')
+        plt_name = plot_path + 'iter_' + str(iter) + '.jpg'
+        plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plot_lims, B = 10000)
+        plt_timer = time.perf_counter() - plt_timer
+
         # update cpu times and active components
-        cpu_time = np.append(cpu_time, time.perf_counter() - t0 - obj_timer)
+        cpu_time = np.append(cpu_time, time.perf_counter() - t0 - obj_timer -plt_timer)
         active_kernels = np.append(active_kernels, w[w>0].shape[0])
 
         # stats printout
@@ -646,9 +667,6 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
             print('# of active kernels: ' + str(active_kernels[-1]))
             print('CPU time: ' + str(cpu_time[-1]))
             print()
-
-
-        if verbose: print()
     # end for
 
 
