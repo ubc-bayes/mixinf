@@ -345,39 +345,7 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
     beta    : (N,) array, betas of components
     beta_ls : list of np arrays, contains discretizations of components
     r_sd    : float, std deviation of reference distributions
-
-def kl_grad_alpha(alpha, logp, logq, logqk, sample_q, sample_qk, wk, B):
-    # note: q here is q_{-k}, i.e. without the kth component (and normalized)
-
-    if wk == 1: return 0
-
-    # generate samples
-    theta1 = sample_qk(B)
-    theta2 = sample_q(B)
-
-    # define gamma
-    def gamma_k(theta):
-        exponents = np.column_stack((np.log(alpha + (1-alpha)*wk)+logqn(theta), np.log(1-alpha)+logq(theta)))
-        return logsumexp(exponents) - logp(theta)
-    gamma_k = lambda theta : np.log((alpha+(1-alpha)*wk)*np.exp(logqk(theta)) + (1-alpha)*(1-wk)*np.exp(logq(theta))) - logp(theta)
-
-    return (1-wk) * np.mean(gamma_k(theta1) - gamma_k(theta2))
-
-
-def kl_grad2_alpha(alpha, logp, logq, logqk, sample_q, sample_qk, wk, B):
-    # note: q here is q_{-k}, i.e. without the kth component (and normalized)
-
-    if wk == 1: return 0
-
-    # generate samples
-    theta1 = sample_qk(B)
-    theta2 = sample_q(B)
-
-    # define gamma
-    def psi_k(theta):
-        return (np.exp(logqk(theta)) - np.exp(logq(theta)))/(wk*np.exp(logqk(theta)) + (1-wk)*np.exp(logq(theta)))
-
-    return (1-wk)**2 * np.mean(psi_k(theta1) - psi_k(theta2))    smc     : function, generates samples via SMC
+    smc     : function, generates samples via SMC
     b_gamma : float, newton's step size
     B       : integer, number of particles ot use in SMC and to estimate gradients
     verbose : boolean, whether to print messages
@@ -394,6 +362,7 @@ def kl_grad2_alpha(alpha, logp, logq, logqk, sample_q, sample_qk, wk, B):
     beta_star = np.zeros(N)
 
     for n in range(N):
+        if verbose: print(str(n+1) + '/' + str(N), end='\r')
         if w[n] == 0:
             # can't perturb beta if component is not active
             kls[n] = np.inf
@@ -522,6 +491,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
     alpha_star = np.zeros(N)
 
     for n in range(N):
+        if verbose: print(str(n+1) + '/' + str(N), end='\r')
         if w[n] == 1:
             # can't perturb weight if it's the only element in mixture
             logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
@@ -530,6 +500,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
         else:
             # calcualte minimizer of second order approximation to kl
             alpha_star[n] = -w_gamma*kl_grad_alpha(0, logp, y, w, beta, beta_ls, r_sd, smc, B, n)/kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+            #print(alpha_star[n]*1e100)
             alpha_star[n] = min(1-w[n], max(-w[n], alpha_star[n])) # alpha_star in [-wk, 1-wk]
 
             # calculate kl estimate at minimizer

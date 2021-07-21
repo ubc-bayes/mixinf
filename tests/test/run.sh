@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # run simuluation
-#python3 -W ignore ../tests.py -d 2 --target 'double-banana-gaussian' -B 10000 --reps 1 --tol 0.0 --stop 'default' -N 50 --kl --lbvi_smc --smc 'smc' --maxiter 5 --smc_wgamma 0.00000001 --smc_bgamma 0.5 --smc_eps 0.05 --smc_sd 1 --smc_T 10  --cleanup --verbose
+python3 -W ignore ../tests.py -d 2 --target 'double-banana-gaussian' -B 10000 --reps 1 --tol 0.0 --stop 'default' -N 20 --kl --lbvi_smc --smc 'smc' --maxiter 30 --smc_wgamma 1. --smc_bgamma 0.5 --smc_eps 0.05 --smc_sd 1 --smc_T 10  --cleanup --verbose
 
 
 # plot
