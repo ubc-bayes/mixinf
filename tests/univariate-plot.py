@@ -573,11 +573,11 @@ if lbvi_smc_flag and bvi_flag and ubvi_flag:
     counter = 0
     for r in range(reps):
         for t in range(tols.shape[0]):
-            cput = np.load(inpath + 'lbvi/cput_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
+            cput = np.load(inpath + 'lbvi_smc/cput_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
             tmp_n = cput.shape[0]#+1 # sometimes there will be fewer than niter iterations, so get how many there were and substitute
             lbvi_times[counter,:tmp_n] = cput
-            lbvi_kernels[counter,:tmp_n] = np.load(inpath + 'lbvi/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
-            tmp_kl = np.load(inpath + 'lbvi/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
+            lbvi_kernels[counter,:tmp_n] = np.load(inpath + 'lbvi_smc/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
+            tmp_kl = np.load(inpath + 'lbvi_smc/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
             tmp_kl[tmp_kl == np.NINF] = 0. # no worries, further down the road we mask 0's anyway, so this get's masked
             lbvi_kl[counter,:tmp_n] = tmp_kl
 
@@ -727,11 +727,11 @@ ebalpha2 = 0.5
 #plt.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err2[:,:niter], linestyle = 'dotted', color = ubvi_color, alpha = ebalpha2)
 #plt.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
 plt.errorbar(range(1,niter+1), lbvi_kl_median[:niter], yerr = lbvi_kl_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha)
-#plt.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha)
-#plt.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
+plt.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha)
+plt.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
 plt.plot(range(1,niter+1), lbvi_kl_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI')
-#plt.plot(range(1,niter+1), ubvi_kl_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
-#plt.plot(range(1,niter+1), bvi_kl_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
+plt.plot(range(1,niter+1), ubvi_kl_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
+plt.plot(range(1,niter+1), bvi_kl_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
 
 # add labels and save
 
