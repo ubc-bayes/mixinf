@@ -149,7 +149,7 @@ def gif_plot(plot_path):
     images = []
     for file_name in db.file_name:
         images.append(imageio.imread(plot_path + file_name))
-    imageio.mimsave(plot_path + 'lbvi.gif', images, fps = 2)
+    imageio.mimsave(plot_path + 'lbvi.gif', images, fps = 5)
 
 
 ##########################
@@ -660,6 +660,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
         # calculate optimal beta perturbation
         if verbose: print('Determining optimal beta')
         beta_argmin,beta_disc,beta_s = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, b_gamma, B, verbose)
+
+        if verbose: print('Optimal (α*, β*) = (' + str(alpha_s) + ', ' + str(beta_s) + ')')
 
         # determine whether to perturb weight or beta and update active set
         if w_disc < beta_disc:
