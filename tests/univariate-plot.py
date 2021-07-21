@@ -328,16 +328,12 @@ if dens_plots:
 ##########################
 
 
-msize = 30
-pltalpha = 0.75
-
-
 # TIMES AND KERNELS TOGETHER ###################
 if lbvi_smc_flag and bvi_flag and ubvi_flag:
 
     # init arrays
     ttols = tols.shape[0]
-    niter = 20
+    niter = np.load(inpath + 'lbvi_smc/cput_1_' + str(tols[0]) + '.npy').shape[0]-1
     lbvi_times = np.zeros((reps*ttols, niter))
     lbvi_kernels = np.zeros((reps*ttols, niter))
     lbvi_kl = np.zeros((reps*ttols, niter))

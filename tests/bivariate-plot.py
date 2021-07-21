@@ -335,52 +335,6 @@ if dens_plots:
             plt.clf()
             ##########################
 
-            ## LOG DENSITY PLOT separate
-            #for i in [0,1]:
-            #    # initialize plot with target log density
-            #    if i == 0: t = np.linspace(xlim[0], xlim[1], nn)
-            #    if i == 1: t = np.linspace(ylim[0], ylim[1], nn)
-            #    plt.plot(t, ubvi.logsumexp(lp, axis = 1-i), linestyle = 'solid', color = 'black', label = 'log p(x)', lw = normal_linewidth)
-
-            #    if lbvi_flag:
-            #        # add lbvi log density based on kde
-            #        #lbvi_kde = stats.gaussian_kde(np.squeeze(lbvi_sample[:,i]), bw_method = 0.25).evaluate(t)
-            #        plt.plot(t, ubvi.logsumexp(np.log(lbvi_kde), axis = 1-i), linestyle = 'dashed', color = lbvi_color, label = 'LBVI', lw = normal_linewidth)
-
-            #    if ubvi_flag:
-            #        # add ubvi log density
-            #        plt.plot(t, ubvi.logsumexp(lq_ubvi, axis=1-i), linestyle = 'dashed', color = ubvi_color, label='UBVI', lw = normal_linewidth)
-
-            #    if bvi_flag:
-            #        # add bvi log density
-            #        plt.plot(t, ubvi.logsumexp(lq_bvi, axis=1-i), linestyle = 'dashed', color = bvi_color, label='BBBVI', lw = normal_linewidth)
-
-            #    if gvi_flag:
-            #        # add gvi log density
-            #        plt.plot(t, ubvi.logsumexp(lq_gvi, axis=1-i), linestyle = 'dashed', color = gvi_color, label='GVI', alpha = muted_alpha, lw = muted_linewidth)
-
-            #    if hmc_flag:
-            #        # add rwmh log density based on kde
-            #        #hmc_kde = stats.gaussian_kde(np.squeeze(hmc[:,i]), bw_method = 1).evaluate(t)
-            #        plt.plot(t, ubvi.logsumexp(np.log(hmc_kde), axis = 1-i), linestyle = 'dashdot', color = hmc_color, label = 'HMC', alpha = muted_alpha, lw =    #muted_linewidth)
-
-            #    if rwmh_flag:
-            #        # add rwmh log density based on kde
-            #        #rwmh_kde = stats.gaussian_kde(np.squeeze(rwmh[:,i]), bw_method = 0.15).evaluate(t)
-            #        plt.plot(t, ubvi.logsumexp(np.log(rwmh_kde), axis = 1-i), linestyle = 'dotted', color = rwmh_color, label = 'RWMH', alpha = muted_alpha, lw =  #muted_linewidth)
-
-            #    # add labels and save plot
-            #    if i == 0:
-            #        title = 'logdensities/log-density_comparison_xaxis'
-            #        plt.xlim(xlim)
-            #    if i == 1:
-            #        title = 'logdensities/log-density_comparison_yaxis'
-            #        plt.xlim(ylim)
-            #    plt.legend(fontsize = legend_fontsize)
-            #    plt.savefig(path + title + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
-            #    plt.clf()
-            ############################
-
             # LOG DENSITY PLOT (together)
             # initialize plot with target log density
             t1 = np.linspace(xlim[0], xlim[1], nn)
@@ -433,258 +387,36 @@ if dens_plots:
             plt.tight_layout()
             plt.savefig(path + 'logdensities/log-density_comparison' + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
             plt.clf()
-
-msize = 30
-pltalpha = 0.75
-
-## TIMES PLOT #################
-#if lbvi_flag and bvi_flag and ubvi_flag:
-#    plt.clf()
-#
-#    # plot all reps and tols; for the first plot, add labels
-#    counter = 1
-#    for r in np.arange(1,reps+1):
-#        for tol in tols:
-#            lbvi_times = np.load(inpath + 'lbvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            lbvi_obj = np.load(inpath + 'lbvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            if counter == 1:
-#                plt.scatter(lbvi_times, lbvi_obj, c = lbvi_color, label = 'LBVI', s = msize, alpha = pltalpha)
-#            else:
-#                plt.scatter(lbvi_times, lbvi_obj, c = lbvi_color, s = msize, alpha = pltalpha)
-#
-#            ubvi_times = np.load(inpath + 'ubvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            ubvi_obj = np.load(inpath + 'ubvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            if counter == 1:
-#                plt.scatter(ubvi_times, ubvi_obj, c = ubvi_color, label = 'UBVI', s = msize, alpha = pltalpha)
-#            else:
-#                plt.scatter(ubvi_times, ubvi_obj, c = ubvi_color, s = msize, alpha = pltalpha)
-#
-#            bvi_times = np.load(inpath + 'bvi/cput_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            bvi_obj = np.load(inpath + 'bvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            if counter == 1:
-#                plt.scatter(bvi_times, bvi_obj, c = bvi_color, label = 'BVI', s = msize, alpha = pltalpha)
-#            else:
-#                plt.scatter(bvi_times, bvi_obj, c = bvi_color, s = msize, alpha = pltalpha)
-#
-#            counter += 1
-#
-#
-#    # add labels and save
-#    plt.xlabel('CPU time (s)')
-#    plt.ylabel('KSD')
-#    plt.yscale('log')
-#    #plt.ylim(0, np.log(0.1))
-#    plt.xlim(0,1000)
-#    plt.title('')
-#    plt.suptitle('')
-#    plt.legend(fontsize = legend_fontsize, loc = 'lower right')
-#    plt.savefig(path + 'times.' + extension, dpi=900, bbox_inches='tight')
-####################
-#
-#
-#
-#
-## KERNELS PLOT v2 #################
-#if lbvi_flag and bvi_flag and ubvi_flag:
-#    plt.clf()
-#
-#    # plot all reps and tols; for the first plot, add labels
-#    counter = 1
-#    for r in np.arange(1,reps+1):
-#        for tol in tols:
-#            lbvi_kernels = np.load(inpath + 'lbvi/kernels_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            lbvi_obj = np.load(inpath + 'lbvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            if counter == 1:
-#                #plt.scatter(np.log(lbvi_obj), lbvi_kernels, c = lbvi_color, label = 'LBVI', s = msize, alpha = pltalpha)
-#                plt.scatter(lbvi_kernels, lbvi_obj, c = lbvi_color, label = 'LBVI', s = msize, alpha = pltalpha)
-#            else:
-#                #plt.scatter(np.log(lbvi_obj), lbvi_kernels, c = lbvi_color, s = msize, alpha = pltalpha)
-#                plt.scatter(lbvi_kernels, lbvi_obj, c = lbvi_color, s = msize, alpha = pltalpha)
-#
-#            ubvi_kernels = np.load(inpath + 'ubvi/kernels_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            ubvi_obj = np.load(inpath + 'ubvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            if counter == 1:
-#                plt.scatter(ubvi_kernels, ubvi_obj, c = ubvi_color, label = 'UBVI', s = msize, alpha = pltalpha)
-#            else:
-#                plt.scatter(ubvi_kernels, ubvi_obj, c = ubvi_color, s = msize, alpha = pltalpha)
-#
-#            bvi_kernels = np.load(inpath + 'bvi/kernels_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            bvi_obj = np.load(inpath + 'bvi/obj_' + str(r) + '_' + str(tol) + '.npy')#[-1]
-#            if counter == 1:
-#                plt.scatter(bvi_kernels, bvi_obj, c = bvi_color, label = 'BVI', s = msize, alpha = pltalpha)
-#            else:
-#                plt.scatter(bvi_kernels, bvi_obj, c = bvi_color, s = msize, alpha = pltalpha)
-#
-#            counter += 1
-#
-#
-#    # add labels and save
-#    plt.xlabel('Number of non-zero kernels')
-#    plt.ylabel('KSD')
-#    plt.yscale('log')
-#    #plt.ylim(0, np.log(0.1))
-#    plt.xlim(0,20)
-#    plt.title('')
-#    plt.suptitle('')
-#    plt.legend(fontsize = legend_fontsize, loc = 'lower right')
-#    plt.savefig(path + 'kernels.' + extension, dpi=900, bbox_inches='tight')
-####################
-#
-#
-## TIMES AND KERNELS TOGETHER ###################
-##plt.rcParams.update({'font.size': 12})
-#if lbvi_flag and bvi_flag and ubvi_flag:
-#    plt.clf()
-#    fig, (ax1, ax2) = plt.subplots(2)
-#
-#    # plot all reps and tols; for the first plot, add labels
-#    counter = 1
-#    for r in np.arange(1,reps+1):
-#        for tol in tols:
-#            lbvi_times = np.load(inpath + 'lbvi/cput_' + str(r) + '_' + str(tol) + '.npy')[-1]
-#            lbvi_kernels = np.load(inpath + 'lbvi/kernels_' + str(r) + '_' + str(tol) + '.npy')[-1]
-#            lbvi_obj = np.load(inpath + 'lbvi/obj_' + str(r) + '_' + str(tol) + '.npy')[-1]
-#            if counter == 1:
-#                ax1.scatter(lbvi_times, lbvi_obj, c = lbvi_color, label = 'LBVI', s = msize, alpha = pltalpha)
-#            else:
-#                ax1.scatter(lbvi_times, lbvi_obj, c = lbvi_color, s = msize, alpha = pltalpha)
-#            ax2.scatter(lbvi_kernels, lbvi_obj, c = lbvi_color, s = msize, alpha = pltalpha)
-#
-#            ubvi_times = np.load(inpath + 'ubvi/cput_' + str(r) + '_' + str(tol) + '.npy')[-1]
-#            ubvi_kernels = np.load(inpath + 'ubvi/kernels_' + str(r) + '_' + str(tol) + '.npy')[-1]
-#            ubvi_obj = np.load(inpath + 'ubvi/obj_' + str(r) + '_' + str(tol) + '.npy')[-1]
-#            if counter == 1:
-#                ax1.scatter(ubvi_times, ubvi_obj, c = ubvi_color, label = 'UBVI', s = msize, alpha = pltalpha)
-#            else:
-#                ax1.scatter(ubvi_times, ubvi_obj, c = ubvi_color, s = msize, alpha = pltalpha)
-#            ax2.scatter(ubvi_kernels, ubvi_obj, c = ubvi_color, s = msize, alpha = pltalpha)
-#
-#            bvi_times = np.load(inpath + 'bvi/cput_' + str(r) + '_' + str(tol) + '.npy')[-1]
-#            bvi_kernels = np.load(inpath + 'bvi/kernels_' + str(r) + '_' + str(tol) + '.npy')[-1]
-#            bvi_obj = np.load(inpath + 'bvi/obj_' + str(r) + '_' + str(tol) + '.npy')[-1]
-#            if counter == 1:
-#                ax1.scatter(bvi_times, bvi_obj, c = bvi_color, label = 'BVI', s = msize, alpha = pltalpha)
-#            else:
-#                ax1.scatter(bvi_times, bvi_obj, c = bvi_color, s = msize, alpha = pltalpha)
-#            ax2.scatter(bvi_kernels, bvi_obj, c = bvi_color, s = msize, alpha = pltalpha)
-#
-#            counter += 1
-#
-#
-#    # add labels and save
-#    ax1.set_xlabel('CPU time (s)')
-#    ax1.set_ylabel('KSD')
-#    ax1.set_yscale('log')
-#    #ax1.legend(fontsize = legend_fontsize, loc = 'lower right')
-#    ax2.set_xlabel('Number of non-zero kernels')
-#    ax2.set_ylabel('KSD')
-#    ax2.set_yscale('log')
-#    plt.tight_layout()
-#    plt.savefig(path + 'times_kernels.' + extension, dpi=900, bbox_inches='tight')
-####################
-#
-#
-#
-## TIMES AND KERNELS TOGETHER ORIGINAL VERSION ###################
-#if lbvi_flag and bvi_flag and ubvi_flag:
-#
-#    # init arrays
-#    lbvi_times = np.zeros((reps, tols.shape[0]))
-#    lbvi_kernels = np.zeros((reps,tols.shape[0]))
-#
-#    ubvi_times = np.zeros((reps,tols.shape[0]))
-#    ubvi_kernels = np.zeros((reps,tols.shape[0]))
-#
-#    bvi_times = np.zeros((reps,tols.shape[0]))
-#    bvi_kernels = np.zeros((reps,tols.shape[0]))
-#
-#    # populate arrays
-#    for r in range(reps):
-#        for t in range(tols.shape[0]):
-#            lbvi_times[r,t] = np.load(inpath + 'lbvi/cput_' + str(r+1) + '_' + str(tols[t]) + '.npy')[-1]
-#            lbvi_kernels[r,t] = np.load(inpath + 'lbvi/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')[-1]
-#
-#            ubvi_times[r,t] = np.load(inpath + 'ubvi/cput_' + str(r+1) + '_' + str(tols[t]) + '.npy')[-1]
-#            ubvi_kernels[r,t] = np.load(inpath + 'ubvi/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')[-1]
-#
-#            bvi_times[r,t] = np.load(inpath + 'bvi/cput_' + str(r+1) + '_' + str(tols[t]) + '.npy')[-1]
-#            bvi_kernels[r,t] = np.load(inpath + 'bvi/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')[-1]
-#        # end for
-#    # end for
-#    # create error bars for both plots
-#    lbvi_times_median = np.median(lbvi_times, axis=0)
-#    lbvi_times_err = np.vstack((lbvi_times_median - np.quantile(lbvi_times, 0.25, axis=0), np.quantile(lbvi_times, 0.75, axis=0) - lbvi_times_median))
-#    lbvi_kernels_median = np.median(lbvi_kernels, axis=0)
-#    lbvi_kernels_err = np.vstack((lbvi_kernels_median - np.quantile(lbvi_kernels, 0.25, axis=0), np.quantile(lbvi_kernels, 0.75, axis=0) - lbvi_kernels_median))
-#
-#    ubvi_times_median = np.median(ubvi_times, axis=0)
-#    ubvi_times_err = np.vstack((ubvi_times_median - np.quantile(ubvi_times, 0.25, axis=0), np.quantile(ubvi_times, 0.75, axis=0) - ubvi_times_median))
-#    ubvi_kernels_median = np.median(ubvi_kernels, axis=0)
-#    ubvi_kernels_err = np.vstack((ubvi_kernels_median - np.quantile(ubvi_kernels, 0.25, axis=0), np.quantile(ubvi_kernels, 0.75, axis=0) - ubvi_kernels_median))
-#
-#    bvi_times_median = np.median(bvi_times, axis=0)
-#    bvi_times_err = np.vstack((bvi_times_median - np.quantile(bvi_times, 0.25, axis=0), np.quantile(bvi_times, 0.75, axis=0) - bvi_times_median))
-#    bvi_kernels_median = np.median(bvi_kernels, axis=0)
-#    bvi_kernels_err = np.vstack((bvi_kernels_median - np.quantile(bvi_kernels, 0.25, axis=0), np.quantile(bvi_kernels, 0.75, axis=0) - bvi_kernels_median))
-#
-#    # plot
-#    plt.clf()
-#    fig, (ax1, ax2) = plt.subplots(2)
-#    # times error bars
-#    ax1.errorbar(tols, lbvi_times_median, yerr = lbvi_times_err, linestyle = 'solid', color = lbvi_color, label='LBVI')
-#    ax1.errorbar(tols, ubvi_times_median, yerr = ubvi_times_err, linestyle = 'solid', color = ubvi_color, label='UBVI')
-#    ax1.errorbar(tols, bvi_times_median, yerr = bvi_times_err, linestyle = 'solid', color = bvi_color, label='BVI')
-#
-#    # kernels error bars
-#    ax2.errorbar(tols, lbvi_kernels_median, yerr = lbvi_kernels_err, linestyle = 'solid', color = lbvi_color, label='LBVI')
-#    ax2.errorbar(tols, ubvi_kernels_median, yerr = ubvi_kernels_err, linestyle = 'solid', color = ubvi_color, label='UBVI')
-#    ax2.errorbar(tols, bvi_kernels_median, yerr = bvi_kernels_err, linestyle = 'solid', color = bvi_color, label='BVI')
-#
-#
-#    # add labels and save
-#    ax1.set_xlabel('KSD')
-#    ax1.set_xscale('log')
-#    ax1.set_ylabel('CPU time (s)')
-#    #ax1.legend(fontsize = legend_fontsize, loc = 'lower right')
-#    ax2.set_xlabel('KSD')
-#    ax2.set_xscale('log')
-#    ax2.set_ylabel('# of kernels')
-#    plt.tight_layout()
-#    plt.savefig(path + 'times_kernels_new.' + extension, dpi=900, bbox_inches='tight')
-####################
+##########################
 
 
-# TIMES AND KERNELS TOGETHER FINAL (?) VERSION ###################
-if lbvi_flag and bvi_flag and ubvi_flag:
+# TIMES AND KERNELS TOGETHER ###################
+if lbvi_smc_flag and bvi_flag and ubvi_flag:
 
     # init arrays
     ttols = tols.shape[0]
-    niter = 20
+    niter = np.load(inpath + 'lbvi_smc/cput_1_' + str(tols[0]) + '.npy').shape[0]-1
     lbvi_times = np.zeros((reps*ttols, niter))
     lbvi_kernels = np.zeros((reps*ttols, niter))
-    lbvi_ksd = np.zeros((reps*ttols, niter))
     lbvi_kl = np.zeros((reps*ttols, niter))
 
     ubvi_times = np.zeros((reps*ttols, niter))
     ubvi_kernels = np.zeros((reps*ttols, niter))
-    ubvi_ksd = np.zeros((reps*ttols, niter))
     ubvi_kl = np.zeros((reps*ttols, niter))
 
     bvi_times = np.zeros((reps*ttols, niter))
     bvi_kernels = np.zeros((reps*ttols, niter))
-    bvi_ksd = np.zeros((reps*ttols, niter))
     bvi_kl = np.zeros((reps*ttols, niter))
 
     # populate arrays
     counter = 0
     for r in range(reps):
         for t in range(tols.shape[0]):
-            cput = np.load(inpath + 'lbvi/cput_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
+            cput = np.load(inpath + 'lbvi_smc/cput_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
             tmp_n = cput.shape[0]#+1 # sometimes there will be fewer than niter iterations, so get how many there were and substitute
             lbvi_times[counter,:tmp_n] = cput
-            lbvi_kernels[counter,:tmp_n] = np.load(inpath + 'lbvi/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
-            lbvi_ksd[counter,:tmp_n] = np.load(inpath + 'lbvi/obj_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
-            tmp_kl = np.load(inpath + 'lbvi/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
+            lbvi_kernels[counter,:tmp_n] = np.load(inpath + 'lbvi_smc/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
+            tmp_kl = np.load(inpath + 'lbvi_smc/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')[1:]
             tmp_kl[tmp_kl == np.NINF] = 0. # no worries, further down the road we mask 0's anyway, so this get's masked
             lbvi_kl[counter,:tmp_n] = tmp_kl
 
@@ -692,7 +424,6 @@ if lbvi_flag and bvi_flag and ubvi_flag:
             tmp_n = cput.shape[0]
             ubvi_times[counter,:tmp_n] = cput
             ubvi_kernels[counter,:tmp_n] = np.load(inpath + 'ubvi/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')
-            ubvi_ksd[counter,:tmp_n] = np.load(inpath + 'ubvi/obj_' + str(r+1) + '_' + str(tols[t]) + '.npy')
             tmp_kl = np.load(inpath + 'ubvi/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')
             tmp_kl[tmp_kl == np.NINF] = 0. # no worries, further down the road we mask 0's anyway, so this get's masked
             ubvi_kl[counter,:tmp_n] = tmp_kl
@@ -701,7 +432,6 @@ if lbvi_flag and bvi_flag and ubvi_flag:
             tmp_n = cput.shape[0]
             bvi_times[counter,:tmp_n] = cput
             bvi_kernels[counter,:tmp_n] = np.load(inpath + 'bvi/kernels_' + str(r+1) + '_' + str(tols[t]) + '.npy')
-            bvi_ksd[counter,:tmp_n] = np.load(inpath + 'bvi/obj_' + str(r+1) + '_' + str(tols[t]) + '.npy')
             tmp_kl = np.load(inpath + 'bvi/kl_' + str(r+1) + '_' + str(tols[t]) + '.npy')
             tmp_kl[tmp_kl == np.NINF] = 0. # no worries, further down the road we mask 0's anyway, so this get's masked
             bvi_kl[counter,:tmp_n] = tmp_kl
@@ -709,12 +439,6 @@ if lbvi_flag and bvi_flag and ubvi_flag:
             counter += 1
         # end for
     # end for
-
-    # make sure kl's are positive by shifting by the min
-    #minkl = np.abs(np.amin(np.minimum(lbvi_kl, np.minimum(ubvi_kl, bvi_kl)))) + 1e-100
-    #lbvi_kl += minkl
-    #ubvi_kl += minkl
-    #bvi_kl += minkl
 
 
     # create error bars for all plots via masked arrays (to get rid of placeholder 0's where there were no iterations)
@@ -730,12 +454,6 @@ if lbvi_flag and bvi_flag and ubvi_flag:
     lbvi_kernels_masked = npc.ma.filled(lbvi_kernels_masked, np.nan) # fill masked values with nan to then use nanquantile
     lbvi_kernels_err = np.vstack((lbvi_kernels_median - np.nanquantile(lbvi_kernels_masked, 0.25, axis=0), np.nanquantile(lbvi_kernels_masked, 0.75, axis=0) - lbvi_kernels_median))
     lbvi_kernels_err2 = np.vstack((lbvi_kernels_median - np.nanquantile(lbvi_kernels_masked, 0.05, axis=0), np.nanquantile(lbvi_kernels_masked, 0.95, axis=0) - lbvi_kernels_median))
-
-    lbvi_ksd_masked = npc.ma.masked_where(lbvi_ksd == 0, lbvi_ksd) # mask 0's
-    lbvi_ksd_median = npc.ma.median(lbvi_ksd_masked, axis=0)
-    lbvi_ksd_masked = npc.ma.filled(lbvi_ksd_masked, np.nan) # fill masked values with nan to then use nanquantile
-    lbvi_ksd_err = np.vstack((lbvi_ksd_median - np.nanquantile(lbvi_ksd_masked, 0.25, axis=0), np.nanquantile(lbvi_ksd_masked, 0.75, axis=0) - lbvi_ksd_median))
-    lbvi_ksd_err2 = np.vstack((lbvi_ksd_median - np.nanquantile(lbvi_ksd_masked, 0.05, axis=0), np.nanquantile(lbvi_ksd_masked, 0.95, axis=0) - lbvi_ksd_median))
 
     lbvi_kl_masked = npc.ma.masked_where(lbvi_kl == 0, lbvi_kl) # mask 0's
     lbvi_kl_median = npc.ma.median(lbvi_kl_masked, axis=0)
@@ -756,12 +474,6 @@ if lbvi_flag and bvi_flag and ubvi_flag:
     ubvi_kernels_err = np.vstack((ubvi_kernels_median - np.nanquantile(ubvi_kernels_masked, 0.25, axis=0), np.nanquantile(ubvi_kernels_masked, 0.75, axis=0) - ubvi_kernels_median))
     ubvi_kernels_err2 = np.vstack((ubvi_kernels_median - np.nanquantile(ubvi_kernels_masked, 0.05, axis=0), np.nanquantile(ubvi_kernels_masked, 0.95, axis=0) - ubvi_kernels_median))
 
-    ubvi_ksd_masked = npc.ma.masked_where(ubvi_ksd == 0, ubvi_ksd) # mask 0's
-    ubvi_ksd_median = npc.ma.median(ubvi_ksd_masked, axis=0)
-    ubvi_ksd_masked = npc.ma.filled(ubvi_ksd_masked, np.nan) # fill masked values with nan to then use nanquantile
-    ubvi_ksd_err = np.vstack((ubvi_ksd_median - np.nanquantile(ubvi_ksd_masked, 0.25, axis=0), np.nanquantile(ubvi_ksd_masked, 0.75, axis=0) - ubvi_ksd_median))
-    ubvi_ksd_err2 = np.vstack((ubvi_ksd_median - np.nanquantile(ubvi_ksd_masked, 0.05, axis=0), np.nanquantile(ubvi_ksd_masked, 0.95, axis=0) - ubvi_ksd_median))
-
     ubvi_kl_masked = npc.ma.masked_where(ubvi_kl == 0, ubvi_kl) # mask 0's
     ubvi_kl_median = npc.ma.median(ubvi_kl_masked, axis=0)
     ubvi_kl_masked = npc.ma.filled(ubvi_kl_masked, np.nan) # fill masked values with nan to then use nanquantile
@@ -781,18 +493,11 @@ if lbvi_flag and bvi_flag and ubvi_flag:
     bvi_kernels_err = np.vstack((bvi_kernels_median - np.nanquantile(bvi_kernels_masked, 0.25, axis=0), np.nanquantile(bvi_kernels_masked, 0.75, axis=0) - bvi_kernels_median))
     bvi_kernels_err2 = np.vstack((bvi_kernels_median - np.nanquantile(bvi_kernels_masked, 0.05, axis=0), np.nanquantile(bvi_kernels_masked, 0.95, axis=0) - bvi_kernels_median))
 
-    bvi_ksd_masked = npc.ma.masked_where(bvi_ksd == 0, bvi_ksd) # mask 0's
-    bvi_ksd_median = npc.ma.median(bvi_ksd_masked, axis=0)
-    bvi_ksd_masked = npc.ma.filled(bvi_ksd_masked, np.nan) # fill masked values with nan to then use nanquantile
-    bvi_ksd_err = np.vstack((bvi_ksd_median - np.nanquantile(bvi_ksd_masked, 0.25, axis=0), np.nanquantile(bvi_ksd_masked, 0.75, axis=0) - bvi_ksd_median))
-    bvi_ksd_err2 = np.vstack((bvi_ksd_median - np.nanquantile(bvi_ksd_masked, 0.05, axis=0), np.nanquantile(bvi_ksd_masked, 0.95, axis=0) - bvi_ksd_median))
-
-
     bvi_kl_masked = npc.ma.masked_where(bvi_kl == 0, bvi_kl) # mask 0's
     bvi_kl_median = npc.ma.median(bvi_kl_masked, axis=0)
     bvi_kl_masked = npc.ma.filled(bvi_kl_masked, np.nan) # fill masked values with nan to then use nanquantile
     bvi_kl_err = np.vstack((bvi_kl_median - np.nanquantile(bvi_kl_masked, 0.25, axis=0), np.nanquantile(bvi_kl_masked, 0.75, axis=0) - bvi_kl_median))
-    bvi_kl_err2 = np.vstack((bvi_kl_median - np.nanquantile(bvi_kl_masked, 0.05, axis=0), np.nanquantile(bvi_ksd_masked, 0.95, axis=0) - bvi_kl_median))
+    bvi_kl_err2 = np.vstack((bvi_kl_median - np.nanquantile(bvi_kl_masked, 0.05, axis=0), np.nanquantile(bvi_kl_masked, 0.95, axis=0) - bvi_kl_median))
 
     # plot
     #niter = 30
@@ -823,89 +528,30 @@ if lbvi_flag and bvi_flag and ubvi_flag:
     ax2.plot(range(1,niter+1), ubvi_kernels_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
     ax2.plot(range(1,niter+1), bvi_kernels_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
 
-    # ksd error bars
-    #ax3.errorbar(range(1,niter+1), lbvi_ksd_median[:niter], yerr = lbvi_ksd_err2[:,:niter], linestyle = 'dotted', color = lbvi_color, alpha = ebalpha2)
-    #ax3.errorbar(range(1,niter+1), ubvi_ksd_median[:niter], yerr = ubvi_ksd_err2[:,:niter], linestyle = 'dotted', color = ubvi_color, alpha = ebalpha2)
-    #ax3.errorbar(range(1,niter+1), bvi_ksd_median[:niter], yerr = bvi_ksd_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
-    ax3.errorbar(range(1,niter+1), lbvi_ksd_median[:niter], yerr = lbvi_ksd_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha)
-    ax3.errorbar(range(1,niter+1), ubvi_ksd_median[:niter], yerr = ubvi_ksd_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha)
-    ax3.errorbar(range(1,niter+1), bvi_ksd_median[:niter], yerr = bvi_ksd_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
-    ax3.plot(range(1,niter+1), lbvi_ksd_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI')
-    ax3.plot(range(1,niter+1), ubvi_ksd_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
-    ax3.plot(range(1,niter+1), bvi_ksd_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
+    # kl error bars
+    #ax3.errorbar(range(1,niter+1), lbvi_kl_median[:niter], yerr = lbvi_kl_err2[:,:niter], linestyle = 'dotted', color = lbvi_color, alpha = ebalpha2)
+    #ax3.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err2[:,:niter], linestyle = 'dotted', color = ubvi_color, alpha = ebalpha2)
+    #ax3.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
+    ax3.errorbar(range(1,niter+1), lbvi_kl_median[:niter], yerr = lbvi_kl_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha)
+    ax3.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha)
+    ax3.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
+    ax3.plot(range(1,niter+1), lbvi_kl_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI')
+    ax3.plot(range(1,niter+1), ubvi_kl_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
+    ax3.plot(range(1,niter+1), bvi_kl_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
 
     # add labels and save
     #ax1.set_xlabel('Iteration #')
     ax1.set_ylabel('CPU time (s)')
-    #ax1.legend(fontsize = 'xx-small', loc = 'upper left')
+    ax1.legend(fontsize = 'xx-small', loc = 'upper left')
     #ax2.set_xlabel('Iteration #')
     ax2.set_ylabel('# of kernels')
 
     ax3.set_xlabel('Iteration #')
-    ax3.set_ylabel('KSD')
-    ax3.set_yscale('log')
+    ax3.set_ylabel('KL estimate')
 
     plt.tight_layout()
-    plt.savefig(path + 'times_kernels.' + extension, dpi=900, bbox_inches='tight')
+    plt.savefig(path + 'times_kernels_kl.' + extension, dpi=900, bbox_inches='tight')
 ###################
-
-
-# TIMES AND KERNELS TOGETHER WITH KL INSTEAD OF KSD ###################
-# plot
-#niter = 30
-plt.clf()
-fig, (ax1, ax2, ax3) = plt.subplots(3)
-ebalpha = 0.75
-ebalpha2 = 0.5
-
-# times error bars
-#ax1.errorbar(range(1,niter+1), lbvi_times_median[:niter], yerr = lbvi_times_err2[:,:niter], linestyle = 'dotted', color = lbvi_color, alpha = ebalpha2)
-#ax1.errorbar(range(1,niter+1), ubvi_times_median[:niter], yerr = ubvi_times_err2[:,:niter], linestyle = 'dotted', color = ubvi_color, alpha = ebalpha2)
-#ax1.errorbar(range(1,niter+1), bvi_times_median[:niter], yerr = bvi_times_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
-ax1.errorbar(range(1,niter+1), lbvi_times_median[:niter], yerr = lbvi_times_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha)
-ax1.errorbar(range(1,niter+1), ubvi_times_median[:niter], yerr = ubvi_times_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha)
-ax1.errorbar(range(1,niter+1), bvi_times_median[:niter], yerr = bvi_times_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
-ax1.plot(range(1,niter+1), lbvi_times_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI')
-ax1.plot(range(1,niter+1), ubvi_times_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
-ax1.plot(range(1,niter+1), bvi_times_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
-
-# kernels error bars
-#ax2.errorbar(range(1,niter+1), lbvi_kernels_median[:niter], yerr = lbvi_kernels_err2[:,:niter], linestyle = 'dotted', color = lbvi_color, alpha = ebalpha2)
-#ax2.errorbar(range(1,niter+1), ubvi_kernels_median[:niter], yerr = ubvi_kernels_err2[:,:niter], linestyle = 'dotted', color = ubvi_color, alpha = ebalpha2)
-#ax2.errorbar(range(1,niter+1), bvi_kernels_median[:niter], yerr = bvi_kernels_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
-ax2.errorbar(range(1,niter+1), lbvi_kernels_median[:niter], yerr = lbvi_kernels_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha)
-ax2.errorbar(range(1,niter+1), ubvi_kernels_median[:niter], yerr = ubvi_kernels_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha)
-ax2.errorbar(range(1,niter+1), bvi_kernels_median[:niter], yerr = bvi_kernels_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
-ax2.plot(range(1,niter+1), lbvi_kernels_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI')
-ax2.plot(range(1,niter+1), ubvi_kernels_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
-ax2.plot(range(1,niter+1), bvi_kernels_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
-
-# kl error bars
-#ax3.errorbar(range(1,niter+1), lbvi_kl_median[:niter], yerr = lbvi_kl_err2[:,:niter], linestyle = 'dotted', color = lbvi_color, alpha = ebalpha2)
-#ax3.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err2[:,:niter], linestyle = 'dotted', color = ubvi_color, alpha = ebalpha2)
-#ax3.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
-ax3.errorbar(range(1,niter+1), lbvi_kl_median[:niter], yerr = lbvi_kl_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha)
-ax3.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha)
-ax3.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
-ax3.plot(range(1,niter+1), lbvi_kl_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI')
-ax3.plot(range(1,niter+1), ubvi_kl_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
-ax3.plot(range(1,niter+1), bvi_kl_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
-
-# add labels and save
-#ax1.set_xlabel('Iteration #')
-ax1.set_ylabel('CPU time (s)')
-#ax1.legend(fontsize = 'xx-small', loc = 'upper left')
-#ax2.set_xlabel('Iteration #')
-ax2.set_ylabel('# of kernels')
-
-ax3.set_xlabel('Iteration #')
-ax3.set_ylabel('KL estimate')
-#ax3.set_yscale('log')
-
-plt.tight_layout()
-plt.savefig(path + 'times_kernels_kl.' + extension, dpi=900, bbox_inches='tight')
-###################
-
 
 
 # KL ###################
@@ -920,11 +566,11 @@ ebalpha2 = 0.5
 #plt.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err2[:,:niter], linestyle = 'dotted', color = ubvi_color, alpha = ebalpha2)
 #plt.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
 plt.errorbar(range(1,niter+1), lbvi_kl_median[:niter], yerr = lbvi_kl_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha)
-#plt.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha)
-#plt.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
+plt.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha)
+plt.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
 plt.plot(range(1,niter+1), lbvi_kl_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI')
-#plt.plot(range(1,niter+1), ubvi_kl_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
-#plt.plot(range(1,niter+1), bvi_kl_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
+plt.plot(range(1,niter+1), ubvi_kl_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
+plt.plot(range(1,niter+1), bvi_kl_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
 
 # add labels and save
 
