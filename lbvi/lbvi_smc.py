@@ -591,9 +591,10 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     ##########################
     ##########################
     plt_timer = time.perf_counter()
-    if verbose and plot: print('Plotting approximation')
-    plt_name = plot_path + 'iter_0.jpg'
-    plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plot_lims, B = 10000)
+    if plot:
+        if verbose: print('Plotting approximation')
+        plt_name = plot_path + 'iter_0.jpg'
+        plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plot_lims, B = 10000)
     plt_timer = time.perf_counter() - plt_timer
 
     ##########################
@@ -648,13 +649,14 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
 
         # plot approximation
         plt_timer = time.perf_counter()
-        if verbose and plot: print('Plotting approximation')
-        plt_name = plot_path + 'iter_' + str(iter) + '.jpg'
-        plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plot_lims, B = 10000)
+        if plot:
+            if verbose: print('Plotting approximation')
+            plt_name = plot_path + 'iter_' + str(iter) + '.jpg'
+            plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plot_lims, B = 10000)
         plt_timer = time.perf_counter() - plt_timer
 
         # update cpu times and active components
-        cpu_time = np.append(cpu_time, time.perf_counter() - t0 - obj_timer -plt_timer)
+        cpu_time = np.append(cpu_time, time.perf_counter() - t0 - obj_timer - plt_timer)
         active_kernels = np.append(active_kernels, w[w>0].shape[0])
 
         # stats printout
