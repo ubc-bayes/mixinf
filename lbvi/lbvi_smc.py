@@ -358,6 +358,7 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
     N = y.shape[0]
     K = y.shape[1]
     trimmed_beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
+    smc_eps = beta_ls[0][0]
     kls = np.zeros(N)
     beta_star = np.zeros(N)
 
@@ -369,7 +370,7 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
         else:
             # calculate minimizer of second order approximation to kl
             beta_star[n] = beta[n]-b_gamma*kl_grad_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)/kl_grad2_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)
-            beta_star[n] = min(1, max(0, beta_star[n]))
+            beta_star[n] = min(1, max(smc_eps, beta_star[n]))
 
             # calculate kl estimate at minimizer
             tmp_trimmed_beta_ls = trimmed_beta_ls.copy()
@@ -552,8 +553,9 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     t0 = time.perf_counter()
     N = y.shape[0]
     K = y.shape[1]
-    betas = np.zeros(N)
-    beta_ls = [np.linspace(0,1,int(1/smc_eps)+1) for n in range(N)]
+    betas = smc_eps*np.ones(N)
+    #beta_ls = [np.linspace(0,1,int(1/smc_eps)+1) for n in range(N)]
+    beta_ls = [np.linspace(smc_eps,1,int(1/smc_eps)) for n in range(N)]
     w = np.zeros(N)
 
 
