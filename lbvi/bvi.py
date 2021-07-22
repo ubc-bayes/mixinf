@@ -78,9 +78,9 @@ def mixture_logpdf(x, mus, Sigmas, alphas):
     return np.log(out)
 
 
-def KL(logq, sample_q, logp, B = 1000):
+def KL(logq, sample_q, logp, B = 100000):
     theta = sample_q(B)
-    return np.mean(logq(theta) - logp(theta), axis=-1)
+    return np.abs(np.mean(logq(theta) - logp(theta)))
 
 
 
@@ -336,7 +336,7 @@ def choose_kernel(y, logp, logq = None, sample_q = None, verbose = False):
         if logq is None:
             # for first iteration, calculate individual KL divergences
             # between target and components with N(y_n, 9I)
-            kls[n] = KL(logq = tmp_logh, sample_q = tmp_sample_h, logp = logp, B = 1000)
+            kls[n] = KL(logq = tmp_logh, sample_q = tmp_sample_h, logp = logp, B = 10000)
         else:
             # for other iterations, add each component to mixture with small weight
             # and calculate KL
@@ -351,7 +351,7 @@ def choose_kernel(y, logp, logq = None, sample_q = None, verbose = False):
                 out[sizeq:] = tmp_sample_h(sizeh)
                 return out
 
-            kls[n] = KL(logq = tmp_logq, sample_q = tmp_sample_q, logp = logp, B = 1000)
+            kls[n] = KL(logq = tmp_logq, sample_q = tmp_sample_q, logp = logp, B = 10000)
     # end for
     return y[np.argmin(kls),:].reshape(1,K)
 
@@ -653,10 +653,10 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
         obj_timer = time.perf_counter() - obj_timer0
 
         # assess convergence
-        if stop_up is not None:
-            if objs[-1] < tol: convergence = True
-        else:
-            if kls[-1] < tol: convergence = True
+        #if stop_up is not None:
+        #    if objs[-1] < tol: convergence = True
+        #else:
+        #    if kls[-1] < tol: convergence = True
 
         # calculate cumulative computing time and active kernels
         if alpha == 0:
