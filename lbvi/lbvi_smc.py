@@ -489,6 +489,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
     K = y.shape[1]
     beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
     kls = np.zeros(N)
+    grads = np.zeros(N)
     alpha_star = np.zeros(N)
 
     for n in range(N):
@@ -500,9 +501,11 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
             kls[n] = kl(logq, logp, sampler, B = B)
         else:
             # calcualte minimizer of second order approximation to kl
-            alpha_star[n] = -w_gamma*kl_grad_alpha(0, logp, y, w, beta, beta_ls, r_sd, smc, B, n)/kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
-            #print(alpha_star[n]*1e100)
-            alpha_star[n] = min(1-w[n], max(-w[n], alpha_star[n])) # alpha_star in [-wk, 1-wk]
+            grad = kl_grad_alpha(0, logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+            grads[n] = grad
+            grad2 = kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+            alpha_star[n] = -w_gamma*grad/grad2
+            alpha_star[n] = min(1, max(0, alpha_star[n])) # alpha_star in [0,1]
 
             # calculate kl estimate at minimizer
             tmp_w = w*(1-alpha_star[n]/(1-w[n]))
@@ -510,6 +513,8 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
             tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
             tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
             kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+
+            #print('y: ' + str(y[n,:]) + '   |   α: ' + str(alpha_star[n]) + '   |   Gradient: ' + str(grad) + '   |   KL: ' + str(kls[n]))
         # end if
     # end for
     argmin = np.argmin(kls)
@@ -544,7 +549,7 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
         alpha -= w_schedule(k+1)*Dalpha
         alpha = min(1.,max(0.,alpha))
         if verbose and (k+1)%50==0: print(str(k+1) + '/' + str(maxiter) + '   |   Gradient : ' + str(Dalpha) + '  |   α: ' + str(alpha), end='\n')
-        if verbose and k==maxiter-1: print(str(k+1) + '/' + str(maxiter) + '   | Gradient : ' + str(Dalpha) + '   |   α: ' + str(alpha), end='\n')
+        #if verbose and k==maxiter-1: print(str(k+1) + '/' + str(maxiter) + '   | Gradient : ' + str(Dalpha) + '   |   α: ' + str(alpha), end='\n')
     # end for
     w_opt = (1-alpha)*w
     w_opt[n] += alpha
@@ -588,9 +593,10 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     t0 = time.perf_counter()
     N = y.shape[0]
     K = y.shape[1]
-    betas = smc_eps*np.ones(N)
-    #beta_ls = [np.linspace(0,1,int(1/smc_eps)+1) for n in range(N)]
-    beta_ls = [np.linspace(smc_eps,1,int(1/smc_eps)) for n in range(N)]
+    beta_ls = [np.linspace(0,1,int(1/smc_eps)+1) for n in range(N)]
+    betas = np.zeros(N)
+    #betas = smc_eps*np.ones(N)
+    #beta_ls = [np.linspace(smc_eps,1,int(1/smc_eps)) for n in range(N)]
     w = np.zeros(N)
     if w_schedule is None: w_schedule = lambda k : 1./np.sqrt(k)
 
@@ -663,27 +669,27 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
         if verbose: print('Iteration ' + str(iter) + '/' + str(maxiter))
 
         # calculate optimal weight perturbation
-        if verbose: print('Determining optimal weight')
+        if verbose: print('Determining optimal α')
         w_argmin,w_disc,alpha_s = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, w_gamma, B, verbose)
 
         # calculate optimal beta perturbation
-        if verbose: print('Determining optimal beta')
+        if verbose: print('Determining optimal β')
         beta_argmin,beta_disc,beta_s = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, b_gamma, B, verbose)
 
-        if verbose: print('Optimal (α*, β*) = (' + str(alpha_s) + ', ' + str(beta_s) + ')')
+        if verbose: print('Preliminary (α*, β*) = (' + str(alpha_s) + ', ' + str(beta_s) + ')')
 
         # determine whether to perturb weight or beta and update active set
         if w_disc < beta_disc:
             if verbose: print('Optimizing the weight of ' + str(y[w_argmin]))
-            #w = (1-alpha_s)*w                     # evenly scale down weights
-            #w[w_argmin] = w[w_argmin] + alpha_s   # add alpha bit to argmin weight
+            w = (1-alpha_s)*w                     # evenly scale down weights
+            w[w_argmin] = w[w_argmin] + alpha_s   # add alpha bit to argmin weight
             active = np.append(active, w_argmin)
-            w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, w_maxiter, verbose)
-            if verbose: print('Optimal α*: ' + str(alpha_s))
+            #w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, w_maxiter, verbose)
+            #if verbose: print('Optimal α*: ' + str(alpha_s))
         else:
             if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
-            #betas[beta_argmin] = beta_s
-            betas[beta_argmin] += smc_eps
+            betas[beta_argmin] = beta_s
+            #betas[beta_argmin] = min(1.,betas[beta_argmin]+smc_eps)
             active = np.append(active, beta_argmin)
 
         # update mixture

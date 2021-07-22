@@ -115,7 +115,7 @@ def w_maxiters(k, long_opt = False):
 
 #def w_schedule(k): return 0.01
 def w_schedule(k): return 0.001
-
+smc_w_schedule = lambda k : 1e-1/np.sqrt(k)
 
 # CREATE UBVI SCHEDULES
 adam_learning_rate= lambda itr : 1./np.sqrt(itr+1)
