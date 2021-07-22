@@ -40,6 +40,7 @@ def w_schedule(k):
     #if k == 0: return 0.1
     return 0.005
 
+smc_w_schedule = lambda k : 1./np.sqrt(k)
 
 # CREATE UBVI SCHEDULES
 adam_learning_rate= lambda itr : 10./np.sqrt(itr+1)
