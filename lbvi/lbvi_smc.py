@@ -515,7 +515,40 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
     argmin = np.argmin(kls)
     return argmin, kls[argmin], alpha_star[argmin]
 
+def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B = 10000, maxiter = 1000, verbose = False):
+    """
+    Optimize the weight of nth component via SGD
+    Input:
+    alpha_s : float, initialization point
+    n       : int, component to optimize
+    logp    : function, log target density
+    y       : (N,K) array with locations
+    w       : (N,) array, weights of components
+    beta    : (N,) array, betas of components
+    beta_ls : list of np arrays, contains discretizations of components
+    r_sd    : float, std deviation of reference distributions
+    smc     : function, generates samples via SMC
+    w_gamma : float, newton's step size
+    B       : int, number of particles ot use in SMC and to estimate gradients
+    maxiter : int, maximum number of iterations
+    verbose : boolean, whether to print messages
 
+    Out:
+    w_opt   : (N,) array with optimal weights
+    alpha   : float, optimal value of alpha
+    """
+    alpha = alpha_s
+    for k in range(maxiter):
+        #if verbose: print(str(k+1) + '/' + str(maxiter), end='\r')
+        Dalpha = kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+        alpha -= w_schedule(k+1)*Dalpha
+        alpha = min(1.,max(0.,alpha))
+        if verbose and (k+1)%50==0: print(str(k+1) + '/' + str(maxiter) + '   |   Gradient : ' + str(Dalpha) + '  |   α: ' + str(alpha), end='\n')
+        if verbose and k==maxiter-1: print(str(k+1) + '/' + str(maxiter) + '   | Gradient : ' + str(Dalpha) + '   |   α: ' + str(alpha), end='\n')
+    # end for
+    w_opt = (1-alpha)*w
+    w_opt[n] += alpha
+    return w_opt, alpha
 
 
 
@@ -524,7 +557,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
 #### MAIN FUNCTION #######
 ##########################
 ##########################
-def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 1., b_gamma = 1., B = 1000, verbose = False, plot = False, plot_path = '', plot_lims = [-10,10,-10,10], gif = False):
+def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 1., w_schedule = None, w_maxiter = 1000, b_gamma = 1., B = 1000, verbose = False, plot = False, plot_path = '', plot_lims = [-10,10,-10,10], gif = False):
     """
     Run LBVI with SMC components
     Input:
@@ -535,6 +568,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     r_sd       : float, std deviation used for reference distributions; if None, 3 will be used
     maxiter    : int, maximum number of iterations to run the main loop for
     w_gamma    : float, newton's step size for weight optimization
+    w_schedule : function or None, receives iteration number and returns step size (defaults to 1/sqrt(iter) if None)
+    w_maxiter  : int, maximum number of iterations for step size optimization
     b_gamma    : float, newton's step size for beta optimization
     B          : int, number of MC samples to use for gradient estimation
     verbose    : boolean, whether to print messages
@@ -557,6 +592,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     #beta_ls = [np.linspace(0,1,int(1/smc_eps)+1) for n in range(N)]
     beta_ls = [np.linspace(smc_eps,1,int(1/smc_eps)) for n in range(N)]
     w = np.zeros(N)
+    if w_schedule is None: w_schedule = lambda k : 1./np.sqrt(k)
 
 
     ##########################
@@ -638,13 +674,16 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
 
         # determine whether to perturb weight or beta and update active set
         if w_disc < beta_disc:
-            if verbose: print('Modifying the weight of ' + str(y[w_argmin]))
-            w = (1-alpha_s)*w                     # evenly scale down weights
-            w[w_argmin] = w[w_argmin] + alpha_s   # add alpha bit to argmin weight
+            if verbose: print('Optimizing the weight of ' + str(y[w_argmin]))
+            #w = (1-alpha_s)*w                     # evenly scale down weights
+            #w[w_argmin] = w[w_argmin] + alpha_s   # add alpha bit to argmin weight
             active = np.append(active, w_argmin)
+            w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, w_maxiter, verbose)
+            if verbose: print('Optimal α*: ' + str(alpha_s))
         else:
             if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
-            betas[beta_argmin] = beta_s
+            #betas[beta_argmin] = beta_s
+            betas[beta_argmin] += smc_eps
             active = np.append(active, beta_argmin)
 
         # update mixture
@@ -671,7 +710,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
 
         # stats printout
         if verbose:
-            print('Active components: ' + str(y[active, 0:min(K,3)]))
+            print('Active components: ' + str(np.squeeze(y[active, 0:min(K,3)])))
             print('Weights: ' + str(w[active]))
             print('Betas: ' + str(betas[active]))
             print('KL: ' + str(obj[-1]))
