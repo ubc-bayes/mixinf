@@ -161,8 +161,8 @@ def norm_logpdf(x, mean, sd):
     """
     log PDF of isotropic Normal(loc, sd x I_K)
     Input:
-    x    : nd-array, pdf will be evaluated at x; last axis corresponds to dimension and has shape K
-    mean : shape(K,) array, mean of the distribution
+    x    : (N,K) array, pdf will be evaluated at x; last axis corresponds to dimension and has shape K
+    mean : (K,) array, mean of the distribution
     sd   : float, isotropic standard deviation
     """
     K = x.shape[-1]
@@ -369,8 +369,10 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
             kls[n] = np.inf
         else:
             # calculate minimizer of second order approximation to kl
-            beta_star[n] = beta[n]-b_gamma*kl_grad_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)/kl_grad2_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)
-            beta_star[n] = min(1, max(smc_eps, beta_star[n]))
+            grad = kl_grad_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)
+            grad2 = kl_grad2_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)
+            beta_star[n] = beta[n]-b_gamma*grad/grad2
+            beta_star[n] = min(1, max(smc_eps, beta_star[n])) # iteratively scale until feasible point
 
             # calculate kl estimate at minimizer
             tmp_trimmed_beta_ls = trimmed_beta_ls.copy()
@@ -378,6 +380,8 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
             tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls, B)
             tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls)
             kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+
+            print('y: ' + str(y[n,:]) + '   |   β: ' + str(beta_star[n]) + '   |   Gradient: ' + str(grad) + '   |   Hessian: ' + str(grad2) + '   |   KL: ' + str(kls[n]))
         # end if
     # end for
     argmin = np.argmin(kls)
@@ -493,7 +497,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
     alpha_star = np.zeros(N)
 
     for n in range(N):
-        if verbose: print(str(n+1) + '/' + str(N), end='\r')
+        #if verbose: print(str(n+1) + '/' + str(N), end='\r')
         if w[n] == 1:
             # can't perturb weight if it's the only element in mixture
             logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
@@ -501,11 +505,11 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
             kls[n] = kl(logq, logp, sampler, B = B)
         else:
             # calcualte minimizer of second order approximation to kl
-            grad = kl_grad_alpha(0, logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+            grad = kl_grad_alpha(0., logp, y, w, beta, beta_ls, r_sd, smc, B, n)
             grads[n] = grad
             grad2 = kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
             alpha_star[n] = -w_gamma*grad/grad2
-            alpha_star[n] = min(1, max(0, alpha_star[n])) # alpha_star in [0,1]
+            alpha_star[n] = min(1., max(0., alpha_star[n])) # alpha_star in [0,1]
 
             # calculate kl estimate at minimizer
             tmp_w = w*(1-alpha_star[n]/(1-w[n]))
@@ -514,7 +518,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
             tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
             kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
 
-            #print('y: ' + str(y[n,:]) + '   |   α: ' + str(alpha_star[n]) + '   |   Gradient: ' + str(grad) + '   |   KL: ' + str(kls[n]))
+            print('y: ' + str(y[n,:]) + '   |   α: ' + str(alpha_star[n]) + '   |   Gradient: ' + str(grad) + '   |   Hessian: ' + str(grad2) + '   |   KL: ' + str(kls[n]))
         # end if
     # end for
     argmin = np.argmin(kls)
@@ -543,13 +547,24 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
     alpha   : float, optimal value of alpha
     """
     alpha = alpha_s
+    if verbose:
+        tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
+        tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, beta_ls)
+        obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+        print('0/' + str(maxiter) + '   |   α: '  + str(alpha) + '   |   Gradient : ' + str(kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n)) + '  |   KL: ' + str(obj), end='\n')
     for k in range(maxiter):
         #if verbose: print(str(k+1) + '/' + str(maxiter), end='\r')
         Dalpha = kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n)
         alpha -= w_schedule(k+1)*Dalpha
         alpha = min(1.,max(0.,alpha))
-        if verbose and (k+1)%50==0: print(str(k+1) + '/' + str(maxiter) + '   |   Gradient : ' + str(Dalpha) + '  |   α: ' + str(alpha), end='\n')
-        #if verbose and k==maxiter-1: print(str(k+1) + '/' + str(maxiter) + '   | Gradient : ' + str(Dalpha) + '   |   α: ' + str(alpha), end='\n')
+        if verbose and (k+1)%50==0:
+            # estimate kl and print info
+            tmp_w = w*(1-alpha)
+            tmp_w[n] = w[n] + alpha
+            tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
+            tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
+            obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+            print(str(k+1) + '/' + str(maxiter) + '   |   α: '  + str(alpha) + '   |   Gradient : ' + str(Dalpha) + '  |   KL: ' + str(obj), end='\n')
     # end for
     w_opt = (1-alpha)*w
     w_opt[n] += alpha
@@ -595,8 +610,6 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     K = y.shape[1]
     beta_ls = [np.linspace(0,1,int(1/smc_eps)+1) for n in range(N)]
     betas = np.zeros(N)
-    #betas = smc_eps*np.ones(N)
-    #beta_ls = [np.linspace(smc_eps,1,int(1/smc_eps)) for n in range(N)]
     w = np.zeros(N)
     if w_schedule is None: w_schedule = lambda k : 1./np.sqrt(k)
 
@@ -681,15 +694,14 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
         # determine whether to perturb weight or beta and update active set
         if w_disc < beta_disc:
             if verbose: print('Optimizing the weight of ' + str(y[w_argmin]))
-            w = (1-alpha_s)*w                     # evenly scale down weights
-            w[w_argmin] = w[w_argmin] + alpha_s   # add alpha bit to argmin weight
+            #w = (1-alpha_s)*w                     # evenly scale down weights
+            #w[w_argmin] = w[w_argmin] + alpha_s   # add alpha bit to argmin weight
             active = np.append(active, w_argmin)
-            #w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, w_maxiter, verbose)
-            #if verbose: print('Optimal α*: ' + str(alpha_s))
+            w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, w_maxiter, verbose)
+            if verbose: print('Optimal α*: ' + str(alpha_s))
         else:
             if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
             betas[beta_argmin] = beta_s
-            #betas[beta_argmin] = min(1.,betas[beta_argmin]+smc_eps)
             active = np.append(active, beta_argmin)
 
         # update mixture
