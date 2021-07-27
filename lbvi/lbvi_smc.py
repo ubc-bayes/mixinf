@@ -643,6 +643,7 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
     alpha   : float, optimal value of alpha
     """
     alpha = alpha_s
+
     if verbose:
         tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
         if Zs is None:
@@ -651,12 +652,13 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
         else:
             obj = kl_mixture(y, w, samples, beta, Zs, logp)
         print('0/' + str(maxiter) + '   |   α: '  + str(alpha) + '   |   Gradient : ' + str(kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)) + '  |   KL: ' + str(obj), end='\n')
+
     for k in range(maxiter):
-        #if verbose: print(str(k+1) + '/' + str(maxiter), end='\r')
         Dalpha = kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
         Dalpha2 = kl_grad2_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
         alpha -= w_schedule(k+1)*Dalpha/Dalpha2
         alpha = min(1.,max(-w[n]/(1.-w[n]),alpha))
+
         if verbose and (k+1)%50==0:
             # estimate kl and print info
             tmp_w = w*(1-alpha)
@@ -712,7 +714,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     t0 = time.perf_counter()
     N = y.shape[0]
     K = y.shape[1]
-    beta_ls = [np.linspace(0,1,int(1/smc_eps)+1) for n in range(N)]
+    beta_ls = [np.linspace(0.,1.,int(1/smc_eps)+1) for n in range(N)]
     betas = np.zeros(N)
     w = np.zeros(N)
     if w_schedule is None: w_schedule = lambda k : 1./np.sqrt(k)
@@ -812,7 +814,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
 
         # update mixture
         active = np.unique(active)
-        logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, betas, beta_ls, B)
+        logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, betas, beta_ls, B, Zs)
         q_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, betas, beta_ls)
 
         # estimate objective function
