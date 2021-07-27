@@ -577,7 +577,7 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
 #### MAIN FUNCTION #######
 ##########################
 ##########################
-def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 1., w_schedule = None, w_maxiter = 1000, b_gamma = 1., B = 1000, verbose = False, plot = False, plot_path = '', plot_lims = [-10,10,-10,10], gif = False):
+def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 1., w_schedule = None, w_maxiter = 1000, b_gamma = 1., B = 1000, cacheing = False, verbose = False, plot = False, plot_path = '', plot_lims = [-10,10,-10,10], gif = False):
     """
     Run LBVI with SMC components
     Input:
@@ -592,6 +592,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     w_maxiter  : int, maximum number of iterations for step size optimization
     b_gamma    : float, newton's step size for beta optimization
     B          : int, number of MC samples to use for gradient estimation
+    verbose    : boolean, whether to cache samples for gradient calculations; speeds up algorithm but might decrease accuracy
     verbose    : boolean, whether to print messages
     plot       : boolean, whether to plot approximation vs target at each iteration
     plot_path  : str, folder in which plots should be saved (ignored if plot == False)
@@ -612,6 +613,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     betas = np.zeros(N)
     w = np.zeros(N)
     if w_schedule is None: w_schedule = lambda k : 1./np.sqrt(k)
+    samples = [norm_random(B, y[n,:], r_sd) for n in range(N)] if cacheing else None # init at reference dist
+
 
 
     ##########################
