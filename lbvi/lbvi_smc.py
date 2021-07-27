@@ -451,7 +451,7 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
 ##########################
 
 ## gradient calculation ###
-def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, Zs, n):
+def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
     """
     First derivative of KL wrt alpha for component n evaluated at alpha
     Input: see choose_weight
@@ -465,10 +465,14 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, Zs, n):
 
     # generate sample from nth component and define logpdf
     tmp_logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
-    tmp_r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
-    tmp_beta_ls = beta_ls[n]
-    theta1,Z1,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
-    logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x)) - np.log(Z1)
+    if Zs is None:
+        tmp_r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
+        tmp_beta_ls = beta_ls[n]
+        theta1,Z1,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
+    else:
+        theta1 = samples[n]
+        Z1 = Zs[n]
+    logqn = lambda x : smc_logqn(x, tmp_logr, logp, beta[n], Z1)
 
 
     # generate sample from mixture minus nth component and define logpdf
@@ -476,17 +480,24 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, Zs, n):
     tmp_w[n] = 0.
     tmp_w = tmp_w / (1-w[n]) # normalize
     logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B, Zs)
-    theta2 = mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
 
     # define gamma
     def gamma_n(theta):
         exponents = np.column_stack((np.log((1-alpha)*w[n]+alpha) + logqn(theta), np.log(1-alpha) + np.log(1-w[n]) + logq(theta)))
         return logsumexp(exponents) - logp(theta)
 
-    return (1-w[n])*np.mean(gamma_n(theta1) - gamma_n(theta2))
+    if Zs is None:
+        theta2 = mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
+        return (1-w[n])*np.mean(gamma_n(theta1) - gamma_n(theta2))
+    else:
+        out = gamma_n(theta1)
+        for k in range(y.shape[0]):
+            if tmp_w[k] == 0: continue
+            out -= tmp_w[n]*gamma_n(samples[n])
+        return (1-w[n])*np.mean(out)
 
 
-def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, Zs, n):
+def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
     """
     Second derivative of KL wrt alpha at component n, evaluated at 0
     Input: see choose_weight
@@ -553,19 +564,21 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
 
     for n in range(N):
         #if verbose: print(str(n+1) + '/' + str(N), end='\r')
-        print(kl_mixture(y, w, samples, beta, Zs, logp, direction = 'reverse'))
         if w[n] == 1:
             # can't perturb weight if it's the only element in mixture
             logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
-            sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, beta_ls)
-            kls[n] = kl(logq, logp, sampler, B = B)
+            if Zs is None:
+                sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, beta_ls)
+                kls[n] = kl(logq, logp, sampler, B = B)
+            else:
+                kls[n] = kl_mixture(y, w, samples, beta, Zs, logp)
         else:
             # calcualte minimizer of second order approximation to kl
-            grad = kl_grad_alpha(0., logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+            grad = kl_grad_alpha(0., logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
             grads[n] = grad
-            grad2 = kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+            grad2 = kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
             alpha_star[n] = -w_gamma*grad/grad2
-            alpha_star[n] = min(1., max(0., alpha_star[n])) # alpha_star in [0,1]
+            alpha_star[n] = min(1., max(-w[n]/(1-w[n]), alpha_star[n])) # alpha_star in appropriate range
 
             # calculate kl estimate at minimizer
             tmp_w = w*(1-alpha_star[n]/(1-w[n]))
