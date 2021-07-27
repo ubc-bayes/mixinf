@@ -643,6 +643,7 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
     alpha   : float, optimal value of alpha
     """
     alpha = alpha_s
+    prt = 1 if maxiter <= 10 else int(maxiter/10)
 
     if verbose:
         tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
@@ -659,7 +660,7 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
         alpha -= w_schedule(k+1)*Dalpha/Dalpha2
         alpha = min(1.,max(-w[n]/(1.-w[n]),alpha))
 
-        if verbose and (k+1)%50==0:
+        if verbose and (k+1)%prt==0:
             # estimate kl and print info
             tmp_w = w*(1-alpha)
             tmp_w[n] = w[n] + alpha
