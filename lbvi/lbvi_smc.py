@@ -36,13 +36,15 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
     else: raise NotImplementedError
 
 
-def kl_mixture(y, w, samples, logp, direction = 'reverse'):
+def kl_mixture(y, w, samples, beta, Zs, logp, direction = 'reverse'):
     """
     Estimate the KL divergence
     Input:
     y          : (N,K) array with sample locations
     w          : (N,) array with component weights
     samples    : list of arrays, samples from each component
+    beta       : (N,) array with betas of each component
+    Zs         : (N,) array with normalizing constants of each component
     logp       : function, log target density
     B          : int, number of samples to generate
     direction  : str, either reverse or forward
@@ -50,11 +52,12 @@ def kl_mixture(y, w, samples, logp, direction = 'reverse'):
     Output:
     kl         : float, estimate of KL(q||p) if direction is reverse, and of KL(p||q) if direction is forward
     """
-    theta = sampler(B)
     if direction == 'reverse':
-        return np.mean(logq(theta) - logp(theta), axis=-1)
-    elif direction == 'forward':
-        return np.mean(logp(theta) - logq(theta), axis=-1)
+        logq = lambda x : mix_logpdf(x, logp, y, w, None, 1., beta, beta_ls, 1., Zs)
+        obj = 0.
+        for n in range(y.shape[0]):
+            obj += w[n]*np.mean(logq(samples[n]) - logp(samples[n]), axis=-1)
+        return obj
     else: raise NotImplementedError
 
 def logsumexp(x):
