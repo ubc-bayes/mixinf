@@ -69,7 +69,7 @@ def logsumexp(x):
 ## plotting functions  ###
 ##########################
 ##########################
-def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000):
+def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000, Zs = None):
     """
     Plot the current approximation against the target (for K <= 2)
     Input:
@@ -83,6 +83,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
     plt_name  : str, path, file name, and extension in single string to save plot
     plt_lims  : (4,) array, plot limits (also used to generate linspaces). Should be [x_inf, x_sup, y_inf, y_sup]
     B         : int, number of particles in SMC
+    Zs        : (N,) array or None, contains normalizing constants or None (in which case smc is run to estimate normalizing constants)
     """
     plt.clf()
 
@@ -100,7 +101,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
 
 
         # generate and plot approximation
-        q = np.exp(mix_logpdf(t[:,np.newaxis], logp, y, w, smc, r_sd, beta, beta_ls, B))
+        q = np.exp(mix_logpdf(t[:,np.newaxis], logp, y, w, smc, r_sd, beta, beta_ls, B, Zs))
         plt.plot(t, q, linestyle = 'dashed', color = '#39558CFF', label='q(x)', lw = 3)
 
         # beautify and save plot
@@ -130,7 +131,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
 
 
         # generate and plot approximation
-        lq = mix_logpdf(tt, logp, y, w, smc, r_sd, beta, beta_ls, B).reshape(nn, nn).T
+        lq = mix_logpdf(tt, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs).reshape(nn, nn).T
         q = np.exp(lq)
         cq = plt.contour(xx, yy, np.exp(lq), colors = '#39558CFF', levels = 4)
         hcq,_ = cq.legend_elements()
@@ -222,6 +223,8 @@ def smc_logqn(x, logr, logp, beta, Z):
     """
     return (1-beta)*logr(x)+beta*logp(x)-np.log(Z)
 
+
+
 def mix_sample(size, logp, y, w, smc, r_sd, beta, beta_ls):
     """
     Sample from mixture of SMC components
@@ -268,7 +271,7 @@ def mix_sample(size, logp, y, w, smc, r_sd, beta, beta_ls):
     # end for
     return out[1:,:]
 
-def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
+def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Z):
     """
     Evaluate log pdf of mixture of SMC components
     Input:
@@ -281,6 +284,7 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
     beta    : (N,) array, contains betas of each component
     beta_ls : list of arrays, each array contains the discretization of each component
     B       : int, number of particles to use in SMC
+    Z       : (N,) array or None, contains normalizing constants or None (in which case smc is run to estimate normalizing constants)
 
     Output:
     sample  : (size,K) array with sample from mixture
@@ -290,6 +294,7 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
     tmp_y = y[active,:]
     tmp_w = w[active]
     tmp_beta = beta[active]
+    Z = Z[active]
 
     N = tmp_y.shape[0]
     K = tmp_y.shape[1]
@@ -302,8 +307,11 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
         tmp_beta_ls = beta_ls[n]
         tmp_beta_ls = tmp_beta_ls[tmp_beta_ls <= tmp_beta[n]]
 
-        # run smc and use Z estimate to evaluate logpdf
-        _,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
+        if Z is None:
+            # run smc and use Z estimate to evaluate logpdf
+            _,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
+        else:
+            tmp_Z = Z[n]
         lps[:,n] = smc_logqn(x, tmp_logr, logp, tmp_beta[n], tmp_Z) + np.log(tmp_w[n])
     # end for
     return logsumexp(lps)
@@ -433,7 +441,7 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
 ##########################
 
 ## gradient calculation ###
-def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
+def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, Zs, n):
     """
     First derivative of KL wrt alpha for component n evaluated at alpha
     Input: see choose_weight
@@ -457,7 +465,7 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     tmp_w = np.copy(w)
     tmp_w[n] = 0.
     tmp_w = tmp_w / (1-w[n]) # normalize
-    logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
+    logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B, Zs)
     theta2 = mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
 
     # define gamma
@@ -468,7 +476,7 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     return (1-w[n])*np.mean(gamma_n(theta1) - gamma_n(theta2))
 
 
-def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
+def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, Zs, n):
     """
     Second derivative of KL wrt alpha at component n, evaluated at 0
     Input: see choose_weight
@@ -479,7 +487,7 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     if w[n] == 1: return 0.
 
     beta_ls = [beta_ls[i][beta_ls[i] <= beta[i]] for i in range(y.shape[0])]
-    logq_full = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
+    logq_full = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
 
     # generate sample from nth component and define logpdf
     tmp_logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
@@ -504,7 +512,7 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
 
 
 ## choosing next component based on weight ###
-def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, verbose = False):
+def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs, verbose = False):
     """
     Choose component that results in greatest KL decrease due to weight perturbation
     Input:
@@ -518,6 +526,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, ver
     w_gamma : float, newton's step size
     B       : integer, number of particles ot use in SMC and to estimate gradients
     samples : list of arrays or None, samples from each component. If None, samples will be generated
+    Zs      : (N,) array or None, normalizing constants of each component. If None, they will be calculated
     verbose : boolean, whether to print messages
 
     Output:
@@ -536,7 +545,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, ver
         #if verbose: print(str(n+1) + '/' + str(N), end='\r')
         if w[n] == 1:
             # can't perturb weight if it's the only element in mixture
-            logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
+            logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
             sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, beta_ls)
             kls[n] = kl(logq, logp, sampler, B = B)
         else:
@@ -550,7 +559,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, ver
             # calculate kl estimate at minimizer
             tmp_w = w*(1-alpha_star[n]/(1-w[n]))
             tmp_w[n] = w[n] + alpha_star[n] # optimal value using original w instead of scaled one
-            tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
+            tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B, Zs)
             tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
             kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
 
@@ -696,7 +705,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     if plot:
         if verbose: print('Plotting approximation')
         plt_name = plot_path + 'iter_0.jpg'
-        plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000)
+        plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000, Zs = Zs)
     plt_timer = time.perf_counter() - plt_timer
 
     ##########################
