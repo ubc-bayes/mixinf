@@ -304,8 +304,6 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
 
         # run smc and use Z estimate to evaluate logpdf
         _,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
-        tmp_lp = (1-tmp_beta[n])*tmp_logr(x) + tmp_beta[n]*logp(x) # logpdf up to proportionality
-        tmp_lp = np.log(tmp_w[n]) + tmp_lp - np.log(tmp_Z) # normalize and account for weight
         lps[:,n] = smc_logqn(x, tmp_logr, logp, tmp_beta[n], tmp_Z) + np.log(tmp_w[n])
     # end for
     return logsumexp(lps)
@@ -666,7 +664,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     tmp_kl = np.zeros(N)
     for n in range(N):
         if verbose: print(str(n+1) + '/' + str(N), end = '\r')
-        tmp_sampler = lambda B : samples[n] if cacheing else lambda B : norm_random(B, y[n,:], r_sd)
+        tmp_sampler = lambda B : samples[n] if cacheing else norm_random(B, y[n,:], r_sd)
         tmp_logq = lambda x : norm_logpdf(x, y[n,:], r_sd)
         tmp_kl[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
     # end for
