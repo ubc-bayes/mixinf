@@ -655,8 +655,8 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
         #if verbose: print(str(k+1) + '/' + str(maxiter), end='\r')
         Dalpha = kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
         Dalpha2 = kl_grad2_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
-        alpha -= w_schedule(k+1)*Dalpha
-        alpha = min(1.,max(0.,alpha))
+        alpha -= w_schedule(k+1)*Dalpha/Dalpha2
+        alpha = min(1.,max(-w[n]/(1.-w[n]),alpha))
         if verbose and (k+1)%50==0:
             # estimate kl and print info
             tmp_w = w*(1-alpha)
