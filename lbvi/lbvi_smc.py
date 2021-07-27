@@ -604,8 +604,11 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
             tmp_w = w*(1-alpha_star[n]/(1-w[n]))
             tmp_w[n] = w[n] + alpha_star[n] # optimal value using original w instead of scaled one
             tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B, Zs)
-            tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
-            kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+            if Zs is None:
+                tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
+                kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+            else:
+                kls[n] = kl_mixture(y, tmp_w, samples, beta, Zs, logp)
 
             if verbose: print('y: ' + str(y[n,:]) + '   |   α: ' + str(alpha_star[n]) + '   |   Gradient: ' + str(grad) + '   |   Hessian: ' + str(grad2) + '   |   KL: ' + str(kls[n]))
         # end if
@@ -613,7 +616,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
     argmin = np.argmin(kls)
     return argmin, kls[argmin], alpha_star[argmin]
 
-def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B = 10000, maxiter = 1000, verbose = False):
+def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B = 10000, samples = None, Zs = None, maxiter = 1000, verbose = False):
     """
     Optimize the weight of nth component via SGD
     Input:
@@ -628,6 +631,8 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
     smc     : function, generates samples via SMC
     w_gamma : float, newton's step size
     B       : int, number of particles ot use in SMC and to estimate gradients
+    samples : list of arrays or None, samples from each component. If None, samples will be generated
+    Zs      : (N,) array or None, normalizing constants of each component. If None, they will be calculated
     maxiter : int, maximum number of iterations
     verbose : boolean, whether to print messages
 
@@ -637,7 +642,7 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
     """
     alpha = alpha_s
     if verbose:
-        tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
+        tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
         tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, beta_ls)
         obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
         print('0/' + str(maxiter) + '   |   α: '  + str(alpha) + '   |   Gradient : ' + str(kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n)) + '  |   KL: ' + str(obj), end='\n')
@@ -789,7 +794,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
             #w = (1-alpha_s)*w                     # evenly scale down weights
             #w[w_argmin] = w[w_argmin] + alpha_s   # add alpha bit to argmin weight
             active = np.append(active, w_argmin)
-            w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, w_maxiter, verbose)
+            w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, samples, Zs, w_maxiter, verbose)
             if verbose: print('Optimal α*: ' + str(alpha_s))
         else:
             if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
