@@ -506,7 +506,7 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n
         return (1-w[n])*np.mean(out)
 
 
-def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
+def kl_grad2_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
     """
     Second derivative of KL wrt alpha at component n, evaluated at 0
     Input: see choose_weight
@@ -517,7 +517,9 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
     if w[n] == 1: return 0.
 
     beta_ls = [beta_ls[i][beta_ls[i] <= beta[i]] for i in range(y.shape[0])]
-    logq_full = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
+    def logh(theta):
+        exponents = np.column_stack((np.log((1-alpha)*w[n]+alpha) + logqn(theta), np.log(1-alpha) + np.log(1-w[n]) + logq(theta)))
+        return logsumexp(exponents)
 
     # generate sample from nth component and define logpdf
     tmp_logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
@@ -539,7 +541,7 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
     theta2 = mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
 
     # define psi
-    def psi_n(theta): return (np.exp(logqn(theta)) - np.exp(logq(theta))) / np.exp(logq_full(theta))
+    def psi_n(theta): return (np.exp(logqn(theta)) - np.exp(logq(theta))) / np.exp(logh(theta))
 
     if Zs is None:
         theta2 = mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
@@ -596,7 +598,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
             # calcualte minimizer of second order approximation to kl
             grad = kl_grad_alpha(0., logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
             grads[n] = grad
-            grad2 = kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
+            grad2 = kl_grad2_alpha(0., logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
             alpha_star[n] = -w_gamma*grad/grad2
             alpha_star[n] = min(1., max(-w[n]/(1-w[n]), alpha_star[n])) # alpha_star in appropriate range
 
@@ -643,12 +645,16 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
     alpha = alpha_s
     if verbose:
         tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
-        tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, beta_ls)
-        obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
-        print('0/' + str(maxiter) + '   |   α: '  + str(alpha) + '   |   Gradient : ' + str(kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n)) + '  |   KL: ' + str(obj), end='\n')
+        if Zs is None:
+            tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, beta_ls)
+            obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+        else:
+            obj = kl_mixture(y, w, samples, beta, Zs, logp)
+        print('0/' + str(maxiter) + '   |   α: '  + str(alpha) + '   |   Gradient : ' + str(kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)) + '  |   KL: ' + str(obj), end='\n')
     for k in range(maxiter):
         #if verbose: print(str(k+1) + '/' + str(maxiter), end='\r')
-        Dalpha = kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, n)
+        Dalpha = kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
+        Dalpha2 = kl_grad2_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
         alpha -= w_schedule(k+1)*Dalpha
         alpha = min(1.,max(0.,alpha))
         if verbose and (k+1)%50==0:
@@ -656,8 +662,11 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
             tmp_w = w*(1-alpha)
             tmp_w[n] = w[n] + alpha
             tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
-            tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
-            obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+            if Zs is None:
+                tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
+                obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+            else:
+                obj = kl_mixture(y, tmp_w, samples, beta, Zs, logp)
             print(str(k+1) + '/' + str(maxiter) + '   |   α: '  + str(alpha) + '   |   Gradient : ' + str(Dalpha) + '  |   KL: ' + str(obj), end='\n')
     # end for
     w_opt = (1-alpha)*w
