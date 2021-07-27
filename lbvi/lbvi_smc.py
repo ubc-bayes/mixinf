@@ -375,11 +375,15 @@ def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
 
     # generate sample from nth component and calculate logpdf
     logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
-    r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
-    tmp_beta_ls = beta_ls[n]
-    theta,Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, samples = samples, Zs = Zs, beta_ls = tmp_beta_ls, Z0 = 1)
+    if Zs is None:
+        r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
+        tmp_beta_ls = beta_ls[n]
+        theta,Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, samples = samples, Zs = Zs, beta_ls = tmp_beta_ls, Z0 = 1)
+    else:
+        theta = samples[n]
+        Z = Zs[n]
     logqn = lambda x : smc_logqn(x, logr, logp, beta[n], Z)
-    logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
+    logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
 
     logrbyp = logr(theta) - logp(theta)
     logqbyp = logq(theta) - logp(theta)
@@ -430,14 +434,17 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, v
             grad = kl_grad_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, samples, Zs, n)
             grad2 = kl_grad2_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, samples, Zs, n)
             beta_star[n] = beta[n]-b_gamma*grad/grad2
-            beta_star[n] = min(1, max(smc_eps, beta_star[n])) # iteratively scale until feasible point
+            beta_star[n] = min(1., max(smc_eps, beta_star[n])) # iteratively scale until feasible point
 
             # calculate kl estimate at minimizer
-            tmp_trimmed_beta_ls = trimmed_beta_ls.copy()
-            tmp_trimmed_beta_ls[n] = beta_ls[n][beta_ls[n] <= beta_star[n]] # trim nth discretization up to beta_star instead of beta[n]
-            tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls, B)
-            tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls)
-            kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+            if Zs is None:
+                tmp_trimmed_beta_ls = trimmed_beta_ls.copy()
+                tmp_trimmed_beta_ls[n] = beta_ls[n][beta_ls[n] <= beta_star[n]] # trim nth discretization up to beta_star instead of beta[n]
+                tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls, B, Zs)
+                tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls)
+                kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+            else:
+                kls[n] = kl_mixture(y, w, samples, beta, Zs, logp)
 
             if verbose: print('y: ' + str(y[n,:]) + '   |   β: ' + str(beta_star[n]) + '   |   Gradient: ' + str(grad) + '   |   Hessian: ' + str(grad2) + '   |   KL: ' + str(kls[n]))
         # end if
@@ -775,7 +782,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
 
         # calculate optimal beta perturbation
         if verbose: print('Determining optimal β')
-        beta_argmin,beta_disc,beta_s = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, b_gamma, B, verbose)
+        beta_argmin,beta_disc,beta_s = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, verbose)
 
         if verbose: print('Preliminary (α*, β*) = (' + str(alpha_s) + ', ' + str(beta_s) + ')')
 
