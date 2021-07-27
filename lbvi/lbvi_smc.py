@@ -35,6 +35,28 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
         return np.mean(logp(theta) - logq(theta), axis=-1)
     else: raise NotImplementedError
 
+
+def kl_mixture(y, w, samples, logp, direction = 'reverse'):
+    """
+    Estimate the KL divergence
+    Input:
+    y          : (N,K) array with sample locations
+    w          : (N,) array with component weights
+    samples    : list of arrays, samples from each component
+    logp       : function, log target density
+    B          : int, number of samples to generate
+    direction  : str, either reverse or forward
+
+    Output:
+    kl         : float, estimate of KL(q||p) if direction is reverse, and of KL(p||q) if direction is forward
+    """
+    theta = sampler(B)
+    if direction == 'reverse':
+        return np.mean(logq(theta) - logp(theta), axis=-1)
+    elif direction == 'forward':
+        return np.mean(logp(theta) - logq(theta), axis=-1)
+    else: raise NotImplementedError
+
 def logsumexp(x):
     # logsumexp over last axis of x
     maxx = np.amax(x,axis=-1)
@@ -185,6 +207,21 @@ def norm_random(B, mean, sd):
 ### mixture functions  ###
 ##########################
 ##########################
+def smc_logqn(x, logr, logp, beta, Z):
+    """
+    Evaluate log pdf of nth component
+    Input:
+    x     : nd-array, point at which to evaluate logpdf; last axis corresponds to dimension
+    logr  : function, reference log density
+    logp  : function, target log density
+    beta  : float, discretization temperature
+    Z     : float, normalizing constant
+
+    Out:
+    lp    : (N,) array, log probabilities at x
+    """
+    return (1-beta)*logr(x)+beta*logp(x)-np.log(Z)
+
 def mix_sample(size, logp, y, w, smc, r_sd, beta, beta_ls):
     """
     Sample from mixture of SMC components
@@ -269,7 +306,7 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B):
         _,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
         tmp_lp = (1-tmp_beta[n])*tmp_logr(x) + tmp_beta[n]*logp(x) # logpdf up to proportionality
         tmp_lp = np.log(tmp_w[n]) + tmp_lp - np.log(tmp_Z) # normalize and account for weight
-        lps[:,n] = tmp_lp
+        lps[:,n] = smc_logqn(x, tmp_logr, logp, tmp_beta[n], tmp_Z) + np.log(tmp_w[n])
     # end for
     return logsumexp(lps)
 
@@ -469,7 +506,7 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, n):
 
 
 ## choosing next component based on weight ###
-def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = False):
+def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, verbose = False):
     """
     Choose component that results in greatest KL decrease due to weight perturbation
     Input:
@@ -482,6 +519,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, verbose = Fa
     smc     : function, generates samples via SMC
     w_gamma : float, newton's step size
     B       : integer, number of particles ot use in SMC and to estimate gradients
+    samples : list of arrays or None, samples from each component. If None, samples will be generated
     verbose : boolean, whether to print messages
 
     Output:
@@ -592,7 +630,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     w_maxiter  : int, maximum number of iterations for step size optimization
     b_gamma    : float, newton's step size for beta optimization
     B          : int, number of MC samples to use for gradient estimation
-    verbose    : boolean, whether to cache samples for gradient calculations; speeds up algorithm but might decrease accuracy
+    verbose    : boolean, whether to cache samples and logpdfs; speeds up algorithm but might decrease accuracy
     verbose    : boolean, whether to print messages
     plot       : boolean, whether to plot approximation vs target at each iteration
     plot_path  : str, folder in which plots should be saved (ignored if plot == False)
@@ -613,7 +651,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     betas = np.zeros(N)
     w = np.zeros(N)
     if w_schedule is None: w_schedule = lambda k : 1./np.sqrt(k)
-    samples = [norm_random(B, y[n,:], r_sd) for n in range(N)] if cacheing else None # init at reference dist
+    samples = [norm_random(B, y[n,:], r_sd) for n in range(N)] if cacheing else None  # init at reference dist
+    Zs = np.ones(N)  # all normalizing constants are 1
 
 
     ##########################
@@ -627,7 +666,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     tmp_kl = np.zeros(N)
     for n in range(N):
         if verbose: print(str(n+1) + '/' + str(N), end = '\r')
-        tmp_sampler = lambda B : samples[n]
+        tmp_sampler = lambda B : samples[n] if cacheing else lambda B : norm_random(B, y[n,:], r_sd)
         tmp_logq = lambda x : norm_logpdf(x, y[n,:], r_sd)
         tmp_kl[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
     # end for
@@ -685,7 +724,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
 
         # calculate optimal weight perturbation
         if verbose: print('Determining optimal α')
-        w_argmin,w_disc,alpha_s = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, w_gamma, B, verbose)
+        w_argmin,w_disc,alpha_s = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, w_gamma, B, samples, verbose)
 
         # calculate optimal beta perturbation
         if verbose: print('Determining optimal β')
