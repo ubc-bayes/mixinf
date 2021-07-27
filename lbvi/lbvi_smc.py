@@ -493,7 +493,7 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n
         out = gamma_n(theta1)
         for k in range(y.shape[0]):
             if tmp_w[k] == 0: continue
-            out -= tmp_w[n]*gamma_n(samples[n])
+            out -= tmp_w[k]*gamma_n(samples[k])
         return (1-w[n])*np.mean(out)
 
 
@@ -512,23 +512,35 @@ def kl_grad2_alpha(logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
 
     # generate sample from nth component and define logpdf
     tmp_logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
-    tmp_r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
-    tmp_beta_ls = beta_ls[n]
-    theta1,Z1,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
-    logqn = lambda x : ((1-beta[n])*tmp_logr(x) + beta[n]*logp(x)) - np.log(Z1)
+    if Zs is None:
+        tmp_r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
+        tmp_beta_ls = beta_ls[n]
+        theta1,Z1,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
+    else:
+        theta1 = samples[n]
+        Z1 = Zs[n]
+    logqn = lambda x : smc_logqn(x, tmp_logr, logp, beta[n], Z1)
 
 
     # generate sample from mixture minus nth component and define logpdf
     tmp_w = np.copy(w)
     tmp_w[n] = 0.
     tmp_w = tmp_w / (1-w[n]) # normalize
-    logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
+    logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B, Zs)
     theta2 = mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
 
     # define psi
     def psi_n(theta): return (np.exp(logqn(theta)) - np.exp(logq(theta))) / np.exp(logq_full(theta))
 
-    return (1-w[n])**2 * np.mean(psi_n(theta1) - psi_n(theta2))
+    if Zs is None:
+        theta2 = mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
+        return (1-w[n])**2 * np.mean(psi_n(theta1) - psi_n(theta2))
+    else:
+        out = psi_n(theta1)
+        for k in range(y.shape[0]):
+            if tmp_w[k] == 0: continue
+            out -= tmp_w[k]*psi_n(samples[k])
+        return (1-w[n])**2 * np.mean(out)
 
 
 
@@ -683,7 +695,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     w = np.zeros(N)
     if w_schedule is None: w_schedule = lambda k : 1./np.sqrt(k)
     samples = [norm_random(B, y[n,:], r_sd) for n in range(N)] if cacheing else None  # init at reference dist
-    Zs = np.ones(N)  # all normalizing constants are 1
+    Zs = np.ones(N) if cacheing else None                                             # all normalizing constants are 1
 
 
     ##########################
