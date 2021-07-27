@@ -57,9 +57,6 @@ def kl_mixture(y, w, samples, beta, Zs, logp, direction = 'reverse'):
         obj = 0.
         for n in range(y.shape[0]):
             if w[n] == 0: continue # don't waste time evaluating the logpdfs if they are not going to add
-            print(w[n])
-            print(logq(samples[n]))
-            print(logp(samples[n]))
             obj += w[n]*np.mean(logq(samples[n]) - logp(samples[n]), axis=-1)
         return obj
     else: raise NotImplementedError
