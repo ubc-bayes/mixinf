@@ -53,9 +53,13 @@ def kl_mixture(y, w, samples, beta, Zs, logp, direction = 'reverse'):
     kl         : float, estimate of KL(q||p) if direction is reverse, and of KL(p||q) if direction is forward
     """
     if direction == 'reverse':
-        logq = lambda x : mix_logpdf(x, logp, y, w, None, 1., beta, beta_ls, 1., Zs)
+        logq = lambda x : mix_logpdf(x, logp, y, w, None, 1., beta, None, 1., Zs)
         obj = 0.
         for n in range(y.shape[0]):
+            if w[n] == 0: continue # don't waste time evaluating the logpdfs if they are not going to add
+            print(w[n])
+            print(logq(samples[n]))
+            print(logp(samples[n]))
             obj += w[n]*np.mean(logq(samples[n]) - logp(samples[n]), axis=-1)
         return obj
     else: raise NotImplementedError
@@ -304,17 +308,20 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Z):
     lps = np.zeros((x.shape[0],N))
 
     for n in range(N):
-        # for each value, generate estimate normalizing constant
         tmp_logr = lambda x : norm_logpdf(x, tmp_y[n,:], r_sd)
-        tmp_r_sample = lambda B : norm_random(B, tmp_y[n,:], r_sd)
-        tmp_beta_ls = beta_ls[n]
-        tmp_beta_ls = tmp_beta_ls[tmp_beta_ls <= tmp_beta[n]]
-
         if Z is None:
+            # for each value, estimate normalizing constant
+            tmp_r_sample = lambda B : norm_random(B, tmp_y[n,:], r_sd)
+            tmp_beta_ls = beta_ls[n]
+            tmp_beta_ls = tmp_beta_ls[tmp_beta_ls <= tmp_beta[n]]
+
             # run smc and use Z estimate to evaluate logpdf
             _,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
         else:
+            # just use provided estimate
             tmp_Z = Z[n]
+
+        # evaluate logpdf of nth component
         lps[:,n] = smc_logqn(x, tmp_logr, logp, tmp_beta[n], tmp_Z) + np.log(tmp_w[n])
     # end for
     return logsumexp(lps)
@@ -546,6 +553,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
 
     for n in range(N):
         #if verbose: print(str(n+1) + '/' + str(N), end='\r')
+        print(kl_mixture(y, w, samples, beta, Zs, logp, direction = 'reverse'))
         if w[n] == 1:
             # can't perturb weight if it's the only element in mixture
             logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
@@ -734,7 +742,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
 
         # calculate optimal weight perturbation
         if verbose: print('Determining optimal α')
-        w_argmin,w_disc,alpha_s = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, w_gamma, B, samples, verbose)
+        w_argmin,w_disc,alpha_s = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, w_gamma, B, samples, Zs, verbose)
 
         # calculate optimal beta perturbation
         if verbose: print('Determining optimal β')
