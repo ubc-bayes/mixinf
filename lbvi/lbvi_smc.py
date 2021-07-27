@@ -349,7 +349,7 @@ def kl_grad_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
     if Zs is None:
         r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
         tmp_beta_ls = beta_ls[n]
-        theta,_,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, samples = samples, Zs = Zs, beta_ls = tmp_beta_ls, Z0 = 1)
+        theta,_,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
     else:
         theta = samples[n]
     logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
@@ -375,7 +375,7 @@ def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
     if Zs is None:
         r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
         tmp_beta_ls = beta_ls[n]
-        theta,Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, samples = samples, Zs = Zs, beta_ls = tmp_beta_ls, Z0 = 1)
+        theta,Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
     else:
         theta = samples[n]
         Z = Zs[n]
@@ -600,7 +600,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
             grads[n] = grad
             grad2 = kl_grad2_alpha(0., logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
             alpha_star[n] = -w_gamma*grad/grad2
-            alpha_star[n] = min(1., max(-w[n]/(1-w[n]), alpha_star[n])) # alpha_star in appropriate range
+            alpha_star[n] = min(1., max(-w[n]/(1.-w[n]), alpha_star[n])) # alpha_star in appropriate range
 
             # calculate kl estimate at minimizer
             tmp_w = w*(1-alpha_star[n]/(1-w[n]))
@@ -661,7 +661,7 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
             # estimate kl and print info
             tmp_w = w*(1-alpha)
             tmp_w[n] = w[n] + alpha
-            tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B)
+            tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B, Zs)
             if Zs is None:
                 tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
                 obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
