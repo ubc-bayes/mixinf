@@ -802,8 +802,6 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
         # determine whether to perturb weight or beta and update active set
         if w_disc < beta_disc:
             if verbose: print('Optimizing the weight of ' + str(y[w_argmin]))
-            #w = (1-alpha_s)*w                     # evenly scale down weights
-            #w[w_argmin] = w[w_argmin] + alpha_s   # add alpha bit to argmin weight
             active = np.append(active, w_argmin)
             w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, samples, Zs, w_maxiter, verbose)
             if verbose: print('Optimal α*: ' + str(alpha_s))
@@ -811,6 +809,15 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
             if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
             betas[beta_argmin] = beta_s
             active = np.append(active, beta_argmin)
+
+            # also resample from nth component because its beta changed
+            if cacheing:
+                tmp_r_sample = lambda B : norm_random(B, y[beta_argmin,:], r_sd)
+                tmp_logr = lambda x : norm_logpdf(x, y[beta_argmin,:], r_sd)
+                tmp_beta_ls = beta_ls[beta_argmin][beta_ls[beta_argmin] <= betas[beta_argmin]]
+                tmp_samples,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
+                samples[beta_argmin] = tmp_samples
+                Zs[beta_argmin] = tmp_Z
 
         # update mixture
         active = np.unique(active)
