@@ -416,7 +416,6 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
     beta_star = np.zeros(N)
 
     for n in range(N):
-        if verbose: print(str(n+1) + '/' + str(N), end='\r')
         if w[n] == 0:
             # can't perturb beta if component is not active
             kls[n] = np.inf
@@ -434,7 +433,7 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
             tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls)
             kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
 
-            print('y: ' + str(y[n,:]) + '   |   β: ' + str(beta_star[n]) + '   |   Gradient: ' + str(grad) + '   |   Hessian: ' + str(grad2) + '   |   KL: ' + str(kls[n]))
+            if verbose: print('y: ' + str(y[n,:]) + '   |   β: ' + str(beta_star[n]) + '   |   Gradient: ' + str(grad) + '   |   Hessian: ' + str(grad2) + '   |   KL: ' + str(kls[n]))
         # end if
     # end for
     argmin = np.argmin(kls)
@@ -575,7 +574,6 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
     alpha_star = np.zeros(N)
 
     for n in range(N):
-        #if verbose: print(str(n+1) + '/' + str(N), end='\r')
         if w[n] == 1:
             # can't perturb weight if it's the only element in mixture
             logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
@@ -599,7 +597,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
             tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
             kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
 
-            print('y: ' + str(y[n,:]) + '   |   α: ' + str(alpha_star[n]) + '   |   Gradient: ' + str(grad) + '   |   Hessian: ' + str(grad2) + '   |   KL: ' + str(kls[n]))
+            if verbose: print('y: ' + str(y[n,:]) + '   |   α: ' + str(alpha_star[n]) + '   |   Gradient: ' + str(grad) + '   |   Hessian: ' + str(grad2) + '   |   KL: ' + str(kls[n]))
         # end if
     # end for
     argmin = np.argmin(kls)
