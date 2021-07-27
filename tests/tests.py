@@ -57,6 +57,8 @@ parser.add_argument('--smc_T', type = int, default = 1,
 help = 'number of steps of the rwmh rejuvenation kernel in smc')
 parser.add_argument('--smc_w_maxiter', type = int, default = 1000,
 help = 'maximum number of weight optimization iterations in lbvi with smc components')
+parser.add_argument('--smc_cacheing', action = "store_true",
+help = 'cache samples in lbvi smc?')
 parser.add_argument('-N', type = int,
 help = 'sample size to seed lbvi')
 parser.add_argument('--lbvi', action = "store_true",
@@ -235,6 +237,7 @@ smc_eps = args.smc_eps
 smc_sd = args.smc_sd
 smc_T = args.smc_T
 smc_w_maxiter = args.smc_w_maxiter
+smc_cacheing = args.smc_cacheing
 # lbvi
 maxiter = args.maxiter
 t_increment = args.t_inc
@@ -449,7 +452,7 @@ for r in reps:
                 print('Std. deviation of reference distributions: ' + str(smc_sd))
                 print()
 
-            y, w, betas, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_gamma = smc_wgamma, w_schedule = smc_w_schedule, w_maxiter = smc_w_maxiter, b_gamma = smc_bgamma, B = B, verbose = verbose, plot = True, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
+            y, w, betas, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_gamma = smc_wgamma, w_schedule = smc_w_schedule, w_maxiter = smc_w_maxiter, b_gamma = smc_bgamma, B = B, cacheing = smc_cacheing, verbose = verbose, plot = True, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
 
             # save results
             if verbose: print('Saving LBVI results')

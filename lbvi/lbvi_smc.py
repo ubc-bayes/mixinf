@@ -616,7 +616,6 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     samples = [norm_random(B, y[n,:], r_sd) for n in range(N)] if cacheing else None # init at reference dist
 
 
-
     ##########################
     ##########################
     # initialize mixture #####
@@ -628,7 +627,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     tmp_kl = np.zeros(N)
     for n in range(N):
         if verbose: print(str(n+1) + '/' + str(N), end = '\r')
-        tmp_sampler = lambda B : norm_random(B, y[n,:], r_sd)
+        tmp_sampler = lambda B : samples[n]
         tmp_logq = lambda x : norm_logpdf(x, y[n,:], r_sd)
         tmp_kl[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
     # end for
