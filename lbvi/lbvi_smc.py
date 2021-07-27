@@ -301,7 +301,7 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Z):
     tmp_y = y[active,:]
     tmp_w = w[active]
     tmp_beta = beta[active]
-    Z = Z[active]
+    if Z is not None: Z = Z[active]
 
     N = tmp_y.shape[0]
     K = tmp_y.shape[1]
