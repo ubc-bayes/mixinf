@@ -334,7 +334,7 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Z):
 ##########################
 
 ## gradient calculation ###
-def kl_grad_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
+def kl_grad_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
     """
     First derivative of KL wrt beta for component n evaluated at b
     Input: see choose_beta
@@ -348,16 +348,20 @@ def kl_grad_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
 
     # generate sample from nth component
     logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
-    r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
-    tmp_beta_ls = beta_ls[n]
-    theta,_,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
-    logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
+
+    if Zs is None:
+        r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
+        tmp_beta_ls = beta_ls[n]
+        theta,_,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, samples = samples, Zs = Zs, beta_ls = tmp_beta_ls, Z0 = 1)
+    else:
+        theta = samples[n]
+    logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
 
     lp = logp(theta)
     return w[n]*np.cov(lp-logr(theta), logq(theta)-lp)[0][1]
 
 
-def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
+def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
     """
     First derivative of KL wrt beta for component n evaluated at 0
     Input: see choose_beta
@@ -373,8 +377,8 @@ def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
     logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
     r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
     tmp_beta_ls = beta_ls[n]
-    theta,Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
-    logqn = lambda x : ((1-beta[n])*logr(x) + beta[n]*logp(x)) - np.log(Z)
+    theta,Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, samples = samples, Zs = Zs, beta_ls = tmp_beta_ls, Z0 = 1)
+    logqn = lambda x : smc_logqn(x, logr, logp, beta[n], Z)
     logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B)
 
     logrbyp = logr(theta) - logp(theta)
@@ -388,7 +392,7 @@ def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, n):
 
 
 ## choosing next component based on weight ###
-def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = False):
+def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, verbose = False):
     """
     Choose component that results in greatest KL decrease due to beta perturbation
     Input:
@@ -401,6 +405,8 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
     smc     : function, generates samples via SMC
     b_gamma : float, newton's step size
     B       : integer, number of particles ot use in SMC and to estimate gradients
+    samples : list of arrays or None, samples from each component. If None, samples will be generated
+    Zs      : (N,) array or None, normalizing constants of each component. If None, they will be calculated
     verbose : boolean, whether to print messages
 
     Output:
@@ -421,8 +427,8 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, verbose = Fals
             kls[n] = np.inf
         else:
             # calculate minimizer of second order approximation to kl
-            grad = kl_grad_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)
-            grad2 = kl_grad2_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, n)
+            grad = kl_grad_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, samples, Zs, n)
+            grad2 = kl_grad2_beta(beta[n], logp, y, w, beta, trimmed_beta_ls, r_sd, smc, B, samples, Zs, n)
             beta_star[n] = beta[n]-b_gamma*grad/grad2
             beta_star[n] = min(1, max(smc_eps, beta_star[n])) # iteratively scale until feasible point
 
