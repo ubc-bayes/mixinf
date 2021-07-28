@@ -56,10 +56,10 @@ def create_smc(sd, steps):
         # ESS         : effective sample size
 
 
-        x = r_sample(B)                # init sample points
-        n_steps = beta_ls.shape[0]-1   # take 1 off to account for first beta
-        logm = lambda x : logr(x)      # first target is the reference
-        logZ = np.zeros(n_steps)       # for tracking normalizing constant log ratios
+        x = r_sample(B)                 # init sample points
+        n_steps = beta_ls.shape[0]-1    # take 1 off to account for first beta
+        logm = lambda x : logr(x)       # first target is the reference
+        logZ = np.zeros(max(0,n_steps)) # for tracking normalizing constant log ratios
         ESS = None
 
         for k in range(n_steps):

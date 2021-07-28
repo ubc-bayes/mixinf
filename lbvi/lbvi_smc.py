@@ -517,7 +517,7 @@ def beta_opt(beta_s, n, logp, y, w, beta, beta_ls, r_sd, smc, beta_schedule, B =
     logr = lambda x : norm_logpdf(x, y[n,:], r_sd)
     r_sample = lambda B : norm_random(B, y[n,:], r_sd)
     trimmed_beta_ls = beta_ls[n][beta_ls[n] < beta[n]]
-    theta,Zopt,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = beta_ls, Z0 = 1)
+    theta,Zopt,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = trimmed_beta_ls, Z0 = 1)
 
     return bopt, theta, Zopt
 
