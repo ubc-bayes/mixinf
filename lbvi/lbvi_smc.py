@@ -492,12 +492,12 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n
     logqmk = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B, Zs)
 
     # define new mixture h = alpha qn + (1-alpha) q
-    def logh(theta):
-        exponents = np.column_stack((np.log(alpha + (1-alpha)*w[n]) + logqn(theta), np.log(1-alpha) + logqmk(theta)))
+    def logh(a, theta):
+        exponents = np.column_stack((np.log(a + (1-a)*w[n]) + logqn(theta), np.log(1-a) + logqmk(theta)))
         return logsumexp(exponents)
 
     # define gamma to take expectation of
-    gamma_n = lambda theta : logh(theta) - logp(theta)
+    gamma_n = lambda theta : logh(alpha, theta) - logp(theta)
 
     if Zs is None:
         # gotta sample from mixture
@@ -506,8 +506,6 @@ def kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n
     else:
         # use current samples
         out = gamma_n(theta1)
-        if np.isnan(out).any():
-            print('logh: ' + str(logh(theta1)))
         for k in range(y.shape[0]):
             if w[k] == 0: continue
             out -= w[k]*gamma_n(samples[k])
@@ -525,11 +523,8 @@ def kl_grad2_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, 
     if w[n] == 1: return 0.
 
     beta_ls = [beta_ls[i][beta_ls[i] <= beta[i]] for i in range(y.shape[0])]
-    def logh(theta):
-        exponents = np.column_stack((np.log((1-alpha)*w[n]+alpha) + logqn(theta), np.log(1-alpha) + np.log(1-w[n]) + logq(theta)))
-        return logsumexp(exponents)
 
-    # generate sample from nth component and define logpdf
+    # generate sample from nth component if needed
     tmp_logr = lambda x : norm_logpdf(x, mean = y[n,:], sd = r_sd)
     if Zs is None:
         tmp_r_sample = lambda B : norm_random(B, mean = y[n,:], sd = r_sd)
@@ -538,28 +533,40 @@ def kl_grad2_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, 
     else:
         theta1 = samples[n]
         Z1 = Zs[n]
+
+    # define logpdfs
     logqn = lambda x : smc_logqn(x, tmp_logr, logp, beta[n], Z1)
+    logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
 
-
-    # generate sample from mixture minus nth component and define logpdf
+    # build q-k
     tmp_w = np.copy(w)
     tmp_w[n] = 0.
-    tmp_w = tmp_w / (1-w[n]) # normalize
-    logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B, Zs)
-    theta2 = mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
+    logqmk = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B, Zs)
 
-    # define psi
-    def psi_n(theta): return (np.exp(logqn(theta)) - np.exp(logq(theta))) / np.exp(logh(theta))
+    # define new mixture h = alpha qn + (1-alpha) q
+    def logh(a, theta):
+        exponents = np.column_stack((np.log(a + (1-a)*w[n]) + logqn(theta), np.log(1-a) + logqmk(theta)))
+        return logsumexp(exponents)
+
+    # define non-extreme alpha, which ensures that new component has weight in [0.1,0.9]
+    baralpha = min((0.9-w[n])/(1.-w[n]), max((0.1-w[n])/(1.-w[n]), alpha))
+
+    # define psi to take expectation of
+    psi_n = lambda theta : (np.exp(logqn(theta)) - np.exp(logq(theta)))**2 / (np.exp(logh(baralpha,theta)) * np.exp(logh(alpha,theta)))
 
     if Zs is None:
+        # gotta sample from mixture
+        tmp_w = (1-baralpha)*w
+        tmp_w[n] += baralpha
         theta2 = mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
-        return (1-w[n])**2 * np.mean(psi_n(theta1) - psi_n(theta2))
+        return np.mean(psi_n(theta2))
     else:
-        out = psi_n(theta1)
+        # use current samples
+        out = (baralpha + (1-baralpha)*w[n])*psi_n(theta1)
         for k in range(y.shape[0]):
-            if tmp_w[k] == 0: continue
-            out -= tmp_w[k]*psi_n(samples[k])
-        return (1-w[n])**2 * np.mean(out)
+            if w[k] == 0: continue
+            out -= (1-baralpha)*w[k]*psi_n(samples[k])
+        return np.mean(out)
 
 
 
