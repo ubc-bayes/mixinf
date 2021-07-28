@@ -45,10 +45,6 @@ parser.add_argument('--lbvi_smc', action = "store_true",
 help = 'run lbvi with smc components?')
 parser.add_argument('--smc', type = str, default = 'smc', choices=['smc'],
 help = 'smc sampler to use in the lbvi mixture')
-parser.add_argument('--smc_wgamma', type = float, default = 1.,
-help = 'step size of the smc weight newton step')
-parser.add_argument('--smc_bgamma', type = float, default = 1.,
-help = 'step size of the smc beta newton step')
 parser.add_argument('--smc_eps', type = float, default = 0.01,
 help = 'step size of the smc discretization')
 parser.add_argument('--smc_sd', type = float, default = 1.,
@@ -57,6 +53,8 @@ parser.add_argument('--smc_T', type = int, default = 1,
 help = 'number of steps of the rwmh rejuvenation kernel in smc')
 parser.add_argument('--smc_w_maxiter', type = int, default = 1000,
 help = 'maximum number of weight optimization iterations in lbvi with smc components')
+parser.add_argument('--smc_b_maxiter', type = int, default = 1000,
+help = 'maximum number of beta optimization iterations in lbvi with smc components')
 parser.add_argument('--smc_cacheing', action = "store_true",
 help = 'cache samples in lbvi smc?')
 parser.add_argument('-N', type = int,
@@ -231,12 +229,11 @@ klcalc = args.kl
 # ALGS SETTINGS
 # lbvi smc
 smc_kernel = args.smc
-smc_wgamma = args.smc_wgamma
-smc_bgamma = args.smc_bgamma
 smc_eps = args.smc_eps
 smc_sd = args.smc_sd
 smc_T = args.smc_T
 smc_w_maxiter = args.smc_w_maxiter
+smc_b_maxiter = args.smc_b_maxiter
 smc_cacheing = args.smc_cacheing
 # lbvi
 maxiter = args.maxiter
@@ -385,7 +382,7 @@ for r in reps:
 
         # depending on which methods are being run, modify what is being appended to file
         if lbvi_smc_flag:
-            settings_text += '\n\nLBVI SMC settings:' + '\nInitial sample size: ' + str(N) + '\nSMC sampler: ' + str(smc_kernel) + '\nWeight Newton step: ' + str(smc_wgamma) + '\nBeta Newton step: ' + str(smc_bgamma) + '\nDiscretization step size: ' + str(smc_eps) + '\nMCMC rejuvenation kernel std. deviation: ' + str(smc_sd) + ' (also used as std. deviation of SMC reference distributions)' + '\nMCMC rejuvenation kernel number of steps per rejuvenation step: ' + str(smc_T)
+            settings_text += '\n\nLBVI SMC settings:' + '\nInitial sample size: ' + str(N) + '\nSMC sampler: ' + str(smc_kernel) + '\nDiscretization step size: ' + str(smc_eps) + '\nMCMC rejuvenation kernel std. deviation: ' + str(smc_sd) + ' (also used as std. deviation of SMC reference distributions)' + '\nMCMC rejuvenation kernel number of steps per rejuvenation step: ' + str(smc_T)
         if lbvi_flag:
             settings_text += '\n\nLBVI settings:' + '\nInitial sample size: ' + str(N) + '\nKernel sampler: ' + sample_kernel + '\nRKHS kernel: ' +    rkhs + '\nStep increments: ' + str(t_increment) + '\nMax no. of steps per kernel: ' + str(t_max) + '\nMax no. of steps before optimizing weights again: ' +     str(weight_max) + '\nMax no of iterations: ' + str(maxiter)
         if ulbvi_flag:
@@ -452,7 +449,7 @@ for r in reps:
                 print('Std. deviation of reference distributions: ' + str(smc_sd))
                 print()
 
-            y, w, betas, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_gamma = smc_wgamma, w_schedule = smc_w_schedule, w_maxiter = smc_w_maxiter, b_gamma = smc_bgamma, B = B, cacheing = smc_cacheing, verbose = verbose, plot = True, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
+            y, w, betas, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_schedule = smc_w_schedule, w_maxiter = smc_w_maxiter, b_schedule = smc_b_schedule, b_maxiter = smc_b_maxiter, B = B, cacheing = smc_cacheing, verbose = verbose, plot = True, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
 
             # save results
             if verbose: print('Saving LBVI results')

@@ -73,3 +73,4 @@ def w_schedule(k):
     return 0.005
 
 smc_w_schedule = lambda k : 0.1/np.sqrt(k)
+smc_b_schedule = lambda k : 0.1/np.sqrt(k)
