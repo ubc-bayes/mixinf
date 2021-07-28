@@ -597,6 +597,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
     kls = np.zeros(N)
     grads = np.zeros(N)
     alpha_star = np.zeros(N)
+    alpha_grid = np.array([0.1, 0.05, 0.01, 0.005, 0.001, 0.0005])
 
     for n in range(N):
         if w[n] == 1:
@@ -607,8 +608,32 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
                 kls[n] = kl(logq, logp, sampler, B = B)
             else:
                 kls[n] = kl_mixture(y, w, samples, beta, Zs, logp)
+        elif w[n] == 0:
+            # if current component is inactive, choose grid of alpha values and select best kl
+            tmp_kls = np.zeros(alpha_grid.shape[0])
+
+            for i in range(alpha_grid.shape[0]):
+                # create new mixture with current alpha
+                alpha = alpha_grid[i]
+                tmp_w = (1-alpha)*w
+                tmp_w[n] += alpha
+                tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B, Zs)
+                # calculate kl with this mixture
+
+                if Zs is None:
+                    sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
+                    tmp_kls[i] = kl(logq, logp, sampler, B = B)
+                else:
+                    tmp_kls[i] = kl_mixture(y, tmp_w, samples, beta, Zs, logp)
+
+            # select alpha from grid that leads to smallest kl
+            tmp_argmin = np.argmin(tmp_kls)
+            kls[n] = np.amin(tmp_kls)
+            alpha_star[n] = alpha_grid[tmp_argmin]
+
+            if verbose: print('y: ' + str(y[n,:]) + '   |   α: ' + str(alpha_star[n]) + '   |   KL: ' + str(kls[n]))
         else:
-            # calcualte minimizer of second order approximation to kl
+            # calcualte minimizer of second order approximation to kl for active components
             grad = kl_grad_alpha(0., logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
             grads[n] = grad
             grad2 = kl_grad2_alpha(0., logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
