@@ -416,6 +416,8 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, v
     N = y.shape[0]
     K = y.shape[1]
     trimmed_beta_ls = [beta_ls[n][beta_ls[n] <= beta[n]] for n in range(N)]
+    logr = lambda x : norm_logpdf(x, y[n,:], r_sd)
+    r_sample = lambda x : norm_random(x, y[n,:], r_sd)
     smc_eps = beta_ls[0][0]
     kls = np.zeros(N)
     beta_star = np.zeros(N)
@@ -432,9 +434,13 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, v
             beta_star[n] = min(1., max(smc_eps, beta_star[n])) # iteratively scale until feasible point
 
             # calculate kl estimate at minimizer
+            tmp_trimmed_beta_ls = trimmed_beta_ls.copy()
+            tmp_trimmed_beta_ls[n] = beta_ls[n][beta_ls[n] <= beta_star[n]] # trim nth discretization up to beta_star instead of beta[n]
+            # update samples and normalizing constants
+            theta,tmp_Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_trimmed_beta_ls[n], Z0 = 1)
+            samples[n] = theta
+            Zs[n] = tmp_Z
             if Zs is None:
-                tmp_trimmed_beta_ls = trimmed_beta_ls.copy()
-                tmp_trimmed_beta_ls[n] = beta_ls[n][beta_ls[n] <= beta_star[n]] # trim nth discretization up to beta_star instead of beta[n]
                 tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls, B, Zs)
                 tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls)
                 kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
@@ -445,7 +451,7 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, v
         # end if
     # end for
     argmin = np.argmin(kls)
-    return argmin, kls[argmin], beta_star[argmin]
+    return argmin, kls[argmin], beta_star[argmin], samples[argmin], Zs[argmin]
 
 
 def beta_opt(beta_s, n, logp, y, w, beta, beta_ls, r_sd, smc, beta_schedule, B = 10000, samples = None, Zs = None, maxiter = 1000, verbose = False):
@@ -914,7 +920,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
 
         # calculate optimal beta perturbation
         if verbose: print('Determining optimal β')
-        beta_argmin,beta_disc,beta_s = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, verbose)
+        beta_argmin,beta_disc,beta_s,beta_theta,beta_Z = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, verbose)
 
         if verbose: print('Preliminary (α*, β*) = (' + str(alpha_s) + ', ' + str(beta_s) + ')')
 
@@ -928,8 +934,19 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
         else:
             if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
             betas[beta_argmin] = beta_s
+            samples[beta_argmin] = beta_theta
+            Zs[beta_argmin] = beta_Z
             active = np.append(active, beta_argmin)
-            bopt, theta, Zopt = beta_opt(beta_s, n, logp, y, w, betas, beta_ls, r_sd, smc, b_schedule, B = B, samples = samples, Zs = Zs, maxiter = b_maxiter, verbose = verbose)
+
+            # optimize beta of chosen component
+            bopt, thetaopt, Zopt = beta_opt(beta_s, beta_argmin, logp, y, w, betas, beta_ls, r_sd, smc, b_schedule, B = B, samples = samples, Zs = Zs, maxiter = b_maxiter, verbose = verbose)
+            if verbose: print('Optimal β*: ' + str(bopt))
+
+            # update samples and normalizing constants
+            samples[beta_argmin] = thetaopt
+            Zs[beta_argmin] = Zopt
+
+
 
             # also resample from nth component because its beta changed
             if cacheing:
