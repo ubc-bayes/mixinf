@@ -436,16 +436,19 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, v
             # calculate kl estimate at minimizer
             tmp_trimmed_beta_ls = trimmed_beta_ls.copy()
             tmp_trimmed_beta_ls[n] = beta_ls[n][beta_ls[n] <= beta_star[n]] # trim nth discretization up to beta_star instead of beta[n]
-            # update samples and normalizing constants
-            theta,tmp_Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_trimmed_beta_ls[n], Z0 = 1)
-            samples[n] = theta
-            Zs[n] = tmp_Z
+
             if Zs is None:
                 tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls, B, Zs)
                 tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, tmp_trimmed_beta_ls)
                 kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
             else:
-                kls[n] = kl_mixture(y, w, samples, beta, Zs, logp)
+                # update samples and normalizing constants
+                theta,tmp_Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_trimmed_beta_ls[n], Z0 = 1)
+                samples[n] = theta
+                Zs[n] = tmp_Z
+                tmp_beta = np.copy(beta)
+                tmp_beta[n] = beta_star[n]
+                kls[n] = kl_mixture(y, w, samples, tmp_beta, Zs, logp)
 
             if verbose: print('y: ' + str(y[n,:]) + '   |   β: ' + str(beta_star[n]) + '   |   Gradient: ' + str(grad) + '   |   Hessian: ' + str(grad2) + '   |   KL: ' + str(kls[n]))
         # end if
@@ -490,11 +493,11 @@ def beta_opt(beta_s, n, logp, y, w, beta, beta_ls, r_sd, smc, beta_schedule, B =
             obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
         else:
             obj = kl_mixture(y, w, samples, beta, Zs, logp)
-        print('0/' + str(maxiter) + '   |   β: '  + str(bopt) + '   |   Gradient : ' + str(kl_grad2_beta(bopt, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)) + '  |   KL: ' + str(obj), end='\n')
+        print('0/' + str(maxiter) + '   |   β: '  + str(bopt) + '   |   Gradient : ' + str(kl_grad_beta(bopt, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)) + '   |   Hessian: ' + str(kl_grad2_beta(bopt, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)) + '  |   KL: ' + str(obj), end='\n')
 
     for k in range(maxiter):
-        Dbeta = kl_grad2_beta(bopt, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
-        Dbeta2 = kl_grad_beta(bopt, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
+        Dbeta = kl_grad_beta(bopt, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
+        Dbeta2 = kl_grad2_beta(bopt, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
         bopt -= beta_schedule(k+1)*Dbeta/Dbeta2
         bopt = min(1.,max(0.,bopt))
         beta[n] = bopt
@@ -503,9 +506,10 @@ def beta_opt(beta_s, n, logp, y, w, beta, beta_ls, r_sd, smc, beta_schedule, B =
         logr = lambda x : norm_logpdf(x, y[n,:], r_sd)
         r_sample = lambda B : norm_random(B, y[n,:], r_sd)
         trimmed_beta_ls = beta_ls[n][beta_ls[n] < beta[n]]
-        theta,tmp_Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = trimmed_beta_ls, Z0 = 1)
-        samples[n] = theta
-        Zs[n] = tmp_Z
+        if Zs is not None:
+            theta,tmp_Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = trimmed_beta_ls, Z0 = 1)
+            samples[n] = theta
+            Zs[n] = tmp_Z
 
         # printout
         if verbose and (k+1)%prt==0:
@@ -516,7 +520,7 @@ def beta_opt(beta_s, n, logp, y, w, beta, beta_ls, r_sd, smc, beta_schedule, B =
                 obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
             else:
                 obj = kl_mixture(y, w, samples, beta, Zs, logp)
-            print(str(k+1) + '/' + str(maxiter) + '   |   β: '  + str(bopt) + '   |   Gradient : ' + str(Dbeta) + '  |   KL: ' + str(obj), end='\n')
+            print(str(k+1) + '/' + str(maxiter) + '   |   β: '  + str(bopt) + '   |   Gradient : ' + str(Dbeta) + '   |   Hessian: ' + str(Dbeta2) + '  |   KL: ' + str(obj), end='\n')
     # end for
 
     # obtain samples and normalizing constant
@@ -773,7 +777,7 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
             obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
         else:
             obj = kl_mixture(y, w, samples, beta, Zs, logp)
-        print('0/' + str(maxiter) + '   |   α: '  + str(alpha) + '   |   Gradient : ' + str(kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)) + '  |   KL: ' + str(obj), end='\n')
+        print('0/' + str(maxiter) + '   |   α: '  + str(alpha) + '   |   Gradient : ' + str(kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)) + '   |   Hessian: ' + str(kl_grad2_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)) + '  |   KL: ' + str(obj), end='\n')
 
     for k in range(maxiter):
         Dalpha = kl_grad_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
@@ -791,7 +795,7 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
                 obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
             else:
                 obj = kl_mixture(y, tmp_w, samples, beta, Zs, logp)
-            print(str(k+1) + '/' + str(maxiter) + '   |   α: '  + str(alpha) + '   |   Gradient : ' + str(Dalpha) + '  |   KL: ' + str(obj), end='\n')
+            print(str(k+1) + '/' + str(maxiter) + '   |   α: '  + str(alpha) + '   |   Gradient : ' + str(Dalpha) + '   |   Hessian: ' + str(Dalpha2) + '  |   KL: ' + str(obj), end='\n')
     # end for
     w_opt = (1-alpha)*w
     w_opt[n] += alpha
@@ -924,12 +928,12 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
 
         # determine whether to perturb weight or beta and update active set
         if w_disc < beta_disc:
-            if verbose: print('Optimizing the weight of ' + str(y[w_argmin]))
+            if verbose: print('Optimizing the α of ' + str(y[w_argmin]))
             active = np.append(active, w_argmin)
             w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, samples, Zs, w_maxiter, verbose)
             if verbose: print('Optimal α*: ' + str(alpha_s))
         else:
-            if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
+            if verbose: print('Optimizing the β of ' + str(y[beta_argmin]))
             betas[beta_argmin] = beta_s
             samples[beta_argmin] = beta_theta
             Zs[beta_argmin] = beta_Z
