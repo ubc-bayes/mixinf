@@ -382,14 +382,12 @@ def kl_grad2_beta(b, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n):
     logqn = lambda x : smc_logqn(x, logr, logp, beta[n], Z)
     logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
 
-    logrbyp = logr(theta) - logp(theta)
+    logpbyr = logp(theta) - logr(theta)
     logqbyp = logq(theta) - logp(theta)
-    g = w[n]*np.exp(logqn(theta))/np.exp(logq(theta)) + logqbyp
-    g = g*(logrbyp - np.mean(logrbyp))
-    term1 = w[n]*np.cov(logrbyp, g)[0][1]
-    term2 = w[n]*np.mean(logqbyp)*np.var(logrbyp)
+    term1 = w[n]*np.cov(logpbyr**2, logqbyp)[0][1]
+    term2 = w[n]**2 * np.var(logpbyr)
 
-    return term1-term2
+    return term1+term2
 
 
 ## choosing next component based on weight ###
