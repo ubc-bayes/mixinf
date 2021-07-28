@@ -28,10 +28,10 @@ def logp_mixture_aux(x, K):
 
 
 def logp_banana1(x, K = 2):
-    return  -0.5*x[..., 0]**2 / 50 - 0.5*(-x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2 #-np.log(100*np.pi)
+    return  -0.5*x[..., 0]**2 / 50 - 0.5*(-x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2 -np.log(100*np.pi)
 
 def logp_banana2(x, K = 2):
-    return -0.5*x[..., 0]**2 / 50 - 0.5*(x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2 #-np.log(100*np.pi)
+    return -0.5*x[..., 0]**2 / 50 - 0.5*(x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2 -np.log(100*np.pi)
 
 alpha_b = 0.5 # each banana has the same weight
 def logp_banana_aux(x):
@@ -39,7 +39,7 @@ def logp_banana_aux(x):
     return max_value + np.log(np.exp(np.log(alpha_b)+logp_banana1(x)-max_value)+np.exp(np.log(1-alpha_b)+logp_banana2(x)-max_value))
     #return np.log(alpha_b*np.exp(logp_banana1(x,2)) + (1-alpha_b)*np.exp(logp_banana2(x,2)))
 
-alpha = 0.05 # double banana has small weight because it's very picky
+alpha = 0.9
 def logp_aux(x, K = 2):
     max_value = np.maximum(np.log(alpha)+logp_banana_aux(x), np.log(1-alpha)+logp_mixture_aux(x, K))
     return max_value + np.log(np.exp(np.log(alpha)+logp_banana_aux(x)-max_value)+np.exp(np.log(1-alpha)+logp_mixture_aux(x, K)-max_value))
@@ -100,7 +100,7 @@ def p_sample(size, K=2):
 #    return sd * np.random.randn(size, K) + mu
 def sample(size,K=2):
     out = np.zeros((size,2)) # init
-    inds = np.random.choice([0,1], size = size, p = [0.2, 0.8], replace = True) # select indices from banana/gaussian mixture
+    inds = np.random.choice([0,1], size = size, p = [0.5, 0.5], replace = True) # select indices from banana/gaussian mixture
     n_banana = inds[inds == 0].shape[0]
     n_gauss = size - n_banana
     out[inds == 0,:] = double_banana_sample(n_banana)           # sample from banana
@@ -115,8 +115,8 @@ def w_maxiters(k, long_opt = False):
 
 #def w_schedule(k): return 0.01
 def w_schedule(k): return 0.001
-smc_w_schedule = lambda k : 1e-1/np.sqrt(k)
-smc_b_schedule = lambda k : 0.25/np.sqrt(k)
+smc_w_schedule = lambda k : 1./np.sqrt(k)
+smc_b_schedule = lambda k : 0.1/np.sqrt(k)
 
 # CREATE UBVI SCHEDULES
 adam_learning_rate= lambda itr : 1./np.sqrt(itr+1)
