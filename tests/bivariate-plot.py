@@ -188,7 +188,7 @@ if dens_plots:
                 w = np.load(tmp_path + 'w_' + str(r+1) + '_' + str(tol) + '.npy')
                 betas = np.load(tmp_path + 'betas_' + str(r+1) + '_' + str(tol) + '.npy')
                 beta_ls = [np.linspace(0,1,int(1/smc_eps)+1) for n in range(y.shape[0])]
-                lbvi_smc_logq = lambda x : lbvi_smc.mix_logpdf(x, logp, y, w, smc, smc_sd, betas, beta_ls, 10000)
+                lbvi_smc_logq = lambda x : lbvi_smc.mix_logpdf(x, logp, y, w, smc, smc_sd, betas, beta_ls, 10000, None)
 
             if lbvi_flag:
                 # retrieve lbvi settings
