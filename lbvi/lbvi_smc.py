@@ -448,6 +448,81 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, v
     return argmin, kls[argmin], beta_star[argmin]
 
 
+def beta_opt(beta_s, n, logp, y, w, beta, beta_ls, r_sd, smc, beta_schedule, B = 10000, samples = None, Zs = None, maxiter = 1000, verbose = False):
+    """
+    Optimize the beta of the nth component via stochastic Newton's method
+    Input:
+    beta_s         : float, initialization point
+    n              : int, component to optimize
+    logp           : function, log target density
+    y              : (N,K) array with locations
+    w              : (N,) array, weights of components
+    beta           : (N,) array, betas of components
+    beta_ls        : list of np arrays, contains discretizations of components
+    r_sd           : float, std deviation of reference distributions
+    smc            : function, generates samples via SMC
+    beta_schedule  : function, newton's step size
+    B              : int, number of particles ot use in SMC and to estimate gradients
+    samples        : list of arrays or None, samples from each component. If None, samples will be generated
+    Zs             : (N,) array or None, normalizing constants of each component. If None, they will be calculated
+    maxiter        : int, maximum number of iterations
+    verbose        : boolean, whether to print messages
+
+    Out:
+    w_opt   : (N,) array with optimal weights
+    alpha   : float, optimal value of alpha
+    """
+    N = y.shape[0]
+    bopt = beta_s
+    prt = 1 if maxiter <= 10 else int(maxiter/10) # how many iterations to wait until print out
+
+    if verbose:
+        beta[n] = bopt
+        tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
+        if Zs is None:
+            tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, beta_ls)
+            obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+        else:
+            obj = kl_mixture(y, w, samples, beta, Zs, logp)
+        print('0/' + str(maxiter) + '   |   β: '  + str(bopt) + '   |   Gradient : ' + str(kl_grad2_beta(bopt, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)) + '  |   KL: ' + str(obj), end='\n')
+
+    for k in range(maxiter):
+        Dbeta = kl_grad2_beta(bopt, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
+        Dbeta2 = kl_grad_beta(bopt, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, n)
+        bopt -= beta_schedule(k+1)*Dbeta/Dbeta2
+        bopt = min(1.,max(0.,bopt))
+        beta[n] = bopt
+
+        # resample
+        logr = lambda x : norm_logpdf(x, y[n,:], r_sd)
+        r_sample = lambda B : norm_random(B, y[n,:], r_sd)
+        trimmed_beta_ls = beta_ls[n][beta_ls[n] < beta[n]]
+        theta,tmp_Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = trimmed_beta_ls, Z0 = 1)
+        samples[n] = theta
+        Zs[n] = tmp_Z
+
+        # printout
+        if verbose and (k+1)%prt==0:
+            # estimate kl and print info
+            tmp_logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
+            if Zs is None:
+                tmp_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, beta, beta_ls)
+                obj = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
+            else:
+                obj = kl_mixture(y, w, samples, beta, Zs, logp)
+            print(str(k+1) + '/' + str(maxiter) + '   |   β: '  + str(bopt) + '   |   Gradient : ' + str(Dbeta) + '  |   KL: ' + str(obj), end='\n')
+    # end for
+
+    # obtain samples and normalizing constant
+    logr = lambda x : norm_logpdf(x, y[n,:], r_sd)
+    r_sample = lambda B : norm_random(B, y[n,:], r_sd)
+    trimmed_beta_ls = beta_ls[n][beta_ls[n] < beta[n]]
+    theta,Zopt,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = beta_ls, Z0 = 1)
+
+    return bopt, theta, Zopt
+
+
+
 
 
 
@@ -660,23 +735,23 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
 
 def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B = 10000, samples = None, Zs = None, maxiter = 1000, verbose = False):
     """
-    Optimize the weight of nth component via SGD
+    Optimize the weight of the nth component via stochastic Newton's method
     Input:
-    alpha_s : float, initialization point
-    n       : int, component to optimize
-    logp    : function, log target density
-    y       : (N,K) array with locations
-    w       : (N,) array, weights of components
-    beta    : (N,) array, betas of components
-    beta_ls : list of np arrays, contains discretizations of components
-    r_sd    : float, std deviation of reference distributions
-    smc     : function, generates samples via SMC
-    w_gamma : float, newton's step size
-    B       : int, number of particles ot use in SMC and to estimate gradients
-    samples : list of arrays or None, samples from each component. If None, samples will be generated
-    Zs      : (N,) array or None, normalizing constants of each component. If None, they will be calculated
-    maxiter : int, maximum number of iterations
-    verbose : boolean, whether to print messages
+    alpha_s     : float, initialization point
+    n           : int, component to optimize
+    logp        : function, log target density
+    y           : (N,K) array with locations
+    w           : (N,) array, weights of components
+    beta        : (N,) array, betas of components
+    beta_ls     : list of np arrays, contains discretizations of components
+    r_sd        : float, std deviation of reference distributions
+    smc         : function, generates samples via SMC
+    w_schedule  : function, newton's step size
+    B           : int, number of particles ot use in SMC and to estimate gradients
+    samples     : list of arrays or None, samples from each component. If None, samples will be generated
+    Zs          : (N,) array or None, normalizing constants of each component. If None, they will be calculated
+    maxiter     : int, maximum number of iterations
+    verbose     : boolean, whether to print messages
 
     Out:
     w_opt   : (N,) array with optimal weights
@@ -723,7 +798,7 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
 #### MAIN FUNCTION #######
 ##########################
 ##########################
-def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 1., w_schedule = None, w_maxiter = 1000, b_gamma = 1., B = 1000, cacheing = False, verbose = False, plot = False, plot_path = '', plot_lims = [-10,10,-10,10], gif = False):
+def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 1., w_schedule = None, w_maxiter = 1000, b_gamma = 1., b_schedule = None, b_maxiter = 1000, B = 1000, cacheing = False, verbose = False, plot = False, plot_path = '', plot_lims = [-10,10,-10,10], gif = False):
     """
     Run LBVI with SMC components
     Input:
@@ -734,9 +809,11 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     r_sd       : float, std deviation used for reference distributions; if None, 3 will be used
     maxiter    : int, maximum number of iterations to run the main loop for
     w_gamma    : float, newton's step size for weight optimization
-    w_schedule : function or None, receives iteration number and returns step size (defaults to 1/sqrt(iter) if None)
-    w_maxiter  : int, maximum number of iterations for step size optimization
+    w_schedule : function or None, receives iteration number and returns step size for weight opt (defaults to 1/sqrt(iter) if None)
+    w_maxiter  : int, maximum number of iterations for weight optimization
     b_gamma    : float, newton's step size for beta optimization
+    b_schedule : function or None, receives iteration number and returns step size for beta opt (defaults to 1/sqrt(iter) if None)
+    b_maxiter  : int, maximum number of iterations for beta optimization
     B          : int, number of MC samples to use for gradient estimation
     verbose    : boolean, whether to cache samples and logpdfs; speeds up algorithm but might decrease accuracy
     verbose    : boolean, whether to print messages
@@ -759,6 +836,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
     betas = np.zeros(N)
     w = np.zeros(N)
     if w_schedule is None: w_schedule = lambda k : 1./np.sqrt(k)
+    if b_schedule is None: b_schedule = lambda k : 1./np.sqrt(k)
     samples = [norm_random(B, y[n,:], r_sd) for n in range(N)] if cacheing else None  # init at reference dist
     Zs = np.ones(N) if cacheing else None                                             # all normalizing constants are 1
 
@@ -841,7 +919,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
         if verbose: print('Preliminary (α*, β*) = (' + str(alpha_s) + ', ' + str(beta_s) + ')')
 
         # determine whether to perturb weight or beta and update active set
-        if w_disc < beta_disc:
+        #if w_disc < beta_disc:
+        if False:
             if verbose: print('Optimizing the weight of ' + str(y[w_argmin]))
             active = np.append(active, w_argmin)
             w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, samples, Zs, w_maxiter, verbose)
@@ -850,6 +929,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_gamma = 
             if verbose: print('Modifying the beta of ' + str(y[beta_argmin]))
             betas[beta_argmin] = beta_s
             active = np.append(active, beta_argmin)
+            bopt, theta, Zopt = beta_opt(beta_s, n, logp, y, w, betas, beta_ls, r_sd, smc, b_schedule, B = B, samples = samples, Zs = Zs, maxiter = b_maxiter, verbose = verbose)
 
             # also resample from nth component because its beta changed
             if cacheing:
