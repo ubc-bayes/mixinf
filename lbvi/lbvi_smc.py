@@ -563,7 +563,7 @@ def kl_grad2_alpha(alpha, logp, y, w, beta, beta_ls, r_sd, smc, B, samples, Zs, 
         out = (baralpha + (1-baralpha)*w[n])*psi_n(theta1)
         for k in range(y.shape[0]):
             if w[k] == 0: continue
-            out -= (1-baralpha)*w[k]*psi_n(samples[k])
+            out += (1-baralpha)*w[k]*psi_n(samples[k])
         return np.mean(out)
 
 
@@ -630,6 +630,8 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
     # end for
     argmin = np.argmin(kls)
     return argmin, kls[argmin], alpha_star[argmin]
+
+
 
 def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B = 10000, samples = None, Zs = None, maxiter = 1000, verbose = False):
     """
