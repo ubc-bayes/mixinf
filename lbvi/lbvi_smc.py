@@ -454,7 +454,10 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, v
         # end if
     # end for
     argmin = np.argmin(kls)
-    return argmin, kls[argmin], beta_star[argmin], samples[argmin], Zs[argmin]
+    if Zs is None:
+        return argmin, kls[argmin], beta_star[argmin], None, None
+    else:
+        return argmin, kls[argmin], beta_star[argmin], samples[argmin], Zs[argmin]
 
 
 def beta_opt(beta_s, n, logp, y, w, beta, beta_ls, r_sd, smc, beta_schedule, B = 10000, samples = None, Zs = None, maxiter = 1000, verbose = False):
@@ -707,7 +710,7 @@ def choose_weight(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs,
 
                 if Zs is None:
                     sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, beta, beta_ls)
-                    tmp_kls[i] = kl(logq, logp, sampler, B = B)
+                    tmp_kls[i] = kl(tmp_logq, logp, sampler, B = B)
                 else:
                     tmp_kls[i] = kl_mixture(y, tmp_w, samples, beta, Zs, logp)
 
@@ -927,7 +930,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         if verbose: print('Preliminary (α*, β*) = (' + str(alpha_s) + ', ' + str(beta_s) + ')')
 
         # determine whether to perturb weight or beta and update active set
-        if w_disc < beta_disc:
+        #if w_disc < beta_disc:
+        if False:
             if verbose: print('Optimizing the α of ' + str(y[w_argmin]))
             active = np.append(active, w_argmin)
             w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, samples, Zs, w_maxiter, verbose)
@@ -935,28 +939,20 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         else:
             if verbose: print('Optimizing the β of ' + str(y[beta_argmin]))
             betas[beta_argmin] = beta_s
-            samples[beta_argmin] = beta_theta
-            Zs[beta_argmin] = beta_Z
             active = np.append(active, beta_argmin)
+            if cacheing:
+                samples[beta_argmin] = beta_theta
+                Zs[beta_argmin] = beta_Z
 
             # optimize beta of chosen component
             bopt, thetaopt, Zopt = beta_opt(beta_s, beta_argmin, logp, y, w, betas, beta_ls, r_sd, smc, b_schedule, B = B, samples = samples, Zs = Zs, maxiter = b_maxiter, verbose = verbose)
             if verbose: print('Optimal β*: ' + str(bopt))
 
             # update samples and normalizing constants
-            samples[beta_argmin] = thetaopt
-            Zs[beta_argmin] = Zopt
-
-
-
-            # also resample from nth component because its beta changed
             if cacheing:
-                tmp_r_sample = lambda B : norm_random(B, y[beta_argmin,:], r_sd)
-                tmp_logr = lambda x : norm_logpdf(x, y[beta_argmin,:], r_sd)
-                tmp_beta_ls = beta_ls[beta_argmin][beta_ls[beta_argmin] <= betas[beta_argmin]]
-                tmp_samples,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = tmp_beta_ls, Z0 = 1)
-                samples[beta_argmin] = tmp_samples
-                Zs[beta_argmin] = tmp_Z
+                samples[beta_argmin] = thetaopt
+                Zs[beta_argmin] = Zopt
+
 
         # update mixture
         active = np.unique(active)
