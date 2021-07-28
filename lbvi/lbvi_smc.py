@@ -930,8 +930,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         if verbose: print('Preliminary (α*, β*) = (' + str(alpha_s) + ', ' + str(beta_s) + ')')
 
         # determine whether to perturb weight or beta and update active set
-        #if w_disc < beta_disc:
-        if False:
+        if w_disc < beta_disc:
             if verbose: print('Optimizing the α of ' + str(y[w_argmin]))
             active = np.append(active, w_argmin)
             w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, samples, Zs, w_maxiter, verbose)
@@ -961,7 +960,12 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
 
         # estimate objective function
         obj_timer = time.perf_counter()
-        obj = np.append(obj, kl(logq = logq, logp = logp, sampler = q_sampler, B = 100000))
+        if cacheing:
+            cur_obj = kl_mixture(y, w, samples, betas, Zs, logp)
+        else:
+            tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, betas, beta_ls)
+            cur_obj = kl(logq = tlogq, logp = logp, sampler = q_sampler, B = 10000)
+        obj = np.append(obj, cur_obj)
         obj_timer = time.perf_counter() - obj_timer
 
         # plot approximation
