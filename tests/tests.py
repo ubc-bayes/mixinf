@@ -436,6 +436,10 @@ for r in reps:
         if verbose: print('generating sample')
         y = np.unique(sample(N, K), axis=0)
 
+
+        # TODO REMOVE FOR DEBUGGING ONLY
+        y = np.array([[0, -20], [0, 20], [20, 0], [-20, 0], [0, 5], [0, -5]])
+
         #######################
         #######################
         ### LBVI with SMC  ####

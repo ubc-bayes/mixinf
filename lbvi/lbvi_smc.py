@@ -98,21 +98,38 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         x_upper = plt_lims[1]
         y_upper = plt_lims[3]
 
-        # plot target density
+        # compute log densities / densities
         t = np.linspace(x_lower, x_upper, 1000)
-        p = np.exp(logp(t[:,np.newaxis]))
+        lq = mix_logpdf(t[:,np.newaxis], logp, y, w, smc, r_sd, beta, beta_ls, B, Zs)
+        q = np.exp(lq)
+        lp = logp(t[:, np.newaxis])
+        p = np.exp(lp)
+
+        # plot lines
         plt.plot(t, p, linestyle = 'solid', color = 'black', label = 'p(x)', lw = 3)
-
-
-        # generate and plot approximation
-        q = np.exp(mix_logpdf(t[:,np.newaxis], logp, y, w, smc, r_sd, beta, beta_ls, B, Zs))
         plt.plot(t, q, linestyle = 'dashed', color = '#39558CFF', label='q(x)', lw = 3)
+        #plot 
+        plt.scatter(y[:, 0], np.zeros(y.shape[0]))
 
         # beautify and save plot
         plt.ylim(0, y_upper)
         plt.xlim(x_lower, x_upper)
         plt.legend(fontsize = 'medium', frameon = False)
-        plt.savefig(plt_name, dpi = 300)
+        plt.savefig(plt_name+'.lin.jpg', dpi = 300)
+
+        # plot lines
+        plt.figure()
+        plt.plot(t, lp, linestyle = 'solid', color = 'black', label = 'p(x)', lw = 3)
+        plt.plot(t, lq, linestyle = 'dashed', color = '#39558CFF', label='q(x)', lw = 3)
+        #plot 
+        plt.scatter(y[:, 0], np.zeros(y.shape[0]))
+
+
+        # beautify and save plot
+        #plt.ylim(0, y_upper)
+        #plt.xlim(x_lower, x_upper)
+        plt.legend(fontsize = 'medium', frameon = False)
+        plt.savefig(plt_name+'.log.jpg', dpi = 300)
 
     # bivariate dataplotting
     if y.shape[1] == 2:
@@ -122,31 +139,54 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         y_lower = plt_lims[2]
         y_upper = plt_lims[3]
 
-        # plot target density
         nn = 100
         xx = np.linspace(x_lower, x_upper, nn)
         yy = np.linspace(y_lower, y_upper, nn)
         tt = np.array(np.meshgrid(xx, yy)).T.reshape(nn**2, 2)
         lp = logp(tt).reshape(nn, nn).T
+        lq = mix_logpdf(tt, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs).reshape(nn, nn).T
+
+        ## TODO debugging: print numerical integral of these
+        #print('integral p: ' + str(np.exp(lp).sum()*(x_upper-x_lower)*(y_upper-y_lower)/nn**2))
+        #print('integral q: ' + str(np.exp(lq).sum()*(x_upper-x_lower)*(y_upper-y_lower)/nn**2))
+
+        # plot dens
+        plt.figure()
         cp = plt.contour(xx, yy, np.exp(lp), colors = 'black', levels = 4)
         hcp,_ = cp.legend_elements()
         hcps = [hcp[0]]
-        legends = ['p(x)']
-
-
-        # generate and plot approximation
-        lq = mix_logpdf(tt, logp, y, w, smc, r_sd, beta, beta_ls, B, Zs).reshape(nn, nn).T
-        q = np.exp(lq)
         cq = plt.contour(xx, yy, np.exp(lq), colors = '#39558CFF', levels = 4)
+        legends = ['p(x)']
         hcq,_ = cq.legend_elements()
         hcps.append(hcq[0])
         legends.append('q(x)')
+        #plot starting locs 
+        plt.scatter(y[:, 0], y[:, 1])
 
         # beautify and save plot
         plt.ylim(y_lower, y_upper)
         plt.xlim(x_lower, x_upper)
         plt.legend(hcps, legends, fontsize = 'medium', frameon = False)
-        plt.savefig(plt_name, dpi = 300)
+        plt.savefig(plt_name+'.lin.jpg', dpi = 300)
+
+        # plot log dens
+        plt.figure()
+        cp = plt.contour(xx, yy, lp, colors = 'black', levels = 4)
+        hcp,_ = cp.legend_elements()
+        hcps = [hcp[0]]
+        cq = plt.contour(xx, yy, lq, colors = '#39558CFF', levels = 4)
+        legends = ['p(x)']
+        hcq,_ = cq.legend_elements()
+        hcps.append(hcq[0])
+        legends.append('q(x)')
+        # plot starting locs
+        plt.scatter(y[:, 0], y[:, 1])
+
+        # beautify and save plot
+        plt.ylim(y_lower, y_upper)
+        plt.xlim(x_lower, x_upper)
+        plt.legend(hcps, legends, fontsize = 'medium', frameon = False)
+        plt.savefig(plt_name +'.log.jpg', dpi = 300)
 
 
 def gif_plot(plot_path):
@@ -164,9 +204,7 @@ def gif_plot(plot_path):
     i = 0
     # fix names so they are in correct order
     for x in jpg_dir:
-        x = x[5:]
-        x = x[:-4]
-        number[i] = int(x)
+        number[i] = int(''.join([ch for ch in x if ch.isdigit()]))
         i = i+1
     # end for
 
@@ -851,7 +889,6 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
     samples = [norm_random(B, y[n,:], r_sd) for n in range(N)] if cacheing else None  # init at reference dist
     Zs = np.ones(N) if cacheing else None                                             # all normalizing constants are 1
 
-
     ##########################
     ##########################
     # initialize mixture #####
@@ -894,7 +931,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
     plt_timer = time.perf_counter()
     if plot:
         if verbose: print('Plotting approximation')
-        plt_name = plot_path + 'iter_0.jpg'
+        plt_name = plot_path + 'iter_000.jpg'
         plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000, Zs = Zs)
     plt_timer = time.perf_counter() - plt_timer
 
@@ -917,6 +954,31 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
     ##########################
     ##########################
     for iter in range(1,maxiter+1):
+
+        ##TODO debugging only
+        #if iter == 1:
+        #    w = np.array([0.025, 0.025, 0.025, 0.025, 0.45, 0.45])
+        #    betas = 0.95*np.ones(6)
+        #    active = np.arange(6)
+        #    Zs = np.zeros(6)
+        #    for j in range(6):
+        #        tmp_logr = lambda x : norm_logpdf(x, y[j,:], r_sd)
+        #        tmp_r_sample = lambda B : norm_random(B, y[j,:], r_sd)
+        #        theta, Zopt, _ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_r_sample, B = B, beta_ls = np.linspace(0, 0.95, 20), Z0 = 1)
+        #        samples[j] = theta
+        #        Zs[j] = Zopt
+
+        #    print('Active components: ' + str(np.squeeze(y[active, 0:min(K,3)])))
+        #    print('Weights: ' + str(w[active]))
+        #    print('Betas: ' + str(betas[active]))
+        #    cur_obj = kl_mixture(y, w, samples, betas, Zs, logp)
+        #    print('KL: ' + str(cur_obj))
+        #    print()
+        #    plt_name = plot_path + 'iter_000.jpg'
+        #    plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000, Zs = Zs)
+        ##TODO above is debugging only
+       
+
         if verbose: print('Iteration ' + str(iter) + '/' + str(maxiter))
 
         # calculate optimal weight perturbation
@@ -972,7 +1034,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         plt_timer = time.perf_counter()
         if plot:
             if verbose: print('Plotting approximation')
-            plt_name = plot_path + 'iter_' + str(iter) + '.jpg'
+            plt_name = plot_path + 'iter_' + f'{iter:03d}' + '.jpg'
             plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000)
         plt_timer = time.perf_counter() - plt_timer
 
@@ -993,8 +1055,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
     # end for
 
     # generate gif plot
-    if plot and gif:
-        if verbose: print('Generating gif')
-        gif_plot(plot_path)
+    #if plot and gif:
+    #    if verbose: print('Generating gif')
+    #    gif_plot(plot_path)
 
     return y, w, betas, obj, cpu_time, active_kernels

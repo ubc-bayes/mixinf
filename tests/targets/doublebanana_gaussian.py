@@ -28,10 +28,10 @@ def logp_mixture_aux(x, K):
 
 
 def logp_banana1(x, K = 2):
-    return  -0.5*x[..., 0]**2 / 50 - 0.5*(-x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2 -np.log(100*np.pi)
+    return  -0.5*x[..., 0]**2 / 50 - 0.5*(-x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2 - np.log(2*np.pi) - 0.5*np.log(50)
 
 def logp_banana2(x, K = 2):
-    return -0.5*x[..., 0]**2 / 50 - 0.5*(x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2 -np.log(100*np.pi)
+    return -0.5*x[..., 0]**2 / 50 - 0.5*(x[..., 1] + 15 + 0.1*x[..., 0]**2 - 100*0.1)**2 - np.log(2*np.pi) - 0.5*np.log(50)
 
 alpha_b = 0.5 # each banana has the same weight
 def logp_banana_aux(x):
