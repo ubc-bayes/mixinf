@@ -7,7 +7,7 @@ import pandas as pd
 import time, bisect
 import matplotlib.pyplot as plt
 plt.rcParams.update({'figure.max_open_warning': 0})
-import os
+import os, glob
 import imageio
 
 ##########################
@@ -141,10 +141,11 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         # plot lines
         #plt.figure()
         plt.clf()
+        t = np.linspace(-50,50,1000)
         plt.plot(t, lp, linestyle = 'solid', color = 'black', label = 'p(x)', lw = 3)
         plt.plot(t, lq, linestyle = 'dashed', color = '#39558CFF', label='q(x)', lw = 3)
         #plot
-        plt.scatter(y[:, 0], np.zeros(y.shape[0]))
+        #plt.scatter(y[:, 0], np.zeros(y.shape[0]))
 
 
         # beautify and save plot
@@ -220,25 +221,42 @@ def gif_plot(plot_path):
     Input:
     plot_path : str, path in which plots are stored; gif will be saved in same directory
     """
-    #jpg_dir = inpath #+ 'plots/'
-    jpg_dir = os.listdir(plot_path)
-    jpg_dir = np.setdiff1d(jpg_dir, 'weight_trace') # get rid of weight trace directory
-    jpg_dir = np.setdiff1d(jpg_dir, 'tmp')          # get rid of tmp files directory
-    number = np.zeros(len(jpg_dir))
-    i = 0
-    # fix names so they are in correct order
-    for x in jpg_dir:
-        number[i] = int(''.join([ch for ch in x if ch.isdigit()]))
-        i = i+1
-    # end for
 
-    db = pd.DataFrame({'file_name': jpg_dir, 'number': number})
-    db = db.sort_values(by=['number'])
+    # read directories and sort
+    logs = np.sort(glob.glob(plot_path + '/*log.jpg'))
+    lins = np.sort(glob.glob(plot_path + '/*lin.jpg'))
 
+    # create log gif
     images = []
-    for file_name in db.file_name:
-        images.append(imageio.imread(plot_path + file_name))
-    imageio.mimsave(plot_path + 'lbvi.gif', images, fps = 5)
+    for file_name in logs:
+        images.append(imageio.imread(file_name))
+        imageio.mimsave(plot_path + 'log_lbvi.gif', images, fps = 5)
+
+    # create lin gif
+    images = []
+    for file_name in lins:
+        images.append(imageio.imread(file_name))
+        imageio.mimsave(plot_path + 'lin_lbvi.gif', images, fps = 5)
+
+    ##jpg_dir = inpath #+ 'plots/'
+    #jpg_dir = os.listdir(plot_path)
+    #jpg_dir = np.setdiff1d(jpg_dir, 'weight_trace') # get rid of weight trace directory
+    #jpg_dir = np.setdiff1d(jpg_dir, 'tmp')          # get rid of tmp files directory
+    #number = np.zeros(len(jpg_dir))
+    #i = 0
+    ## fix names so they are in correct order
+    #for x in jpg_dir:
+    #    number[i] = int(''.join([ch for ch in x if ch.isdigit()]))
+    #    i = i+1
+    ## end for
+
+    #db = pd.DataFrame({'file_name': jpg_dir, 'number': number})
+    #db = db.sort_values(by=['number'])
+
+    #images = []
+    #for file_name in db.file_name:
+    #    images.append(imageio.imread(plot_path + file_name))
+    #imageio.mimsave(plot_path + 'lbvi.gif', images, fps = 5)
 
 
 ##########################
@@ -957,7 +975,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
     plt_timer = time.perf_counter()
     if plot:
         if verbose: print('Plotting approximation')
-        plt_name = plot_path + '0000'
+        plt_name = plot_path + 'iter_0000'
         plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000, Zs = Zs)
     plt_timer = time.perf_counter() - plt_timer
 
@@ -1060,8 +1078,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         plt_timer = time.perf_counter()
         if plot:
             if verbose: print('Plotting approximation')
-            #plt_name = plot_path + 'iter_' + f'{iter:03d}' + '.jpg'
-            plt_name = plot_path + '000' + str(iter)
+            plt_name = plot_path + 'iter_' + f'{iter:04d}'# + '.jpg'
+            #plt_name = plot_path + '000' + str(iter)
             plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000)
         plt_timer = time.perf_counter() - plt_timer
 
@@ -1082,8 +1100,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
     # end for
 
     # generate gif plot
-    #if plot and gif:
-    #    if verbose: print('Generating gif')
-    #    gif_plot(plot_path)
+    if plot and gif:
+        if verbose: print('Generating gif')
+        gif_plot(plot_path)
 
     return y, w, betas, obj, cpu_time, active_kernels

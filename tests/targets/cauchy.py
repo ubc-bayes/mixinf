@@ -23,7 +23,7 @@ def logp_aux(x, K = 1):
 def logp_ubvi(x): return logp_aux(x,K=1)
 
 # CREATE SAMPLER ####
-def sample(size, K): return 4 * np.random.randn(size, K)
+def sample(size, K): return 15 * np.random.randn(size, K)
 
 # CREATE EXACT SAMPLER FOR AGNOSTIC KSD ###
 def p_sample(size, K): return np.random.standard_cauchy((size,K))
