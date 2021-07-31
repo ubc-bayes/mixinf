@@ -140,6 +140,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
 
         # plot lines
         #plt.figure()
+        plt.clf()
         plt.plot(t, lp, linestyle = 'solid', color = 'black', label = 'p(x)', lw = 3)
         plt.plot(t, lq, linestyle = 'dashed', color = '#39558CFF', label='q(x)', lw = 3)
         #plot
