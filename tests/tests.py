@@ -265,7 +265,7 @@ rwmh_T = args.rwmh_T
 target = args.target
 if target == '4-mixture':
     from targets.fourmixture import *
-    plt_lims = np.array([-6, 6, 0, 1.5])
+    plt_lims = np.array([-6, 6, 0, 1.])
 
 if target == 'cauchy':
     from targets.cauchy import *

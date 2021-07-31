@@ -1070,7 +1070,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
             cur_obj = kl_mixture(y, w, samples, betas, Zs, logp)
         else:
             tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, betas, beta_ls)
-            cur_obj = kl(logq = tlogq, logp = logp, sampler = q_sampler, B = 10000)
+            cur_obj = kl(logq = logq, logp = logp, sampler = q_sampler, B = 10000)
         obj = np.append(obj, cur_obj)
         obj_timer = time.perf_counter() - obj_timer
 
