@@ -3,7 +3,6 @@ import autograd.numpy as np
 from scipy.special import gamma
 import scipy.stats as stats
 import argparse
-import matplotlib.pyplot as plt
 
 # see https://arxiv.org/pdf/1910.12794.pdf and https://arxiv.org/pdf/1806.03085.pdf
 
@@ -39,7 +38,7 @@ def logp_banana_aux(x):
     return max_value + np.log(np.exp(np.log(alpha_b)+logp_banana1(x)-max_value)+np.exp(np.log(1-alpha_b)+logp_banana2(x)-max_value))
     #return np.log(alpha_b*np.exp(logp_banana1(x,2)) + (1-alpha_b)*np.exp(logp_banana2(x,2)))
 
-alpha = 0.9
+alpha = 0.6
 def logp_aux(x, K = 2):
     max_value = np.maximum(np.log(alpha)+logp_banana_aux(x), np.log(1-alpha)+logp_mixture_aux(x, K))
     return max_value + np.log(np.exp(np.log(alpha)+logp_banana_aux(x)-max_value)+np.exp(np.log(1-alpha)+logp_mixture_aux(x, K)-max_value))

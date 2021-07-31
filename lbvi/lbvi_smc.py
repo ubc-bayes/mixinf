@@ -30,7 +30,14 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
     """
     theta = sampler(B)
     if direction == 'reverse':
-        return np.mean(logq(theta) - logp(theta), axis=-1)
+        obj = np.mean(logq(theta) - logp(theta), axis=-1)
+        # TODO DEBUGGING, DELETE LATER
+        #if obj < 0:
+        #    print('theta: ' + str(theta))
+        #    print('logq(theta): ' + str(logq(theta)))
+        #    print('logp(theta): ' + str(logp(theta)))
+        #return np.mean(logq(theta) - logp(theta), axis=-1)
+        return obj
     elif direction == 'forward':
         return np.mean(logp(theta) - logq(theta), axis=-1)
     else: raise NotImplementedError
@@ -59,6 +66,20 @@ def kl_mixture(y, w, samples, beta, Zs, logp, direction = 'reverse'):
             if w[n] == 0: continue # don't waste time evaluating the logpdfs if they are not going to add
             obj += w[n]*np.mean(logq(samples[n]) - logp(samples[n]), axis=-1)
         return obj
+        ## FOR TESTING, DELETE LATER OBVIOUSLY
+        #if obj < 0:
+        #    tmp_obj = 0.
+        #    for n in range(y.shape[0]):
+        #        if w[n] == 0: continue # don't waste time evaluating the logpdfs if they are not going to add
+        #        print('n: ' + str(n))
+        #        print('y: ' + str(y[n,:]))
+        #        print('w: ' + str(w[n]))
+        #        print('theta: ' + str(samples[n]))
+        #        print('logq(theta): ' + str(logq(samples[n]).mean()))
+        #        print('logp(theta): ' + str(logp(samples[n]).mean()))
+        #        tmp_obj += w[n]*np.mean(logq(samples[n]) - logp(samples[n]), axis=-1)
+        #        print('cumulative obj: ' + str(tmp_obj))
+        #return obj
     else: raise NotImplementedError
 
 def logsumexp(x):
@@ -108,20 +129,20 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         # plot lines
         plt.plot(t, p, linestyle = 'solid', color = 'black', label = 'p(x)', lw = 3)
         plt.plot(t, q, linestyle = 'dashed', color = '#39558CFF', label='q(x)', lw = 3)
-        #plot 
+        #plot
         plt.scatter(y[:, 0], np.zeros(y.shape[0]))
 
         # beautify and save plot
         plt.ylim(0, y_upper)
         plt.xlim(x_lower, x_upper)
         plt.legend(fontsize = 'medium', frameon = False)
-        plt.savefig(plt_name+'.lin.jpg', dpi = 300)
+        plt.savefig(plt_name+'_lin.jpg', dpi = 300)
 
         # plot lines
-        plt.figure()
+        #plt.figure()
         plt.plot(t, lp, linestyle = 'solid', color = 'black', label = 'p(x)', lw = 3)
         plt.plot(t, lq, linestyle = 'dashed', color = '#39558CFF', label='q(x)', lw = 3)
-        #plot 
+        #plot
         plt.scatter(y[:, 0], np.zeros(y.shape[0]))
 
 
@@ -129,7 +150,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         #plt.ylim(0, y_upper)
         #plt.xlim(x_lower, x_upper)
         plt.legend(fontsize = 'medium', frameon = False)
-        plt.savefig(plt_name+'.log.jpg', dpi = 300)
+        plt.savefig(plt_name+'_log.jpg', dpi = 300)
 
     # bivariate dataplotting
     if y.shape[1] == 2:
@@ -151,7 +172,8 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         #print('integral q: ' + str(np.exp(lq).sum()*(x_upper-x_lower)*(y_upper-y_lower)/nn**2))
 
         # plot dens
-        plt.figure()
+        #plt.figure()
+        plt.clf()
         cp = plt.contour(xx, yy, np.exp(lp), colors = 'black', levels = 4)
         hcp,_ = cp.legend_elements()
         hcps = [hcp[0]]
@@ -160,17 +182,18 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         hcq,_ = cq.legend_elements()
         hcps.append(hcq[0])
         legends.append('q(x)')
-        #plot starting locs 
+        #plot starting locs
         plt.scatter(y[:, 0], y[:, 1])
 
         # beautify and save plot
         plt.ylim(y_lower, y_upper)
         plt.xlim(x_lower, x_upper)
         plt.legend(hcps, legends, fontsize = 'medium', frameon = False)
-        plt.savefig(plt_name+'.lin.jpg', dpi = 300)
+        plt.savefig(plt_name+'_lin.jpg', dpi = 300)
 
         # plot log dens
-        plt.figure()
+        #plt.figure()
+        plt.clf()
         cp = plt.contour(xx, yy, lp, colors = 'black', levels = 4)
         hcp,_ = cp.legend_elements()
         hcps = [hcp[0]]
@@ -186,7 +209,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         plt.ylim(y_lower, y_upper)
         plt.xlim(x_lower, x_upper)
         plt.legend(hcps, legends, fontsize = 'medium', frameon = False)
-        plt.savefig(plt_name +'.log.jpg', dpi = 300)
+        plt.savefig(plt_name +'_log.jpg', dpi = 300)
 
 
 def gif_plot(plot_path):
@@ -481,12 +504,14 @@ def choose_beta(logp, y, w, beta, beta_ls, r_sd, smc, b_gamma, B, samples, Zs, v
                 kls[n] = kl(logq = tmp_logq, logp = logp, sampler = tmp_sampler, B = B)
             else:
                 # update samples and normalizing constants
-                theta,tmp_Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_trimmed_beta_ls[n], Z0 = 1)
-                samples[n] = theta
-                Zs[n] = tmp_Z
+                tmp_samples = samples.copy()
+                tmp_Zs = np.copy(Zs)
                 tmp_beta = np.copy(beta)
+                theta,tmp_Z,_ = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_trimmed_beta_ls[n], Z0 = 1)
                 tmp_beta[n] = beta_star[n]
-                kls[n] = kl_mixture(y, w, samples, tmp_beta, Zs, logp)
+                tmp_Zs[n] = tmp_Z
+                tmp_samples[n] = theta
+                kls[n] = kl_mixture(y, w, tmp_samples, tmp_beta, tmp_Zs, logp)
 
             if verbose: print('y: ' + str(y[n,:]) + '   |   β: ' + str(beta_star[n]) + '   |   Gradient: ' + str(grad) + '   |   Hessian: ' + str(grad2) + '   |   KL: ' + str(kls[n]))
         # end if
@@ -931,7 +956,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
     plt_timer = time.perf_counter()
     if plot:
         if verbose: print('Plotting approximation')
-        plt_name = plot_path + 'iter_000.jpg'
+        plt_name = plot_path + '0000'
         plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000, Zs = Zs)
     plt_timer = time.perf_counter() - plt_timer
 
@@ -957,8 +982,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
 
         ##TODO debugging only
         #if iter == 1:
-        #    w = np.array([0.025, 0.025, 0.025, 0.025, 0.45, 0.45])
-        #    betas = 0.95*np.ones(6)
+        #    w = np.array([0.1, 0.1, 0.1, 0.1, 0.3, 0.3])
+        #    betas = np.array([0.1, 0.1, 0.1, 0.1, 0.95, 0.95])
         #    active = np.arange(6)
         #    Zs = np.zeros(6)
         #    for j in range(6):
@@ -974,10 +999,10 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         #    cur_obj = kl_mixture(y, w, samples, betas, Zs, logp)
         #    print('KL: ' + str(cur_obj))
         #    print()
-        #    plt_name = plot_path + 'iter_000.jpg'
+        #    plt_name = plot_path + 'iter_000'
         #    plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000, Zs = Zs)
         ##TODO above is debugging only
-       
+
 
         if verbose: print('Iteration ' + str(iter) + '/' + str(maxiter))
 
@@ -994,13 +1019,13 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         # determine whether to perturb weight or beta and update active set
         if w_disc < beta_disc:
             if verbose: print('Optimizing the α of ' + str(y[w_argmin]))
-            active = np.append(active, w_argmin)
+            active = np.unique(np.append(active, w_argmin))
             w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, samples, Zs, w_maxiter, verbose)
             if verbose: print('Optimal α*: ' + str(alpha_s))
         else:
             if verbose: print('Optimizing the β of ' + str(y[beta_argmin]))
             betas[beta_argmin] = beta_s
-            active = np.append(active, beta_argmin)
+            active = np.unique(np.append(active, beta_argmin))
             if cacheing:
                 samples[beta_argmin] = beta_theta
                 Zs[beta_argmin] = beta_Z
@@ -1034,7 +1059,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         plt_timer = time.perf_counter()
         if plot:
             if verbose: print('Plotting approximation')
-            plt_name = plot_path + 'iter_' + f'{iter:03d}' + '.jpg'
+            #plt_name = plot_path + 'iter_' + f'{iter:03d}' + '.jpg'
+            plt_name = plot_path + '000' + str(iter)
             plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000)
         plt_timer = time.perf_counter() - plt_timer
 
