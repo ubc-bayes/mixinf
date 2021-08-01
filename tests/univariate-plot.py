@@ -224,7 +224,7 @@ if dens_plots:
 
             # LOG DENSITY PLOT
             # initialize plot with target log density
-            t = np.linspace(-50, 50, 2000)
+            t = np.linspace(-40, 40, 2000)
             f = logp(t[:,np.newaxis])
             plt.plot(t, f, linestyle = 'solid', color = 'black', label = 'log p(x)', lw = normal_linewidth)
 
@@ -265,8 +265,8 @@ if dens_plots:
             #plt.xlabel('x')
             #plt.ylabel('Log-density')
             #plt.title('Log-density comparison')
-            plt.xlim(-50,50)
-            plt.ylim(-50,5)
+            plt.xlim(-40,40)
+            #plt.ylim(-50,5)
             #plt.legend(fontsize = legend_fontsize)
 
             # save plot
