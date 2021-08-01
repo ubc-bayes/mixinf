@@ -453,7 +453,7 @@ for r in reps:
                 print('Std. deviation of reference distributions: ' + str(smc_sd))
                 print()
 
-            y, w, betas, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_schedule = smc_w_schedule, w_maxiter = smc_w_maxiter, b_schedule = smc_b_schedule, b_maxiter = smc_b_maxiter, B = B, cacheing = smc_cacheing, verbose = verbose, plot = True, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
+            y, w, betas, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_schedule = smc_w_schedule, w_maxiter = smc_w_maxiter, b_schedule = smc_b_schedule, b_maxiter = smc_b_maxiter, B = B, cacheing = smc_cacheing, verbose = verbose, plot = False, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
 
             # save results
             if verbose: print('Saving LBVI results')
