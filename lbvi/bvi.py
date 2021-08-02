@@ -520,6 +520,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
     if verbose:
         print('running boosting black-box variational inference with diagonal covariance matrix')
         print()
+    yyyy = np.copy(y)
 
     t0 = time.perf_counter()
 
@@ -582,6 +583,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
     for iter_no in range(1, N):
         if verbose: print('iteration ' + str(iter_no+1))
         if convergence: break
+        y = np.copy(yyyy)
 
         # draw initial guess from provided sample
         if verbose: print('choosing new initialization point')
@@ -671,7 +673,7 @@ def bvi_diagonal(logp, N, K, regularization = None, gamma_init = None, gamma_alp
             print()
     # end for
 
-    if not convergence: iter_no += 1 # if it did not converged, assessment was done in that iteration and we need to update
+    if not convergence: iter_no += 1 # if it did not converge, assessment was done in that iteration and we need to update
     active = alphas > 0
     if verbose:
         print('done!')
