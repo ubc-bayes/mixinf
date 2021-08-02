@@ -41,6 +41,8 @@ parser.add_argument('--stop', type = str, default = 'default', choices=['default
 help = 'stopping criterion for lbvi, bvi, and ubvi. Default is ksd tolerance for lbvi and iter number for the other. Median is using custom ksd with median sq distance bw')
 parser.add_argument('--kl', action = "store_true",
 help = 'if specified, kl is calculated for boosting methods and stored; else, ksd is calculated and stored')
+parser.add_argument('--plot', action = "store_true",
+help = 'if specified, lbvi and lbvi smc generate plots')
 parser.add_argument('--lbvi_smc', action = "store_true",
 help = 'run lbvi with smc components?')
 parser.add_argument('--smc', type = str, default = 'smc', choices=['smc'],
@@ -235,6 +237,7 @@ smc_T = args.smc_T
 smc_w_maxiter = args.smc_w_maxiter
 smc_b_maxiter = args.smc_b_maxiter
 smc_cacheing = args.smc_cacheing
+plotting = args.plot
 # lbvi
 maxiter = args.maxiter
 t_increment = args.t_inc
@@ -453,7 +456,7 @@ for r in reps:
                 print('Std. deviation of reference distributions: ' + str(smc_sd))
                 print()
 
-            y, w, betas, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_schedule = smc_w_schedule, w_maxiter = smc_w_maxiter, b_schedule = smc_b_schedule, b_maxiter = smc_b_maxiter, B = B, cacheing = smc_cacheing, verbose = verbose, plot = False, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
+            y, w, betas, obj, cput, act_k = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_schedule = smc_w_schedule, w_maxiter = smc_w_maxiter, b_schedule = smc_b_schedule, b_maxiter = smc_b_maxiter, B = B, cacheing = smc_cacheing, verbose = verbose, plot = plotting, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
 
             # save results
             if verbose: print('Saving LBVI results')
@@ -499,7 +502,7 @@ for r in reps:
             if verbose:
                 print('starting lbvi optimization')
                 print()
-            w, T, obj, cput, act_k, kls = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, cacheing = cacheing, result_cacheing = True, verbose = verbose, plot = True, gif = True, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True, p_sample = kl_psample)
+            w, T, obj, cput, act_k, kls = lbvi.lbvi(y, logp, t_increment, t_max, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, cacheing = cacheing, result_cacheing = True, verbose = verbose, plot = plotting, gif = True, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True, p_sample = kl_psample)
 
             # save results
             if verbose: print('saving lbvi results')
@@ -552,7 +555,7 @@ for r in reps:
             if verbose:
                 print('starting ulbvi optimization')
                 print()
-            w, T, obj, cput, act_k, kls = uniform_lbvi.ulbvi(y, logp, ulbvi_t, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, cacheing = cacheing, result_cacheing = True, verbose = verbose, plot = True, gif = True, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True, p_sample = kl_psample)
+            w, T, obj, cput, act_k, kls = uniform_lbvi.ulbvi(y, logp, ulbvi_t, up, kernel_sampler,  w_maxiters = w_maxiters, w_schedule = w_schedule, B = B, maxiter = maxiter, tol = tol, stop_up = stop_up, weight_max = weight_max, cacheing = cacheing, result_cacheing = True, verbose = verbose, plot = plotting, gif = True, plt_lims = plt_lims, plot_path = tmp_path + 'plots/', trace = True, p_sample = kl_psample)
 
             # save results
             if verbose: print('saving ulbvi results')
@@ -684,9 +687,9 @@ for r in reps:
             if verbose: print()
             # split by whether covariance matrix is full or diagonal
             if bvi_diagonal:
-                mus, Sigmas, alphas, objs, cput, act_k, kls = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up, y = y)
+                mus, Sigmas, alphas, objs, cput, act_k, kls = bvi.bvi_diagonal(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = plotting, plotpath = tmp_path + 'plots/', stop_up = stop_up, y = y)
             else:
-                mus, Sigmas, alphas, objs, cput, act_k, kls = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = True, plotpath = tmp_path + 'plots/', stop_up = stop_up)
+                mus, Sigmas, alphas, objs, cput, act_k, kls = bvi.bvi(logp, bvi_kernels, K, regularization, gamma_init, gamma_alpha, maxiter_alpha = bvi_alpha, maxiter_init = bvi_init, B = B, tol = tol, verbose = verbose, traceplot = plotting, plotpath = tmp_path + 'plots/', stop_up = stop_up)
             if verbose: print()
 
             # save results
