@@ -30,7 +30,7 @@ def logp_aux(x, K = 1):
 
     return np.log(out)
 
-
+def logp_ubvi(x): return logp_aux(x,K=1)
 
 # define sampler
 ###########
@@ -74,3 +74,21 @@ def w_schedule(k):
 
 smc_w_schedule = lambda k : 5./np.sqrt(k)
 smc_b_schedule = lambda k : 0.5/np.sqrt(k)
+
+
+# CREATE UBVI SCHEDULES
+adam_learning_rate= lambda itr : 0.1/np.sqrt(itr+1)
+ubvi_gamma = lambda itr : 1./np.sqrt(1+itr)
+
+
+# CREATE BVI SCHEDULES
+# schedule tuning
+b1 = 0.001
+gamma_alpha = lambda k : b1 / np.sqrt(k+1)
+
+b2 = 0.001
+gamma_init = lambda k : b2 / np.sqrt(k+1)
+
+# regularization
+ell = 1.
+regularization = lambda k : ell / np.sqrt(k+2)

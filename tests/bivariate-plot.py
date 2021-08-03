@@ -328,7 +328,8 @@ if dens_plots:
             # add labels
             plt.xlim(xlim)
             plt.ylim(ylim)
-            plt.legend(hcps, legends, fontsize = legend_fontsize, frameon = False, ncol=1, loc = 'upper left')#len(legends)
+            #plt.legend(hcps, legends, fontsize = legend_fontsize, frameon = False, ncol=1, loc = 'upper left')#len(legends)
+            plt.legend(hcps, legends, fontsize = 'small', frameon = False, ncol=1, loc = 'upper left')#len(legends)
 
             # save plot
             plt.savefig(path + 'densities/density_comparison'  + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
@@ -346,8 +347,9 @@ if dens_plots:
 
             if lbvi_smc_flag:
                 # add lbvi smc log density
-                ax1.plot(t1, ubvi.logsumexp(lq_lbvi_smc, axis=1), linestyle = 'dashed', color = lbvi_smc_color, label='LBVI', lw = normal_linewidth)
-                ax2.plot(t2, ubvi.logsumexp(lq_lbvi_smc, axis=0), linestyle = 'dashed', color = lbvi_smc_color, label='LBVI', lw = normal_linewidth)
+                ax1.plot(t1, ubvi.logsumexp(np.log(lq_lbvi_smc), axis=1), linestyle = 'dashed', color = lbvi_smc_color, label='LBVI', lw = normal_linewidth)
+                ax2.plot(t2, ubvi.logsumexp(np.log(lq_lbvi_smc), axis=0), linestyle = 'dashed', color = lbvi_smc_color, label='LBVI', lw = normal_linewidth)
+
 
             if lbvi_flag:
                 # add lbvi log density based on kde

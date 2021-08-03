@@ -251,9 +251,17 @@ def new_gaussian(logp, K, diagonal = False, mu0 = None, var0 = None, gamma_init 
 
         # update estimates
         if verbose: print('updating estimates')
+        if np.isinf(grad_mu):
+            print('infinite mu gradient; breaking')
+            break
         mu -= gamma_init(k)*grad_mu
         if verbose: print('new mu: ' + str(mu))
+
+        if np.isinf(grad_Sigma):
+            print('infinite Sigma gradient; breaking')
+            break
         Sigma -= gamma_init(k)*grad_Sigma
+
         if not diagonal and not np.all(np.linalg.eigvals(Sigma) > 0):
             print('covariance matrix not positive definite, taking absolute value')
             Sigma = np.abs(np.linalg.det(Sigma))*np.eye(K)
