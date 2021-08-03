@@ -66,20 +66,6 @@ def kl_mixture(y, w, samples, beta, Zs, logp, direction = 'reverse'):
             if w[n] == 0: continue # don't waste time evaluating the logpdfs if they are not going to add
             obj += w[n]*np.mean(logq(samples[n]) - logp(samples[n]), axis=-1)
         return obj
-        ## FOR TESTING, DELETE LATER OBVIOUSLY
-        #if obj < 0:
-        #    tmp_obj = 0.
-        #    for n in range(y.shape[0]):
-        #        if w[n] == 0: continue # don't waste time evaluating the logpdfs if they are not going to add
-        #        print('n: ' + str(n))
-        #        print('y: ' + str(y[n,:]))
-        #        print('w: ' + str(w[n]))
-        #        print('theta: ' + str(samples[n]))
-        #        print('logq(theta): ' + str(logq(samples[n]).mean()))
-        #        print('logp(theta): ' + str(logp(samples[n]).mean()))
-        #        tmp_obj += w[n]*np.mean(logq(samples[n]) - logp(samples[n]), axis=-1)
-        #        print('cumulative obj: ' + str(tmp_obj))
-        #return obj
     else: raise NotImplementedError
 
 def logsumexp(x):
@@ -238,25 +224,6 @@ def gif_plot(plot_path):
         images.append(imageio.imread(file_name))
         imageio.mimsave(plot_path + 'lin_lbvi.gif', images, fps = 5)
 
-    ##jpg_dir = inpath #+ 'plots/'
-    #jpg_dir = os.listdir(plot_path)
-    #jpg_dir = np.setdiff1d(jpg_dir, 'weight_trace') # get rid of weight trace directory
-    #jpg_dir = np.setdiff1d(jpg_dir, 'tmp')          # get rid of tmp files directory
-    #number = np.zeros(len(jpg_dir))
-    #i = 0
-    ## fix names so they are in correct order
-    #for x in jpg_dir:
-    #    number[i] = int(''.join([ch for ch in x if ch.isdigit()]))
-    #    i = i+1
-    ## end for
-
-    #db = pd.DataFrame({'file_name': jpg_dir, 'number': number})
-    #db = db.sort_values(by=['number'])
-
-    #images = []
-    #for file_name in db.file_name:
-    #    images.append(imageio.imread(plot_path + file_name))
-    #imageio.mimsave(plot_path + 'lbvi.gif', images, fps = 5)
 
 
 ##########################
