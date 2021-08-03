@@ -328,7 +328,7 @@ if dens_plots:
             # add labels
             plt.xlim(xlim)
             plt.ylim(ylim)
-            #plt.legend(hcps, legends, fontsize = legend_fontsize, frameon = False, ncol=3)#len(legends)
+            plt.legend(hcps, legends, fontsize = legend_fontsize, frameon = False, ncol=1, loc = 'upper left')#len(legends)
 
             # save plot
             plt.savefig(path + 'densities/density_comparison'  + str(r+1) + '_' + str(tol) + '.' + extension, dpi=900, bbox_inches='tight')
@@ -542,7 +542,7 @@ if lbvi_smc_flag and bvi_flag and ubvi_flag:
     # add labels and save
     #ax1.set_xlabel('Iteration #')
     ax1.set_ylabel('CPU time (s)')
-    ax1.legend(fontsize = 'xx-small', loc = 'upper left')
+    #ax1.legend(fontsize = 'xx-small', loc = 'upper left')
     #ax2.set_xlabel('Iteration #')
     ax2.set_ylabel('# of kernels')
 
