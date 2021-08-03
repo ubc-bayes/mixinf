@@ -304,6 +304,7 @@ def mix_sample(size, logp, y, w, smc, r_sd, beta, beta_ls):
     values = np.arange(N)
     counts = np.floor(size*tmp_w).astype(int)
     counts[-1] += size - counts.sum()
+    counts[-1] = max(0, counts[-1]) # make sure it's at least 0
 
     if np.any(counts < 0):
         print('Error, negative counts. Counts: ' + str(counts))
