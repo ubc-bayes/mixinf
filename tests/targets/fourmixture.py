@@ -72,8 +72,8 @@ def w_schedule(k):
     #if k == 0: return 1.
     return 0.005
 
-smc_w_schedule = lambda k : 5./np.sqrt(k)
-smc_b_schedule = lambda k : 0.5/np.sqrt(k)
+smc_w_schedule = lambda k : 1./np.sqrt(k)
+smc_b_schedule = lambda k : 0.25/np.sqrt(k)
 
 
 # CREATE UBVI SCHEDULES
