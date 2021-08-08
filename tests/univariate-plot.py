@@ -266,7 +266,7 @@ if dens_plots:
             #plt.ylabel('Log-density')
             #plt.title('Log-density comparison')
             plt.xlim(-40,40)
-            #plt.ylim(-50,5)
+            plt.ylim(-20,5)
             #plt.legend(fontsize = legend_fontsize)
 
             # save plot
