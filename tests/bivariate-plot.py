@@ -517,10 +517,10 @@ if lbvi_smc_flag and bvi_flag and ubvi_flag:
     #ax1.errorbar(range(1,niter+1), bvi_times_median[:niter], yerr = bvi_times_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
     ax1.errorbar(range(1,niter+1), lbvi_times_median[:niter], yerr = lbvi_times_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha, lw = big_lw)
     ax1.errorbar(range(1,niter+1), ubvi_times_median[:niter], yerr = ubvi_times_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha, lw = big_lw)
-    ax1.errorbar(range(1,niter+1), bvi_times_median[:niter], yerr = bvi_times_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
+    #ax1.errorbar(range(1,niter+1), bvi_times_median[:niter], yerr = bvi_times_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
     ax1.plot(range(1,niter+1), lbvi_times_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI', lw = big_lw)
     ax1.plot(range(1,niter+1), ubvi_times_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI', lw = big_lw)
-    ax1.plot(range(1,niter+1), bvi_times_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI', lw = big_lw)
+    #ax1.plot(range(1,niter+1), bvi_times_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI', lw = big_lw)
 
     # kernels error bars
     #ax2.errorbar(range(1,niter+1), lbvi_kernels_median[:niter], yerr = lbvi_kernels_err2[:,:niter], linestyle = 'dotted', color = lbvi_color, alpha = ebalpha2)
@@ -528,10 +528,10 @@ if lbvi_smc_flag and bvi_flag and ubvi_flag:
     #ax2.errorbar(range(1,niter+1), bvi_kernels_median[:niter], yerr = bvi_kernels_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
     ax2.errorbar(range(1,niter+1), lbvi_kernels_median[:niter], yerr = lbvi_kernels_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha, lw = big_lw)
     ax2.errorbar(range(1,niter+1), ubvi_kernels_median[:niter], yerr = ubvi_kernels_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha, lw = big_lw)
-    ax2.errorbar(range(1,niter+1), bvi_kernels_median[:niter], yerr = bvi_kernels_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha, lw = big_lw)
+    #ax2.errorbar(range(1,niter+1), bvi_kernels_median[:niter], yerr = bvi_kernels_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha, lw = big_lw)
     ax2.plot(range(1,niter+1), lbvi_kernels_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI', lw = big_lw)
     ax2.plot(range(1,niter+1), ubvi_kernels_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI', lw = big_lw)
-    ax2.plot(range(1,niter+1), bvi_kernels_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI', lw = big_lw)
+    #ax2.plot(range(1,niter+1), bvi_kernels_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI', lw = big_lw)
 
     # kl error bars
     #ax3.errorbar(range(1,niter+1), lbvi_kl_median[:niter], yerr = lbvi_kl_err2[:,:niter], linestyle = 'dotted', color = lbvi_color, alpha = ebalpha2)
@@ -539,10 +539,10 @@ if lbvi_smc_flag and bvi_flag and ubvi_flag:
     #ax3.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
     ax3.errorbar(range(1,niter+1), lbvi_kl_median[:niter], yerr = lbvi_kl_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha, lw = big_lw)
     ax3.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha, lw = big_lw)
-    ax3.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha, lw = big_lw)
+    #ax3.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha, lw = big_lw)
     ax3.plot(range(1,niter+1), lbvi_kl_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI', lw = big_lw)
     ax3.plot(range(1,niter+1), ubvi_kl_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI', lw = big_lw)
-    ax3.plot(range(1,niter+1), bvi_kl_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI', lw = big_lw)
+    #ax3.plot(range(1,niter+1), bvi_kl_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI', lw = big_lw)
 
     # add labels and save
     #ax1.set_xlabel('Iteration #')
@@ -572,10 +572,10 @@ ebalpha2 = 0.5
 #plt.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err2[:,:niter], linestyle = 'dotted', color = bvi_color, alpha = ebalpha2)
 plt.errorbar(range(1,niter+1), lbvi_kl_median[:niter], yerr = lbvi_kl_err[:,:niter], linestyle = 'solid', color = lbvi_color, alpha = ebalpha)
 plt.errorbar(range(1,niter+1), ubvi_kl_median[:niter], yerr = ubvi_kl_err[:,:niter], linestyle = 'solid', color = ubvi_color, alpha = ebalpha)
-plt.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
+#plt.errorbar(range(1,niter+1), bvi_kl_median[:niter], yerr = bvi_kl_err[:,:niter], linestyle = 'solid', color = bvi_color, alpha = ebalpha)
 plt.plot(range(1,niter+1), lbvi_kl_median[:niter], linestyle = 'solid', color = lbvi_color, label='LBVI')
 plt.plot(range(1,niter+1), ubvi_kl_median[:niter], linestyle = 'solid', color = ubvi_color, label='UBVI')
-plt.plot(range(1,niter+1), bvi_kl_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
+#plt.plot(range(1,niter+1), bvi_kl_median[:niter], linestyle = 'solid', color = bvi_color, label='BVI')
 
 # add labels and save
 
