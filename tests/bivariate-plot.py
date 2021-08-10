@@ -547,6 +547,7 @@ if lbvi_smc_flag and bvi_flag and ubvi_flag:
     # add labels and save
     #ax1.set_xlabel('Iteration #')
     ax1.set_ylabel('CPU time (s)')
+    ax1.set_yscale('log')
     #ax1.legend(fontsize = 'xx-small', loc = 'upper left')
     #ax2.set_xlabel('Iteration #')
     ax2.set_ylabel('# of kernels')

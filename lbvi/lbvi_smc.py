@@ -845,7 +845,7 @@ def weight_opt(alpha_s, n, logp, y, w, beta, beta_ls, r_sd, smc, w_schedule, B =
 
 def choose_component(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, Zs, verbose = False):
     """
-    Choose component that results in greatest KL decrease due to weight perturbation
+    Choose component that results in greatest KL decrease due to beta and weight perturbation
     Input:
     logp    : function, log target density
     y       : (N,K) array with locations
@@ -883,7 +883,7 @@ def choose_component(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, 
 
         for i in range(4):
             # add b_s to grid
-            tmp_curr_beta_ls = np.append(curr_beta_ls, b_s)
+            tmp_curr_beta_ls = np.append(curr_beta_ls, curr_beta_ls[-1] + b_s)
             # update samples
             theta,tmp_Z,ESS = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_curr_beta_ls, Z0 = 1)
             if ESS > 0.9*B:
@@ -893,10 +893,10 @@ def choose_component(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, 
 
 
         # update betas
-        beta_star[n] = b_s
-        curr_beta_ls = np.append(curr_beta_ls, b_s)
+        beta_star[n] = curr_beta_ls[-1] + b_s
+        curr_beta_ls = np.append(curr_beta_ls, curr_beta_ls[-1] + b_s)
         tmp_beta = np.copy(beta)
-        tmp_beta[n] = b_s
+        tmp_beta[n] = curr_beta_ls[-1] + b_s
         tmp_beta_ls = beta_ls.copy()
         tmp_beta_ls[n] = curr_beta_ls
 
@@ -909,7 +909,7 @@ def choose_component(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, 
 
         # for this temporary beta, estimate optimal alpha
         if w[n] == 1:
-            alpha_star[n] = 1 # can't change alpha
+            alpha_star[n] = 1. # can't change alpha
         elif w[n] == 0:
             # if current component is inactive, choose grid of alpha values and select best kl
             tmp_kls = np.zeros(alpha_grid.shape[0])
@@ -919,7 +919,7 @@ def choose_component(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, 
                 alpha = alpha_grid[i]
                 tmp_w = (1-alpha)*w
                 tmp_w[n] += alpha
-                tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, beta, beta_ls, B, Zs)
+                tmp_logq = lambda x : mix_logpdf(x, logp, y, tmp_w, smc, r_sd, tmp_beta, tmp_beta_ls, B, Zs)
                 # calculate kl with this mixture
                 tmp_kls[i] = kl_mixture(y, tmp_w, tmp_samples, tmp_beta, tmp_Zs, logp)
 
@@ -988,6 +988,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
     N = y.shape[0]
     K = y.shape[1]
     beta_ls = [np.linspace(0.,1.,int(1/smc_eps)+1) for n in range(N)]
+    beta_ls = [np.array([0., 0.25, 0.5, 0.75, 1.]) for n in range(N)]
     betas = np.zeros(N)
     w = np.zeros(N)
     if w_schedule is None: w_schedule = lambda k : 1./np.sqrt(k)
@@ -1087,44 +1088,13 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
 
         if verbose: print('Iteration ' + str(iter) + '/' + str(maxiter))
 
-        ## calculate optimal weight perturbation
-        #if verbose: print('Determining optimal α')
-        #w_argmin,w_disc,alpha_s = choose_weight(logp, y, w, betas, beta_ls, r_sd, smc, w_schedule(1), B, samples, Zs, verbose)
-
-        ## calculate optimal beta perturbation
-        #if verbose: print('Determining optimal β')
-        #beta_argmin,beta_disc,beta_s,beta_theta,beta_Z = choose_beta(logp, y, w, betas, beta_ls, r_sd, smc, b_schedule(1), B, samples, Zs, verbose)
-
-        #if verbose: print('Preliminary (α*, β*) = (' + str(alpha_s) + ', ' + str(beta_s) + ')')
-
-        ## determine whether to perturb weight or beta and update active set
-        #if w_disc < beta_disc:
-        #    if verbose: print('Optimizing the α of ' + str(y[w_argmin]))
-        #    active = np.unique(np.append(active, w_argmin))
-        #    w,alpha_s = weight_opt(alpha_s, w_argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, samples, Zs, w_maxiter, verbose)
-        #    if verbose: print('Optimal α*: ' + str(alpha_s))
-        #else:
-        #    if verbose: print('Optimizing the β of ' + str(y[beta_argmin]))
-        #    betas[beta_argmin] = beta_s
-        #    active = np.unique(np.append(active, beta_argmin))
-        #    if cacheing:
-        #        samples[beta_argmin] = beta_theta
-        #        Zs[beta_argmin] = beta_Z
-
-        #    # optimize beta of chosen component
-        #    bopt, thetaopt, Zopt = beta_opt(beta_s, beta_argmin, logp, y, w, betas, beta_ls, r_sd, smc, b_schedule, B = B, samples = samples, Zs = #Zs, maxiter = b_maxiter, verbose = verbose)
-        #    if verbose: print('Optimal β*: ' + str(bopt))
-
-        #    # update samples and normalizing constants
-        #    if cacheing:
-        #        samples[beta_argmin] = thetaopt
-        #        Zs[beta_argmin] = Zopt
-
         # choose component to modify
         argmin, a, b = choose_component(logp, y, w, betas, beta_ls, r_sd, smc, w_schedule(1), B, samples, Zs, verbose)
+        if verbose: print('Modifying ' + str(y[argmin,:]) + ' with β = ' + str(b))
 
         # update betas
         betas[argmin] = b
+        beta_ls[argmin] = np.sort(np.append(beta_ls[argmin], b))
         tmp_logr = lambda x : norm_logpdf(x, y[n,:], r_sd)
         tmp_rsample = lambda B : norm_random(B, y[n,:], r_sd)
         trimmed_beta_ls = beta_ls[argmin][beta_ls[argmin] <= betas[argmin]]
@@ -1135,8 +1105,10 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
 
 
         # optimize weight
-        if verbose: print('Optimizing the α of ' + str(y[argmin]))
-        w,alpha_s = weight_opt(a, argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, samples, Zs, w_maxiter, verbose)
+        if not (active.shape[0] == 1 and active[0] == argmin):
+            # update weight unless mixture has one element
+            if verbose: print('Optimizing the α of ' + str(y[argmin]))
+            w,alpha_s = weight_opt(a, argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, samples, Zs, w_maxiter, verbose)
 
         # update mixture
         active = np.unique(np.append(active, argmin))
