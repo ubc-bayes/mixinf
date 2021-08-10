@@ -885,7 +885,9 @@ def choose_component(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, 
             # add b_s to grid
             tmp_curr_beta_ls = np.append(curr_beta_ls, curr_beta_ls[-1] + b_s)
             # update samples
-            theta,tmp_Z,ESS = smc(logp = logp, logr = logr, r_sample = r_sample, B = B, beta_ls = tmp_curr_beta_ls, Z0 = 1)
+            tmp_logqn = lambda x : smc_logqn(x, logr, logp, curr_beta_ls[-1] + b_s, Zs[n])
+            tmp_qn_sample = lambda B : samples[n][0:B]
+            theta,tmp_Z,ESS = smc(logp = logp, logr = tmp_logqn, r_sample = tmp_qn_sample, B = B, beta_ls = tmp_curr_beta_ls, Z0 = 1.)
             if ESS > 0.9*B:
                 break # if ESS is good, this is the step size we are taking
             else:
@@ -1084,6 +1086,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         #    plt_name = plot_path + 'iter_000'
         #    plotting(logp, y, w, smc, r_sd, betas, beta_ls, plt_name, plot_lims, B = 10000, Zs = Zs)
         ##TODO above is debugging only
+
 
 
         if verbose: print('Iteration ' + str(iter) + '/' + str(maxiter))
