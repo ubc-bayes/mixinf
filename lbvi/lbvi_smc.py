@@ -870,24 +870,30 @@ def choose_component(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, 
     beta_star = np.zeros(N)
     kls = np.zeros(N)
     alpha_grid = np.array([0.1, 0.05, 0.01, 0.005, 0.001, 0.0005]) # for inactive components
+    alt_beta_ls = beta_ls.copy()
 
     for n in range(N):
         # define current reference distribution
         logr = lambda x : norm_logpdf(x, y[n,:], r_sd)
         r_sample = lambda B : norm_random(B, y[n,:], r_sd)
 
+        if beta[n] == 1.:
+            kls[n] = np.inf
+            break # no point doing anything at this point
+
         # determine optimal beta step size
         curr_beta_ls = beta_ls[n]
         curr_beta_ls = curr_beta_ls[curr_beta_ls <= beta[n]]
-        b_s = beta_ls[n][curr_beta_ls.shape[0]+1]-curr_beta_ls[-1] # max increment is to next beta
+        b_s = beta_ls[n][curr_beta_ls.shape[0]]-curr_beta_ls[-1] # max increment is to next beta
+        latest_beta = curr_beta_ls[-1]
 
         for i in range(4):
             # add b_s to grid
-            tmp_curr_beta_ls = np.append(curr_beta_ls, curr_beta_ls[-1] + b_s)
+            curr_beta_ls = np.sort(np.append(curr_beta_ls, latest_beta + b_s))
             # update samples
-            tmp_logqn = lambda x : smc_logqn(x, logr, logp, curr_beta_ls[-1] + b_s, Zs[n])
+            tmp_logqn = lambda x : smc_logqn(x, logr, logp, latest_beta + b_s, Zs[n])
             tmp_qn_sample = lambda B : samples[n][0:B]
-            theta,tmp_Z,ESS = smc(logp = logp, logr = tmp_logqn, r_sample = tmp_qn_sample, B = B, beta_ls = tmp_curr_beta_ls, Z0 = 1.)
+            theta,tmp_Z,ESS = smc(logp = logp, logr = tmp_logqn, r_sample = tmp_qn_sample, B = B, beta_ls = curr_beta_ls, Z0 = 1.)
             if ESS > 0.9*B:
                 break # if ESS is good, this is the step size we are taking
             else:
@@ -895,10 +901,10 @@ def choose_component(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, 
 
 
         # update betas
-        beta_star[n] = curr_beta_ls[-1] + b_s
-        curr_beta_ls = np.append(curr_beta_ls, curr_beta_ls[-1] + b_s)
+        beta_star[n] = latest_beta + b_s
+        alt_beta_ls[n] = np.sort(np.unique(np.append(alt_beta_ls[n], curr_beta_ls)))
         tmp_beta = np.copy(beta)
-        tmp_beta[n] = curr_beta_ls[-1] + b_s
+        tmp_beta[n] = latest_beta + b_s
         tmp_beta_ls = beta_ls.copy()
         tmp_beta_ls[n] = curr_beta_ls
 
@@ -947,7 +953,7 @@ def choose_component(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, 
 
         # end for
     argmin = np.argmin(kls)
-    return argmin, alpha_star[argmin], beta_star[argmin]
+    return argmin, alpha_star[argmin], beta_star[argmin], alt_beta_ls[argmin]
 
 
 
@@ -1092,12 +1098,12 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         if verbose: print('Iteration ' + str(iter) + '/' + str(maxiter))
 
         # choose component to modify
-        argmin, a, b = choose_component(logp, y, w, betas, beta_ls, r_sd, smc, w_schedule(1), B, samples, Zs, verbose)
+        argmin, a, b, ls = choose_component(logp, y, w, betas, beta_ls, r_sd, smc, w_schedule(1), B, samples, Zs, verbose)
         if verbose: print('Modifying ' + str(y[argmin,:]) + ' with β = ' + str(b))
 
         # update betas
         betas[argmin] = b
-        beta_ls[argmin] = np.sort(np.append(beta_ls[argmin], b))
+        beta_ls[argmin] = ls
         tmp_logr = lambda x : norm_logpdf(x, y[n,:], r_sd)
         tmp_rsample = lambda B : norm_random(B, y[n,:], r_sd)
         trimmed_beta_ls = beta_ls[argmin][beta_ls[argmin] <= betas[argmin]]
