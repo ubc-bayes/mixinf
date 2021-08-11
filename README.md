@@ -7,6 +7,12 @@ This repository contains a Python package that can be used to do Bayesian infere
   <img src="cauchy_lp.gif" width="400" />
 </p>
 
+
+<p float="left">
+  <img src="banana.gif" width="400" />
+  <img src="banana_lp.gif" width="400" />
+</p>
+
 ## Repository Status
 
 todo
