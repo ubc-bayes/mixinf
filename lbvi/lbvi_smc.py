@@ -30,12 +30,6 @@ def kl(logq, logp, sampler, B = 1000, direction = 'reverse'):
     theta = sampler(B)
     if direction == 'reverse':
         obj = np.mean(logq(theta) - logp(theta), axis=-1)
-        # TODO DEBUGGING, DELETE LATER
-        #if obj < 0:
-        #    print('theta: ' + str(theta))
-        #    print('logq(theta): ' + str(logq(theta)))
-        #    print('logp(theta): ' + str(logp(theta)))
-        #return np.mean(logq(theta) - logp(theta), axis=-1)
         return obj
     elif direction == 'forward':
         return np.mean(logp(theta) - logq(theta), axis=-1)
@@ -63,6 +57,8 @@ def kl_mixture(y, w, samples, beta, Zs, logp, direction = 'reverse'):
         for n in range(y.shape[0]):
             if w[n] == 0: continue # don't waste time evaluating the logpdfs if they are not going to add
             obj += w[n]*np.mean(logq(samples[n]) - logp(samples[n]), axis=-1)
+        if obj < -10: print(samples)
+
         return obj
     else: raise NotImplementedError
 
@@ -888,6 +884,9 @@ def choose_component(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, 
         latest_beta = curr_beta_ls[-1]
 
         for i in range(4):
+            if latest_beta + b_s == 1.:
+                b_s = b_s/2
+                continue
             # add b_s to grid
             curr_beta_ls = np.sort(np.append(curr_beta_ls, latest_beta + b_s))
             # update samples
@@ -939,7 +938,7 @@ def choose_component(logp, y, w, beta, beta_ls, r_sd, smc, w_gamma, B, samples, 
             Dalpha = kl_grad_alpha(0., logp, y, w, tmp_beta, tmp_beta_ls, r_sd, smc, B, tmp_samples, tmp_Zs, n)
             Dalpha2 = kl_grad2_alpha(0., logp, y, w, tmp_beta, tmp_beta_ls, r_sd, smc, B, tmp_samples, tmp_Zs, n)
             alpha_star[n] -= w_gamma*Dalpha/Dalpha2
-            alpha_star[n] = min(1.,max(-w[n]/(1.-w[n]),alpha_star[n]))
+            alpha_star[n] = min(0.9,max(0.01-w[n]/(1.-w[n]),alpha_star[n]))
 
         # update weights
         tmp_w = (1-alpha_star[n])*w
@@ -995,7 +994,6 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
     t0 = time.perf_counter()
     N = y.shape[0]
     K = y.shape[1]
-    beta_ls = [np.linspace(0.,1.,int(1/smc_eps)+1) for n in range(N)]
     beta_ls = [np.array([0., 0.25, 0.5, 0.75, 1.]) for n in range(N)]
     betas = np.zeros(N)
     w = np.zeros(N)
@@ -1128,6 +1126,11 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
 
         # update mixture
         active = np.unique(np.append(active, argmin))
+        # cull small weights
+        cull = w < 1e-5
+        w[cull] = 0.
+        w = w/w.sum()
+
         logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, betas, beta_ls, B, Zs)
         q_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, betas, beta_ls)
 
@@ -1139,6 +1142,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
             tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, betas, beta_ls)
             cur_obj = kl(logq = logq, logp = logp, sampler = q_sampler, B = 10000)
         obj = np.append(obj, cur_obj)
+        tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, betas, beta_ls)
+        cur_obj = kl(logq = logq, logp = logp, sampler = q_sampler, B = 10000)
         obj_timer = time.perf_counter() - obj_timer
 
         # plot approximation
@@ -1153,6 +1158,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         # update cpu times and active components
         cpu_time = np.append(cpu_time, time.perf_counter() - t0 - obj_timer - plt_timer)
         active_kernels = np.append(active_kernels, w[w>0].shape[0])
+        active = np.argwhere(w>0.)
 
         # stats printout
         if verbose:
@@ -1160,6 +1166,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
             print('Weights: ' + str(w[active]))
             print('Betas: ' + str(betas[active]))
             print('KL: ' + str(obj[-1]))
+            print('Other KL: ' + str(cur_obj))
             print('# of active kernels: ' + str(active_kernels[-1]))
             print('CPU time: ' + str(cpu_time[-1]))
             print('User elapsed time: ' + str(time.perf_counter()-t0))

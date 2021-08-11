@@ -481,8 +481,8 @@ for r in reps:
             # plot optimizing and choosing time
             if verbose: print('Plotting LBVI SMC optimization and decision times')
             plt.clf()
-            plt.plot(1 + np.arange(.shape[0]), ctime, '-k', label = 'Choosing')
-            plt.plot(1 + np.arange(.shape[0]), otime, '-b', label = 'Optimizing')
+            plt.plot(1 + np.arange(ctime.shape[0]), ctime, '-k', label = 'Choosing')
+            plt.plot(1 + np.arange(otime.shape[0]), otime, '-b', label = 'Optimizing')
             plt.xlabel('Iteration')
             plt.ylabel('Time (s)')
             plt.legend(frameon = False)
