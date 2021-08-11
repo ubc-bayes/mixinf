@@ -1056,6 +1056,8 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
     ##########################
     ##########################
     cpu_time = np.array([time.perf_counter() - t0 - obj_timer - plt_timer])
+    choosing_time = np.zeros(maxiter)
+    optimizing_time = np.zeros(maxiter)
     active_kernels = np.array([1.])
     if verbose:
         print('KL: ' + str(obj[-1]))
@@ -1098,8 +1100,11 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         if verbose: print('Iteration ' + str(iter) + '/' + str(maxiter))
 
         # choose component to modify
+        c_timer = time.perf_counter()
         argmin, a, b, ls = choose_component(logp, y, w, betas, beta_ls, r_sd, smc, w_schedule(1), B, samples, Zs, verbose)
         if verbose: print('Modifying ' + str(y[argmin,:]) + ' with β = ' + str(b))
+        choosing_time[iter-1] = time.perf_counter() - c_timer
+
 
         # update betas
         betas[argmin] = b
@@ -1114,10 +1119,12 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
 
 
         # optimize weight
+        c_timer = time.perf_counter()
         if not (active.shape[0] == 1 and active[0] == argmin):
             # update weight unless mixture has one element
             if verbose: print('Optimizing the α of ' + str(y[argmin]))
             w,alpha_s = weight_opt(a, argmin, logp, y, w, betas, beta_ls, r_sd, smc, w_schedule, B, samples, Zs, w_maxiter, verbose)
+        optimizing_time[iter-1] = time.perf_counter() - c_timer
 
         # update mixture
         active = np.unique(np.append(active, argmin))
@@ -1164,4 +1171,4 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         if verbose: print('Generating gif')
         gif_plot(plot_path)
 
-    return y, w, betas, obj, cpu_time, active_kernels
+    return y, w, betas, obj, cpu_time, active_kernels, choosing_time, optimizing_time
