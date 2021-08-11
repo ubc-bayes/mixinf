@@ -1169,7 +1169,6 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
             print('Weights: ' + str(w[active]))
             print('Betas: ' + str(betas[active]))
             print('KL: ' + str(obj[-1]))
-            print('Other KL: ' + str(cur_obj))
             print('# of active kernels: ' + str(active_kernels[-1]))
             print('CPU time: ' + str(cpu_time[-1]))
             print('User elapsed time: ' + str(time.perf_counter()-t0))
