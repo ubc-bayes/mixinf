@@ -57,8 +57,6 @@ def kl_mixture(y, w, samples, beta, Zs, logp, direction = 'reverse'):
         for n in range(y.shape[0]):
             if w[n] == 0: continue # don't waste time evaluating the logpdfs if they are not going to add
             obj += w[n]*np.mean(logq(samples[n]) - logp(samples[n]), axis=-1)
-        if obj < -10: print(samples)
-
         return obj
     else: raise NotImplementedError
 
@@ -105,6 +103,10 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         q = np.exp(lq)
         lp = logp(t[:, np.newaxis])
         p = np.exp(lp)
+
+        ## TODO debugging: print numerical integral of these
+        #print('integral p: ' + str(np.exp(lp).sum()*(x_upper-x_lower)/1000))
+        #print('integral q: ' + str(np.exp(lq).sum()*(x_upper-x_lower)/1000))
 
         # plot lines
         plt.plot(t, p, linestyle = 'solid', color = 'black', label = 'p(x)', lw = 3)
@@ -342,6 +344,7 @@ def mix_logpdf(x, logp, y, w, smc, r_sd, beta, beta_ls, B, Z):
     N = tmp_y.shape[0]
     K = tmp_y.shape[1]
     lps = np.zeros((x.shape[0],N))
+
 
     for n in range(N):
         tmp_logr = lambda x : norm_logpdf(x, tmp_y[n,:], r_sd)
@@ -1107,12 +1110,12 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         # update betas
         betas[argmin] = b
         beta_ls[argmin] = ls
-        tmp_logr = lambda x : norm_logpdf(x, y[n,:], r_sd)
-        tmp_rsample = lambda B : norm_random(B, y[n,:], r_sd)
+        tmp_logr = lambda x : norm_logpdf(x, y[argmin,:], r_sd)
+        tmp_rsample = lambda B : norm_random(B, y[argmin,:], r_sd)
         trimmed_beta_ls = beta_ls[argmin][beta_ls[argmin] <= betas[argmin]]
         theta,tmp_Z,_ = smc(logp = logp, logr = tmp_logr, r_sample = tmp_rsample, B = B, beta_ls = trimmed_beta_ls, Z0 = 1)
-        samples[n] = theta
-        Zs[n] = tmp_Z
+        samples[argmin] = theta
+        Zs[argmin] = tmp_Z
 
 
 
@@ -1132,7 +1135,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
         w = w/w.sum()
 
         logq = lambda x : mix_logpdf(x, logp, y, w, smc, r_sd, betas, beta_ls, B, Zs)
-        q_sampler = lambda B : mix_sample(B, logp, y, w, smc, r_sd, betas, beta_ls)
+        q_sampler = lambda BB : mix_sample(BB, logp, y, w, smc, r_sd, betas, beta_ls)
 
         # estimate objective function
         obj_timer = time.perf_counter()
@@ -1142,7 +1145,7 @@ def lbvi_smc(y, logp, smc, smc_eps = 0.05, r_sd = None, maxiter = 10, w_schedule
             tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, betas, beta_ls)
             cur_obj = kl(logq = logq, logp = logp, sampler = q_sampler, B = 10000)
         obj = np.append(obj, cur_obj)
-        tmp_sampler = lambda B : mix_sample(B, logp, y, tmp_w, smc, r_sd, betas, beta_ls)
+        tmp_sampler = lambda BB : mix_sample(BB, logp, y, tmp_w, smc, r_sd, betas, beta_ls)
         cur_obj = kl(logq = logq, logp = logp, sampler = q_sampler, B = 10000)
         obj_timer = time.perf_counter() - obj_timer
 
