@@ -456,7 +456,7 @@ for r in reps:
                 print('Std. deviation of reference distributions: ' + str(smc_sd))
                 print()
 
-            y, w, betas, obj, cput, act_k, ctime, otime = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_schedule = smc_w_schedule, w_maxiter = smc_w_maxiter, b_schedule = smc_b_schedule, b_maxiter = smc_b_maxiter, B = B, cacheing = smc_cacheing, verbose = verbose, plot = plotting, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
+            y, w, betas, beta_ls, obj, cput, act_k, ctime, otime = lbvi_smc.lbvi_smc(y = y, logp = logp, smc = smc, smc_eps = smc_eps, r_sd = smc_sd, maxiter = maxiter, w_schedule = smc_w_schedule, w_maxiter = smc_w_maxiter, b_schedule = smc_b_schedule, b_maxiter = smc_b_maxiter, B = B, cacheing = smc_cacheing, verbose = verbose, plot = plotting, plot_path = tmp_path + 'plots/', plot_lims = plt_lims, gif = True)
 
             # save results
             if verbose: print('Saving LBVI results')
@@ -467,6 +467,8 @@ for r in reps:
             np.save(tmp_path + 'obj_' + str(r) + '_' + str(tol) + '.npy', obj)
             np.save(tmp_path + 'kernels_' + str(r) + '_' + str(tol) + '.npy', act_k)
             np.save(tmp_path + 'kl_' + str(r) + '_' + str(tol) + '.npy', obj)
+            os.makedirs(tmp_path + 'beta_ls_' + str(r) + '_' + str(tol) + '/')
+            for n in range(N): np.save(tmp_path + 'beta_ls_' + str(r) + '_' + str(tol) + '/beta_ls_' + str(n+1) + '.npy', beta_ls[n])
 
 
             # plot trace
