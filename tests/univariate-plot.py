@@ -172,7 +172,7 @@ if dens_plots:
                 y = np.load(tmp_path + 'y_' + str(r+1) + '_' + str(tol) + '.npy')
                 w = np.load(tmp_path + 'w_' + str(r+1) + '_' + str(tol) + '.npy')
                 betas = np.load(tmp_path + 'betas_' + str(r+1) + '_' + str(tol) + '.npy')
-                beta_ls = [np.linspace(0,1,int(1/smc_eps)+1) for n in range(y.shape[0])]
+                beta_ls = [np.load(tmp_path +'beta_ls_' + str(r+1) + '_' + str(tol) + '/beta_ls_' + str(n+1) + '.npy') for n in range(y.shape[0])]
                 lbvi_smc_logq = lambda x : lbvi_smc.mix_logpdf(x, logp, y, w, smc, smc_sd, betas, beta_ls, 10000, None)
 
             if lbvi_flag:
@@ -266,7 +266,7 @@ if dens_plots:
             #plt.ylabel('Log-density')
             #plt.title('Log-density comparison')
             plt.xlim(-40,40)
-            #plt.ylim(-50,5)
+            plt.ylim(-20,5)
             #plt.legend(fontsize = legend_fontsize)
 
             # save plot
@@ -483,6 +483,7 @@ if lbvi_smc_flag and bvi_flag and ubvi_flag:
     # add labels and save
     #ax1.set_xlabel('Iteration #')
     ax1.set_ylabel('CPU time (s)')
+    ax1.set_yscale('log')
     #ax1.legend(fontsize = 'xx-small', loc = 'upper left')
     #ax2.set_xlabel('Iteration #')
     ax2.set_ylabel('# of kernels')

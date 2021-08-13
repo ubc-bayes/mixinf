@@ -18,6 +18,8 @@ def logp_aux(x, K = 1):
     nu = 0.5 * (1+K)
     return np.squeeze(loggamma(nu) - nu*np.log(np.pi) -  nu*np.log( 1 + ((x - mu)**2).sum(axis = -1) ))
 
+#def logp_aux(x,K=1): return -np.log(np.pi) - np.log(1+np.sum(x**2, axis=-1))
+
 # for ubvi code
 #def logp_ubvi(x): return (- np.log(1 + x**2) - np.log(np.pi)).flatten()
 def logp_ubvi(x): return logp_aux(x,K=1)

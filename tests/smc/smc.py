@@ -44,10 +44,10 @@ def create_smc(sd, steps):
     def smc(logp, logr, r_sample, B, beta_ls, Z0 = None):
         # input:
         # logp        : log density of target distribution
-        # logr        : log density of reference distribution
+        # logr        : log density of reference distribution; normalized
         # r_sample    : function that generates a sample from reference distribution
         # B           : integer, number of particles
-        # beta_ls     : (n_steps+1) array with the values of the beta partition (with beta_ls[0] = 0)
+        # beta_ls     : (n_steps+1) array with the values of the beta partition
         # Z0          : None or float with normalizing constant of r
         #
         # output:
@@ -56,10 +56,11 @@ def create_smc(sd, steps):
         # ESS         : effective sample size
 
 
-        x = r_sample(B)                 # init sample points
-        n_steps = beta_ls.shape[0]-1    # take 1 off to account for first beta
-        logm = lambda x : logr(x)       # first target is the reference
-        logZ = np.zeros(max(0,n_steps)) # for tracking normalizing constant log ratios
+        x = r_sample(B)                                     # init sample points
+        n_steps = beta_ls.shape[0]-1                        # take 1 off to account for first beta
+        beta = beta_ls[0]
+        logm = lambda x : (1.-beta)*logr(x) + beta*logp(x)  # first target is the reference
+        logZ = np.zeros(max(0,n_steps))                     # for tracking normalizing constant log ratios
         ESS = None
 
         for k in range(n_steps):
