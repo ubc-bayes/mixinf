@@ -212,13 +212,13 @@ def gif_plot(plot_path):
     images = []
     for file_name in logs:
         images.append(imageio.imread(file_name))
-        imageio.mimsave(plot_path + 'log_lbvi.gif', images, fps = 5)
+        imageio.mimsave(plot_path + 'log_lbvi.gif', images, fps = 2)
 
     # create lin gif
     images = []
     for file_name in lins:
         images.append(imageio.imread(file_name))
-        imageio.mimsave(plot_path + 'lin_lbvi.gif', images, fps = 5)
+        imageio.mimsave(plot_path + 'lin_lbvi.gif', images, fps = 2)
 
 
 
