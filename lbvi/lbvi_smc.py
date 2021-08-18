@@ -112,7 +112,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         plt.plot(t, p, linestyle = 'solid', color = 'black', label = 'p(x)', lw = 3)
         plt.plot(t, q, linestyle = 'dashed', color = '#39558CFF', label='q(x)', lw = 3)
         #plot
-        plt.scatter(y[:, 0], np.zeros(y.shape[0]))
+        #plt.scatter(y[:, 0], np.zeros(y.shape[0]))
 
         # beautify and save plot
         plt.ylim(0, y_upper)
@@ -167,7 +167,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         hcps.append(hcq[0])
         legends.append('q(x)')
         #plot starting locs
-        plt.scatter(y[:, 0], y[:, 1])
+        #plt.scatter(y[:, 0], y[:, 1])
 
         # beautify and save plot
         plt.ylim(y_lower, y_upper)
@@ -187,7 +187,7 @@ def plotting(logp, y, w, smc, r_sd, beta, beta_ls, plt_name, plt_lims, B = 10000
         hcps.append(hcq[0])
         legends.append('q(x)')
         # plot starting locs
-        plt.scatter(y[:, 0], y[:, 1])
+        #plt.scatter(y[:, 0], y[:, 1])
 
         # beautify and save plot
         plt.ylim(y_lower, y_upper)
