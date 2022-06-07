@@ -5,7 +5,7 @@ This repository contains a Python package that can be used to do Bayesian infere
 ## Directory roadmap
 
 Each directory contains its own README file. In general:
-- `lbvi` contains the main functions used for L-BVI Bayesian inference
+- `lbvi` contains the main functions used for LBVI Bayesian inference
 - `tests` contains tests used for the paper; see README within for reproducibility  
 
 
