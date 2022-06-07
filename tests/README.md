@@ -15,3 +15,5 @@ Test subdirectories run LBVI and other VI and MCMC routines and compare the resu
 * `targets` contains the targets that are approximated in the examples
 * `RKHSkernels` contains the RKHS kernels that are used to define the KSD
 * `kernels` contains the kernels that are used to build the mixture
+* `smc` contains the SMC mixture components for `lbvi_smc.py`
+* `network-model` is a deprecated model; do not use
