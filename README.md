@@ -8,6 +8,8 @@ Each directory contains its own README file. In general:
 - `lbvi` contains the main functions used for L-BVI Bayesian inference
 - `tests` contains tests used for the paper; see README within for reproducibility  
 
+
+
 <p float="left">
   <img src="cauchy.gif" width="400" />
   <img src="cauchy_lp.gif" width="400" />
